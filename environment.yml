@@ -1,0 +1,7 @@
+name: catan_env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.4
+  - flask
+  - nodejs  # For Angular CLI
