@@ -1,9 +1,35 @@
 {
   "version": 2,
-  "buildCommand": "ng build",
+  "buildCommand": "ng build --configuration production",
   "outputDirectory": "dist/front",
+  "framework": "angular",
   "routes": [
+    {
+      "src": "/assets/(.*)",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" },
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/(.*).js",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" },
+      "dest": "/$1.js"
+    },
+    {
+      "src": "/(.*).css",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" },
+      "dest": "/$1.css"
+    },
     { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    }
   ]
 }
