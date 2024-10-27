@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "public": true,
-  "name": "Catan",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
+  "buildCommand": "ng build",
+  "outputDirectory": "dist/front",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
