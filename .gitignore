@@ -1,0 +1,33 @@
+# System Files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.editorconfig
+
+# Visual Studio Code
+.vscode/
+.history/
+
+# Environment Files
+.env
+.env.*
+
+# Logs and Debug Files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*~

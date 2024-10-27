@@ -1,0 +1,21 @@
+# Rust Specific
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Build Artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.rlib
+
+# Generated Documentation
+/doc/
+
+# Debug Files
+*.pdb
+
+# Environment Files
+.env
+.env.*

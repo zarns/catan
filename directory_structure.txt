@@ -1,0 +1,72 @@
+Catan Project Directory Structure
+Generated at: 2024-10-27 09:00:39
+Root path: C:\Users\mason\programming\catan
+
+
+📁 catan/
+📁 back/
+│   📄 Cargo.toml
+│   📁 src/
+│   │   📄 main.rs
+│   │   📁 game/
+│   │   │   📄 ai.rs
+│   │   │   📄 board.rs
+│   │   │   📄 manager.rs
+│   │   │   📄 mod.rs
+│   │   │   📄 types.rs
+│   │   📁 handlers/
+│   │   │   📄 mod.rs
+│   │   │   📄 ws.rs
+│   │   📁 models/
+│   │   │   📄 mod.rs
+📁 front/
+│   📄 README.md
+│   📄 angular.json
+│   📄 package-lock.json
+│   📄 package.json
+│   📄 tsconfig.app.json
+│   📄 tsconfig.json
+│   📄 tsconfig.spec.json
+│   📁 .vscode/
+│   │   📄 extensions.json
+│   │   📄 launch.json
+│   │   📄 tasks.json
+│   📁 public/
+│   📁 src/
+│   │   📄 main.ts
+│   │   📁 app/
+│   │   │   📄 app.component.spec.ts
+│   │   │   📄 app.component.ts
+│   │   │   📄 app.config.ts
+│   │   │   📄 app.routes.ts
+│   │   │   📁 core/
+│   │   │   │   📄 core.module.ts
+│   │   │   │   📁 services/
+│   │   │   │   │   📄 game.service.spec.ts
+│   │   │   │   │   📄 game.service.ts
+│   │   │   │   │   📄 websocket.service.spec.ts
+│   │   │   │   │   📄 websocket.service.ts
+│   │   │   📁 game/
+│   │   │   │   📄 game-routing.module.ts
+│   │   │   │   📄 game.module.ts
+│   │   │   │   📁 components/
+│   │   │   │   │   📁 dice-roller/
+│   │   │   │   │   │   📄 dice-roller.component.spec.ts
+│   │   │   │   │   │   📄 dice-roller.component.ts
+│   │   │   │   │   📁 game-board/
+│   │   │   │   │   │   📄 game-board.component.spec.ts
+│   │   │   │   │   │   📄 game-board.component.ts
+│   │   │   │   │   📁 player-hand/
+│   │   │   │   │   │   📄 player-hand.component.spec.ts
+│   │   │   │   │   │   📄 player-hand.component.ts
+│   │   │   │   │   📁 resource-counter/
+│   │   │   │   │   │   📄 resource-counter.component.spec.ts
+│   │   │   │   │   │   📄 resource-counter.component.ts
+│   │   │   │   📁 models/
+│   │   │   │   📁 store/
+│   │   │   │   │   📁 actions/
+│   │   │   │   │   📁 effects/
+│   │   │   │   │   📁 reducers/
+│   │   │   │   │   📁 selectors/
+│   │   │   📁 shared/
+│   │   │   │   📄 shared.module.ts
