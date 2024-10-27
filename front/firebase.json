@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist/catan",
+    "public": "dist/catan/browser",
     "ignore": [
       "firebase.json",
       "**/.*",
