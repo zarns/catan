@@ -3,14 +3,6 @@
   "public": true,
   "name": "Catan",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api"
-    }
-  ],
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "dist/front/**"
-    }
-  }
+    { "source": "/(.*)", "destination": "/api" }
+  ]
 }
