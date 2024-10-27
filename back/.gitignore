@@ -3,6 +3,10 @@
 **/*.rs.bk
 Cargo.lock
 
+# Shuttle Specific
+.shuttle*
+Secrets*.toml
+
 # Build Artifacts
 *.o
 *.so

@@ -78,7 +78,7 @@ impl GameWebSocket {
 
     fn handle_command(&mut self, cmd: GameCommand, ctx: &mut ws::WebsocketContext<Self>) {
         let response = match cmd {
-            GameCommand::JoinGame { player_name } => {
+            GameCommand::JoinGame { player_name: _ } => {
                 let mut game_manager = self.game_manager.lock().unwrap();
                 
                 // Generate player ID if none exists
