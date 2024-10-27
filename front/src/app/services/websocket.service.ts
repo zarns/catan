@@ -1,6 +1,20 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { GameMessage, GameMessageType } from '../models/game-message';
+import { environment } from '../../environments/environment';
+
+// Define types if not already in a separate file
+export interface GameMessage {
+  type: GameMessageType;
+  payload: any;
+}
+
+export enum GameMessageType {
+  JOIN_GAME = 'JoinGame',
+  CREATE_GAME = 'CreateGame',
+  GAME_STATE = 'GameState',
+  PLAYER_ACTION = 'PlayerAction',
+  ERROR = 'Error'
+}
 
 @Injectable({
   providedIn: 'root'
@@ -8,21 +22,21 @@ import { GameMessage, GameMessageType } from '../models/game-message';
 export class WebSocketService {
   private socket: WebSocket | null = null;
   private messageSubject = new BehaviorSubject<GameMessage | null>(null);
-  private readonly WS_URL = window.location.hostname === 'localhost' 
-    ? 'ws://127.0.0.1:8000/ws'
-    : 'wss://catan.shuttleapp.rs/ws';
+  private readonly wsUrl = environment.wsUrl;
 
   connect(): void {
     if (this.socket?.readyState !== WebSocket.OPEN) {
-      this.socket = new WebSocket(this.WS_URL);
+      console.log(`Connecting to WebSocket at ${this.wsUrl}`);
+      this.socket = new WebSocket(this.wsUrl);
       
       this.socket.onopen = () => {
-        console.log('WebSocket connected');
+        console.log(`Connected to ${this.wsUrl}`);
       };
 
       this.socket.onmessage = (event) => {
         try {
-          const message: GameMessage = JSON.parse(event.data);
+          const message = JSON.parse(event.data);
+          console.log('Received message:', message);
           this.messageSubject.next(message);
         } catch (error) {
           console.error('Error parsing message:', error);
@@ -31,8 +45,10 @@ export class WebSocketService {
 
       this.socket.onclose = () => {
         console.log('WebSocket disconnected');
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => this.connect(), 5000);
+        // Optional: Implement reconnection logic
+        if (!environment.production) {
+          setTimeout(() => this.connect(), 5000);
+        }
       };
 
       this.socket.onerror = (error) => {
@@ -43,7 +59,11 @@ export class WebSocketService {
 
   sendMessage(type: GameMessageType, payload: any): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      const message: GameMessage = { type, payload };
+      // Format the message to match Rust's expected format
+      const message = {
+        [type]: payload
+      };
+      console.log('Sending message:', message);
       this.socket.send(JSON.stringify(message));
     } else {
       console.error('WebSocket is not connected');

@@ -3,22 +3,30 @@ on:
   push:
     branches:
       - main
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: 'front/package-lock.json'
+      
+      - name: Install Dependencies
+        working-directory: ./front
+        run: npm ci
+      
       - name: Build
         working-directory: ./front
-        run: |
-          npm ci
-          npm run build -- --configuration production
-          ls -la dist/catan  # Debug step to verify files
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          BACKEND_WS_URL: ${{ secrets.BACKEND_WS_URL }}
+        run: npm run build
+      
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
