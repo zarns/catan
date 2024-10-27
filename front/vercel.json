@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "ng build --prod",
-  "outputDirectory": "dist/your-app-name",
+  "outputDirectory": "dist/catan",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
