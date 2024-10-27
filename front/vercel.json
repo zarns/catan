@@ -1,9 +1,16 @@
 {
   "version": 2,
-  "buildCommand": "ng build",
-  "outputDirectory": "dist",
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "public": true,
+  "name": "Catan",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "dist/front/**"
+    }
+  }
 }
