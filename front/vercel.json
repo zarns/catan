@@ -1,29 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist/front"
-      }
-    }
-  ],
+  "buildCommand": "ng build",
+  "outputDirectory": "dist/front",
   "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/dist/front/assets/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/dist/front/favicon.ico"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/front/index.html"
-    }
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
