@@ -2,8 +2,7 @@
   "version": 2,
   "buildCommand": "ng build",
   "outputDirectory": "dist/front",
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
