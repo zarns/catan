@@ -2,6 +2,12 @@
   "version": 2,
   "buildCommand": "ng build --configuration production",
   "outputDirectory": "dist/catan",
+  "builds": [
+    {
+      "src": "dist/catan/**/*",
+      "use": "@vercel/static"
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
