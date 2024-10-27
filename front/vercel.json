@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "ng build",
-  "outputDirectory": "dist/front",
+  "outputDirectory": "dist/catan",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
