@@ -1,0 +1,44 @@
+<!-- src/app/components/board/board.component.html -->
+<div class="board-container">
+  <button 
+    (click)="generateDefaultHexPositions()"
+    style="position: absolute; top: 10px; left: 10px; z-index: 100;">
+    Regenerate Board
+  </button>
+    <svg [attr.viewBox]="getViewBox()" class="board">
+    <!-- Debug grid -->
+    <g class="debug-grid" *ngIf="showDebugGrid">
+      <line *ngFor="let line of getDebugGridLines()"
+        [attr.x1]="line.x1" 
+        [attr.y1]="line.y1"
+        [attr.x2]="line.x2" 
+        [attr.y2]="line.y2"
+        stroke="rgba(255,0,0,0.2)" 
+        stroke-width="1"/>
+    </g>
+
+    <!-- Hexes with position debugging -->
+    <g *ngFor="let pos of gameState?.board?.hexes || generateDefaultHexPositions(); let i = index">
+      <polygon
+        [attr.points]="getHexPoints(pos.position)"
+        [class]="'hex ' + getHexClass(pos.terrain || TerrainType.Desert)"
+        (click)="onHexClick(pos)"
+      />
+      <!-- Debug text showing coordinates -->
+      <text
+        [attr.x]="pos.position.x"
+        [attr.y]="pos.position.y"
+        class="debug-text"
+        fill="white"
+        text-anchor="middle"
+      >{{i}}</text>
+      
+      <g *ngIf="pos.token"
+         [attr.transform]="'translate(' + getHexCenter(pos.position).x + ',' + getHexCenter(pos.position).y + ')'">
+        <circle r="20" class="token-background"/>
+        <text class="token-number" dy=".3em">{{pos.token}}</text>
+        <text class="token-dots" dy="1.5em">{{getTokenDots(pos.token)}}</text>
+      </g>
+    </g>
+  </svg>
+</div>

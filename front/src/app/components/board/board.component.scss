@@ -1,0 +1,67 @@
+// src/app/components/board/board.component.scss
+.board-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e6f2ff;
+  padding: 1rem;
+}
+
+.board {
+  width: 100%;
+  height: 100%;
+  max-width: 48rem;
+}
+
+.board-background {
+  fill: #cce4ff;
+}
+
+.hex {
+  stroke-width: 2;
+  stroke: #4a5568;
+  transition: all 0.3s;
+  
+  &:hover {
+    stroke: white;
+    cursor: pointer;
+    filter: brightness(110%);
+  }
+
+  &.hills { fill: #ff9b71; }
+  &.forest { fill: #2d5a27; }
+  &.mountains { fill: #7d7f7d; }
+  &.fields { fill: #e0c068; }
+  &.pasture { fill: #90cc16; }
+  &.desert { fill: #e1c699; }
+}
+
+.token-background {
+  fill: #f4d03f;
+  stroke: #4a5568;
+}
+
+.token-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: #1a202c;
+}
+
+.token-dots {
+  font-size: 0.875rem;
+  text-anchor: middle;
+  fill: #1a202c;
+}
+
+.debug-text {
+  font-size: 12px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.debug-grid {
+  pointer-events: none;
+}

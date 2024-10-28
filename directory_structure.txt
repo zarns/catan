@@ -1,5 +1,5 @@
 Catan Project Directory Structure
-Generated at: 2024-10-27 14:24:11
+Generated at: 2024-10-28 09:52:34
 Root path: C:\Users\mason\programming\catan
 
 
@@ -35,6 +35,10 @@ Root path: C:\Users\mason\programming\catan
 │   │   📁 cache/
 │   │   │   📁 18.2.10/
 │   │   │   │   📁 catan/
+│   │   │   │   │   📁 vite/
+│   │   │   │   │   │   📁 deps/
+│   │   │   │   │   │   │   📄 _metadata.json
+│   │   │   │   │   │   │   📄 package.json
 │   📁 .firebase/
 │   📁 .vscode/
 │   │   📄 extensions.json
@@ -57,3 +61,6 @@ Root path: C:\Users\mason\programming\catan
 │   │   │   📁 services/
 │   │   │   │   📄 websocket.service.spec.ts
 │   │   │   │   📄 websocket.service.ts
+│   │   📁 environments/
+│   │   │   📄 environment.production.ts
+│   │   │   📄 environment.ts
