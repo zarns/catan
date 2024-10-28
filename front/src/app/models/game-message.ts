@@ -1,9 +1,8 @@
 export interface GameMessage {
-  type: string;
-  payload: any;  // We can make this more specific later
+  type: GameMessageType;
+  payload: any;
 }
 
-// You might also want to define specific message types
 export enum GameMessageType {
   JOIN_GAME = 'JoinGame',
   CREATE_GAME = 'CreateGame',
@@ -12,12 +11,15 @@ export enum GameMessageType {
   ERROR = 'Error'
 }
 
-// Specific payload types
 export interface JoinGamePayload {
-  playerName: string;
+  player_name: string;  // Note: using snake_case to match Rust
 }
 
 export interface GameStatePayload {
   players: string[];
-  // Add other game state properties as needed
+  // Add other game state properties from your Rust backend
+}
+
+export interface ErrorPayload {
+  message: string;
 }

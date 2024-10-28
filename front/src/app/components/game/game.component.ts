@@ -1,8 +1,57 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WebSocketService } from '../../services/websocket.service';
-import { GameMessage, GameMessageType } from '../../models/game-message';
 import { Subscription } from 'rxjs';
+
+// Import interfaces and types
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface Player {
+  id: string;
+  name: string;
+  resources: Record<string, number>;
+  development_cards: string[];
+  roads: string[];
+  settlements: string[];
+  cities: string[];
+  knights_played: number;
+}
+
+interface Board {
+  hexes: Array<{
+    position: Position;
+    terrain: string;
+    token: number | null;
+    has_robber: boolean;
+  }>;
+  harbors: Array<{
+    position: Position;
+    harbor_type: string;
+  }>;
+  roads: Record<string, string>;
+  settlements: Record<string, string>;
+}
+
+interface GameState {
+  players: Record<string, Player>;
+  board: Board;
+  current_turn: string;
+  dice_value: number | null;
+  phase: {
+    Setup?: 'PlacingFirstSettlement' | 'PlacingFirstRoad' | 'PlacingSecondSettlement' | 'PlacingSecondRoad';
+  };
+  robber_position: Position;
+}
+
+interface GameJoinedResponse {
+  GameJoined: {
+    player_id: string;
+    game_state: GameState;
+  };
+}
 
 @Component({
   selector: 'app-game',
@@ -17,7 +66,7 @@ import { Subscription } from 'rxjs';
         </p>
       </div>
 
-      <div class="controls">
+      <div class="controls" *ngIf="!gameState">
         <input 
           #playerName
           type="text" 
@@ -32,8 +81,30 @@ import { Subscription } from 'rxjs';
         </button>
       </div>
 
-      <div class="messages">
-        <h3>Game Messages:</h3>
+      <div class="game-state" *ngIf="gameState">
+        <div class="phase-info">
+          <h3>Game Phase</h3>
+          <p>{{ gameState.phase | json }}</p>
+        </div>
+
+        <div class="players-list">
+          <h3>Players</h3>
+          <div *ngFor="let player of gameState.players | keyvalue" 
+               [class.current-turn]="player.key === gameState.current_turn"
+               class="player-info">
+            <p>{{ player.value.name }}</p>
+            <p *ngIf="player.key === playerId">(You)</p>
+          </div>
+        </div>
+
+        <div class="board-info">
+          <h3>Game Board</h3>
+          <!-- Board visualization will go here -->
+        </div>
+      </div>
+
+      <div class="debug-info">
+        <h3>Debug Messages:</h3>
         <div class="message-list">
           <div *ngFor="let message of messages" 
                class="message-item">
@@ -103,23 +174,48 @@ import { Subscription } from 'rxjs';
         @apply bg-gray-200;
       }
     }
+
+    .player-info {
+      @apply p-2 border rounded mb-2;
+    }
+
+    .current-turn {
+      @apply bg-blue-100;
+    }
   `]
 })
 export class GameComponent implements OnInit, OnDestroy {
-  messages: GameMessage[] = [];
+  messages: any[] = [];
   isConnected = false;
-  private subscription: Subscription | null = null;
+  gameState: GameState | null = null;
+  playerId: string | null = null;
+  private subscriptions: Subscription[] = [];
 
   constructor(private wsService: WebSocketService) {}
 
   ngOnInit() {
     this.wsService.connect();
-    this.subscription = this.wsService.getMessages().subscribe(message => {
-      if (message) {
-        this.messages.push(message);
-        this.handleMessage(message);
-      }
-    });
+    
+    this.subscriptions.push(
+      this.wsService.isConnected().subscribe(
+        connected => {
+          console.log('Connection status changed:', connected);
+          this.isConnected = connected;
+        }
+      )
+    );
+
+    this.subscriptions.push(
+      this.wsService.getMessages().subscribe(
+        message => {
+          if (message) {
+            console.log('Received message:', message);
+            this.messages.push(message);
+            this.handleMessage(message);
+          }
+        }
+      )
+    );
   }
 
   joinGame(playerName: string) {
@@ -128,25 +224,59 @@ export class GameComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.wsService.sendMessage(
-      GameMessageType.JOIN_GAME,
-      { playerName: playerName.trim() }
-    );
+    if (!this.wsService.getConnectionStatus()) {
+      alert('Not connected to server. Please wait...');
+      return;
+    }
+
+    this.wsService.sendMessage('JoinGame', {
+      player_name: playerName.trim()
+    });
   }
 
-  private handleMessage(message: GameMessage) {
-    switch (message.type) {
-      case GameMessageType.GAME_STATE:
-        // Handle game state update
-        break;
-      case GameMessageType.ERROR:
-        // Handle error message
-        break;
+  private handleMessage(message: any) {
+    console.log('Handling message:', message);
+    
+    if ('GameJoined' in message) {
+      const response = message as GameJoinedResponse;
+      this.playerId = response.GameJoined.player_id;
+      this.gameState = response.GameJoined.game_state;
+      this.handleGameState();
+    } else if ('Error' in message) {
+      console.error('Error from server:', message.Error);
     }
   }
 
+  private handleGameState() {
+    if (!this.gameState) return;
+
+    const isMyTurn = this.gameState.current_turn === this.playerId;
+    
+    if (this.gameState.phase.Setup === 'PlacingFirstSettlement') {
+      console.log('Player should place their first settlement');
+      // Enable settlement placement UI
+    }
+  }
+
+  placeSettlement(position: Position) {
+    if (!this.gameState?.phase.Setup) return;
+    
+    this.wsService.sendMessage('PlaceSettlement', {
+      position: position
+    });
+  }
+
+  placeRoad(start: Position, end: Position) {
+    if (!this.gameState?.phase.Setup) return;
+    
+    this.wsService.sendMessage('PlaceRoad', {
+      start: start,
+      end: end
+    });
+  }
+
   ngOnDestroy() {
-    this.subscription?.unsubscribe();
+    this.subscriptions.forEach(sub => sub.unsubscribe());
     this.wsService.disconnect();
   }
 }
