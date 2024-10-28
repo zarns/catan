@@ -7,17 +7,27 @@ export interface PixelPosition {
     y: number;
 }
 
+// src/app/components/board/coordinates.ts
 export const CATAN_LAYOUT = [
-    // Row 1 (top)
-    [0, 0], [2, 0], [4, 0],
-    // Row 2
-    [-1, 2], [1, 2], [3, 2], [5, 2],
-    // Row 3 (middle)
-    [-2, 4], [0, 4], [2, 4], [4, 4], [6, 4],
-    // Row 4
-    [-1, 6], [1, 6], [3, 6], [5, 6],
-    // Row 5 (bottom)
-    [0, 8], [2, 8], [4, 8]
+  { q: -2, r: 0 },
+  { q: -2, r: 1 },
+  { q: -2, r: 2 },
+  { q: -1, r: -1 },
+  { q: -1, r: 0 },
+  { q: -1, r: 1 },
+  { q: -1, r: 2 },
+  { q: 0, r: -2 },
+  { q: 0, r: -1 },
+  { q: 0, r: 0 },
+  { q: 0, r: 1 },
+  { q: 0, r: 2 },
+  { q: 1, r: -2 },
+  { q: 1, r: -1 },
+  { q: 1, r: 0 },
+  { q: 1, r: 1 },
+  { q: 2, r: -2 },
+  { q: 2, r: -1 },
+  { q: 2, r: 0 }
 ];
 
 export function tilePixelVector(

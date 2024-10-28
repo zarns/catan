@@ -1,43 +1,57 @@
 <!-- src/app/components/board/board.component.html -->
 <div class="board-container">
   <button 
-    (click)="generateDefaultHexPositions()"
+    (click)="hexes = generateDefaultHexPositions()"
     style="position: absolute; top: 10px; left: 10px; z-index: 100;">
     Regenerate Board
   </button>
-    <svg [attr.viewBox]="getViewBox()" class="board">
-    <!-- Debug grid -->
+  <svg [attr.viewBox]="getViewBox()" class="board">
+    <!-- Debug grid (optional) -->
     <g class="debug-grid" *ngIf="showDebugGrid">
-      <line *ngFor="let line of getDebugGridLines()"
-        [attr.x1]="line.x1" 
-        [attr.y1]="line.y1"
-        [attr.x2]="line.x2" 
-        [attr.y2]="line.y2"
-        stroke="rgba(255,0,0,0.2)" 
-        stroke-width="1"/>
+      <!-- Lines for debugging -->
     </g>
 
-    <!-- Hexes with position debugging -->
-    <g *ngFor="let pos of gameState?.board?.hexes || generateDefaultHexPositions(); let i = index">
+    <!-- Hexes -->
+    <g *ngFor="let pos of hexes; let i = index">
+      <!-- Render hex tiles first -->
       <polygon
         [attr.points]="getHexPoints(pos.position)"
         [class]="'hex ' + getHexClass(pos.terrain || TerrainType.Desert)"
         (click)="onHexClick(pos)"
       />
-      <!-- Debug text showing coordinates -->
-      <text
-        [attr.x]="pos.position.x"
-        [attr.y]="pos.position.y"
-        class="debug-text"
-        fill="white"
-        text-anchor="middle"
-      >{{i}}</text>
-      
-      <g *ngIf="pos.token"
+
+      <!-- Token (number and dots) -->
+      <g *ngIf="pos.token !== null && pos.token !== undefined"
          [attr.transform]="'translate(' + getHexCenter(pos.position).x + ',' + getHexCenter(pos.position).y + ')'">
         <circle r="20" class="token-background"/>
         <text class="token-number" dy=".3em">{{pos.token}}</text>
         <text class="token-dots" dy="1.5em">{{getTokenDots(pos.token)}}</text>
+      </g>
+    </g>
+
+    <!-- Render roads after tiles -->
+    <g>
+      <g *ngFor="let pos of hexes">
+        <g *ngFor="let edge of getUniqueRoadPositions(pos)">
+          <polygon
+            [attr.points]="getRoadPoints(edge.start, edge.end)"
+            class="road"
+            (click)="onRoadClick({start: edge.start, end: edge.end})"
+          />
+        </g>
+      </g>
+    </g>
+
+    <!-- Render settlements on top of everything -->
+    <g>
+      <g *ngFor="let pos of hexes">
+        <g *ngFor="let settlementPos of getUniqueSettlementPositions(pos)">
+          <polygon 
+            [attr.points]="getSettlementPoints(settlementPos)"
+            [class]="getSettlementClasses(settlementPos)"
+            (click)="onSettlementClick(settlementPos)"
+          />
+        </g>
       </g>
     </g>
   </svg>

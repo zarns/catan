@@ -1,1 +1,14 @@
-<p>game works!</p>
+<div class="game-container">
+  <div class="game-status" *ngIf="gameState">
+    <p>Current Phase: {{gameState.phase | json}}</p>
+    <p *ngIf="playerId">Your ID: {{playerId}}</p>
+    <p>Current Turn: {{gameState.currentTurn}}</p>
+  </div>
+
+  <app-board
+    [gameState]="gameState"
+    [isCurrentPlayer]="isCurrentTurn"
+    (settlementClick)="onSettlementPlaced($event)"
+    (roadClick)="onRoadPlaced($event)">
+  </app-board>
+</div>

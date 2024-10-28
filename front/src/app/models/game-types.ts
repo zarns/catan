@@ -1,38 +1,17 @@
-// src/app/models/game-types.ts
-
 export interface Position {
   x: number;
   y: number;
 }
 
-export interface Hex {
-  position: Position;
-  terrain: TerrainType;
-  token?: number;
-  hasRobber: boolean;
-}
-
-export interface Harbor {
-  position: Position;
-  harborType: HarborType;
-}
-
-export enum TerrainType {
-  Hills = 'HILLS',      // Brick
-  Forest = 'FOREST',    // Lumber
-  Mountains = 'MOUNTAINS', // Ore
-  Fields = 'FIELDS',    // Grain
-  Pasture = 'PASTURE',  // Wool
-  Desert = 'DESERT'
-}
-
-export enum HarborType {
-  Generic = 'GENERIC',  // 3:1 trade
-  Brick = 'BRICK',      // 2:1 trade
-  Lumber = 'LUMBER',
-  Ore = 'ORE',
-  Grain = 'GRAIN',
-  Wool = 'WOOL'
+export interface Player {
+  id: string;
+  name: string;
+  resources: Record<Resource, number>;
+  developmentCards: DevelopmentCard[];
+  roads: Set<[Position, Position]>;
+  settlements: Set<Position>;
+  cities: Set<Position>;
+  knightsPlayed: number;
 }
 
 export enum Resource {
@@ -56,18 +35,63 @@ export enum BuildingType {
   City = 'CITY'
 }
 
-export enum GamePhase {
-  Lobby = 'LOBBY',
-  Setup = 'SETUP',
-  MainGame = 'MAIN_GAME',
-  Ended = 'ENDED'
+export interface Harbor {
+  position: Position;
+  harborType: HarborType;
+}
+
+export enum HarborType {
+  Generic = 'GENERIC',
+  Brick = 'BRICK',
+  Lumber = 'LUMBER',
+  Ore = 'ORE',
+  Grain = 'GRAIN',
+  Wool = 'WOOL'
+}
+
+export interface Hex {
+  position: Position;
+  terrain: TerrainType;
+  token?: number | null;
+  hasRobber: boolean;
+}
+
+export enum TerrainType {
+  Hills = 'HILLS',
+  Forest = 'FOREST',
+  Mountains = 'MOUNTAINS',
+  Fields = 'FIELDS',
+  Pasture = 'PASTURE',
+  Desert = 'DESERT'
 }
 
 export interface Board {
   hexes: Hex[];
   harbors: Harbor[];
-  roads: Map<string, string>;        // (startPos-endPos) -> playerId
-  settlements: Map<string, [string, BuildingType]>;  // pos -> [playerId, buildingType]
+  roads: Map<[Position, Position], string>;  // Map of road positions to player ID
+  settlements: Map<Position, [string, BuildingType]>;  // Map of position to [playerID, buildingType]
+}
+
+export enum SetupPhase {
+  PlacingFirstSettlement = 'PLACING_FIRST_SETTLEMENT',
+  PlacingFirstRoad = 'PLACING_FIRST_ROAD',
+  PlacingSecondSettlement = 'PLACING_SECOND_SETTLEMENT',
+  PlacingSecondRoad = 'PLACING_SECOND_ROAD'
+}
+
+export enum MainGamePhase {
+  Rolling = 'ROLLING',
+  Building = 'BUILDING',
+  Trading = 'TRADING',
+  MovingRobber = 'MOVING_ROBBER',
+  Discarding = 'DISCARDING'
+}
+
+export enum GamePhase {
+  Lobby = 'LOBBY',
+  Setup = 'SETUP',
+  MainGame = 'MAIN_GAME',
+  Ended = 'ENDED'
 }
 
 export interface GameState {
@@ -76,16 +100,7 @@ export interface GameState {
   currentTurn: string;
   diceValue: [number, number] | null;
   phase: GamePhase;
+  setupPhase?: SetupPhase;
+  mainGamePhase?: MainGamePhase;
   robberPosition: Position;
-}
-
-export interface Player {
-  id: string;
-  name: string;
-  resources: Map<Resource, number>;
-  developmentCards: DevelopmentCard[];
-  roads: Set<string>;
-  settlements: Set<string>;
-  cities: Set<string>;
-  knightsPlayed: number;
 }
