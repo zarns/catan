@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { BoardComponent } from '../board/board.component';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameState, Position } from '../../models/game-types';
@@ -16,8 +17,12 @@ export class GameComponent implements OnInit, OnDestroy {
   gameState: GameState | null = null;
   playerId: string | null = null;
   private subscriptions: Subscription[] = [];
+  private isProcessingAction = false;
 
-  constructor(private wsService: WebSocketService) {}
+  constructor(
+    private wsService: WebSocketService,
+    private router: Router
+  ) {}
 
   get isCurrentTurn(): boolean {
     return !!this.gameState && 
@@ -26,6 +31,24 @@ export class GameComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        console.log('Tab hidden - disconnecting WebSocket');
+        this.wsService.disconnect();
+      } else {
+        console.log('Tab visible - connecting WebSocket');
+        this.connectToGame();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      this.wsService.disconnect();
+    });
+
+    this.connectToGame();
+  }
+
+  private connectToGame() {
     this.wsService.connect();
 
     this.subscriptions.push(
@@ -48,6 +71,8 @@ export class GameComponent implements OnInit, OnDestroy {
   }
 
   private handleGameMessage(message: any) {
+    this.isProcessingAction = false;
+    
     if ('GameJoined' in message) {
       this.playerId = message.GameJoined.player_id;
       this.gameState = message.GameJoined.game_state;
@@ -59,13 +84,30 @@ export class GameComponent implements OnInit, OnDestroy {
   }
 
   onSettlementPlaced(position: Position) {
-    if (!this.isCurrentTurn) return;
+    if (!this.isCurrentTurn || this.isProcessingAction) return;
+    
+    this.isProcessingAction = true;
     this.wsService.sendMessage('BuildSettlement', { position });
+
+    setTimeout(() => {
+      this.isProcessingAction = false;
+    }, 5000);
   }
 
   onRoadPlaced(road: {start: Position, end: Position}) {
-    if (!this.isCurrentTurn) return;
+    if (!this.isCurrentTurn || this.isProcessingAction) return;
+    
+    this.isProcessingAction = true;
     this.wsService.sendMessage('BuildRoad', road);
+
+    setTimeout(() => {
+      this.isProcessingAction = false;
+    }, 5000);
+  }
+
+  exitGame() {
+    this.wsService.disconnect();
+    this.router.navigate(['/home']);
   }
 
   ngOnDestroy() {

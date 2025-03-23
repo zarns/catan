@@ -13,6 +13,9 @@ export class WebSocketService {
 
   connect(): void {
     if (this.socket?.readyState !== WebSocket.OPEN) {
+      // Clean up any existing socket first
+      this.disconnect();
+      
       console.log(`Connecting to WebSocket at ${this.wsUrl}`);
       this.socket = new WebSocket(this.wsUrl);
       
@@ -34,10 +37,7 @@ export class WebSocketService {
       this.socket.onclose = () => {
         console.log('WebSocket disconnected');
         this.connectionStatusSubject.next(false);
-        // Optional: Implement reconnection logic
-        if (!environment.production) {
-          setTimeout(() => this.connect(), 5000);
-        }
+        this.socket = null;
       };
 
       this.socket.onerror = (error) => {
@@ -73,9 +73,14 @@ export class WebSocketService {
 
   disconnect(): void {
     if (this.socket) {
+      if (this.socket.readyState === WebSocket.OPEN) {
+        // Send disconnect message before closing
+        this.sendMessage('Disconnect', { reason: 'User left the game' });
+      }
       this.socket.close();
       this.socket = null;
       this.connectionStatusSubject.next(false);
+      this.messageSubject.next(null);
     }
   }
 }
