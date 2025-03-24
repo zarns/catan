@@ -1,0 +1,40 @@
+# Old project directories
+/rust/
+/ui/
+
+# Angular frontend
+/front/node_modules/
+/front/.angular/
+/front/dist/
+/front/tmp/
+/front/out-tsc/
+/front/.sass-cache/
+/front/connect.lock/
+/front/coverage/
+/front/libpeerconnection.log
+/front/npm-debug.log
+/front/yarn-error.log
+/front/testem.log
+/front/typings/
+
+# Rust backend
+/back/target/
+/back/Cargo.lock
+/back/.shuttle/
+/back/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
