@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { GameService, GameMode as ServiceGameMode } from '../../services/game.service';
 
 enum GameMode {
   HUMAN_VS_CATANATRON = 'HUMAN_VS_CATANATRON',
@@ -41,11 +42,11 @@ enum GameMode {
           </div>
 
           <div class="action-buttons">
-            <button class="action-button" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
+            <button class="action-button primary" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
               PLAY AGAINST CATANATRON
             </button>
 
-            <button class="action-button" (click)="startGame(GameMode.RANDOM_BOTS)">
+            <button class="action-button secondary" (click)="startGame(GameMode.RANDOM_BOTS)">
               WATCH RANDOM BOTS
             </button>
           </div>
@@ -61,7 +62,12 @@ enum GameMode {
     :host {
       display: block;
       height: 100vh;
-      background-color: #000000;
+      background-color: #0a1c0a;
+      background-image: 
+        radial-gradient(rgba(30, 90, 90, 0.3) 1px, transparent 1px), 
+        radial-gradient(rgba(30, 90, 90, 0.2) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: 0 0, 20px 20px;
     }
 
     .home-container {
@@ -76,14 +82,15 @@ enum GameMode {
       font-family: 'Bungee Inline', cursive;
       font-size: 4rem;
       margin: 0;
-      color: #5643fd;
-      text-shadow: 0 0 20px #ff00ff, 0 0 30px #ff00ff80;
+      color: #f3ea15;
+      text-shadow: 0 0 15px rgba(243, 234, 21, 0.5), 0 0 20px rgba(243, 234, 21, 0.2);
       letter-spacing: 4px;
+      transform: skew(-5deg);
     }
 
     .game-rules {
       font-family: 'Roboto Mono', monospace;
-      color: white;
+      color: #f3ea15;
       text-align: center;
       margin: 2rem 0;
       font-size: 1rem;
@@ -93,7 +100,7 @@ enum GameMode {
 
     .section-title {
       font-family: 'Roboto Mono', monospace;
-      color: white;
+      color: #f3ea15;
       font-size: 1.2rem;
       margin-bottom: 1rem;
       text-align: center;
@@ -109,24 +116,26 @@ enum GameMode {
       font-family: 'Roboto Mono', monospace;
       padding: 0.5rem 1rem;
       min-width: 120px;
-      background-color: #1e0933;
+      background-color: #1e5a5a;
       color: white;
-      border: 1px solid #7d33cc;
+      border: 1px solid #63a375;
       cursor: pointer;
       font-size: 1rem;
-      box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+      box-shadow: 0 0 10px rgba(99, 163, 117, 0.3);
       transition: all 0.2s ease;
     }
 
     .player-button:hover {
-      box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
-      background-color: #2a0f47;
+      box-shadow: 0 0 15px rgba(99, 163, 117, 0.5);
+      background-color: #2a6b6b;
     }
 
     .player-button.selected {
-      background-color: #4a0fab;
-      border-color: #ff00ff;
-      box-shadow: 0 0 15px rgba(255, 0, 255, 0.5), inset 0 0 10px rgba(255, 0, 255, 0.3);
+      background-color: #63a375;
+      border-color: #f3ea15;
+      color: #0a1c0a;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(243, 234, 21, 0.5), inset 0 0 10px rgba(243, 234, 21, 0.3);
     }
 
     .action-buttons {
@@ -142,21 +151,76 @@ enum GameMode {
       min-width: 300px;
       background-color: transparent;
       color: white;
-      border: 2px solid #ff00ff;
+      border: 2px solid;
       cursor: pointer;
       font-size: 1rem;
-      box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
       transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-button.primary {
+      border-color: #f3ea15;
+      box-shadow: 0 0 15px rgba(243, 234, 21, 0.3);
+    }
+
+    .action-button.secondary {
+      border-color: #1e5a5a;
+      box-shadow: 0 0 15px rgba(30, 90, 90, 0.3);
     }
 
     .action-button:hover {
-      box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
-      background-color: rgba(255, 0, 255, 0.15);
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+      transform: translateY(-2px);
+    }
+
+    .action-button.primary:hover {
+      box-shadow: 0 0 20px rgba(243, 234, 21, 0.5);
+      background-color: rgba(243, 234, 21, 0.15);
+      color: #f3ea15;
+    }
+
+    .action-button.secondary:hover {
+      box-shadow: 0 0 20px rgba(30, 90, 90, 0.5);
+      background-color: rgba(30, 90, 90, 0.15);
+      color: #63a375;
+    }
+
+    .action-button::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        to bottom right,
+        rgba(243, 234, 21, 0) 0%,
+        rgba(243, 234, 21, 0.1) 50%,
+        rgba(243, 234, 21, 0) 100%
+      );
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .action-button:hover::after {
+      opacity: 1;
+      animation: shine 1.5s infinite;
+    }
+
+    @keyframes shine {
+      0% {
+        top: -50%;
+        left: -50%;
+      }
+      100% {
+        top: 150%;
+        left: 150%;
+      }
     }
 
     mat-spinner ::ng-deep circle {
-      stroke: #ff00ff;
+      stroke: #f3ea15;
     }
   `]
 })
@@ -165,7 +229,10 @@ export class HomeComponent {
   loading = false;
   numPlayers = 2;
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private gameService: GameService
+  ) {}
 
   setNumPlayers(count: number) {
     this.numPlayers = count;
@@ -173,10 +240,37 @@ export class HomeComponent {
 
   async startGame(gameMode: GameMode) {
     this.loading = true;
-    // TODO: Implement WebSocket connection and game creation
-    // For now, just navigate to a placeholder route
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-    this.router.navigate(['/game']);
-    this.loading = false;
+    
+    // Map local enum to service enum
+    const serviceGameMode = this.mapGameMode(gameMode);
+    
+    // Call the backend API to create a game
+    this.gameService.createGame({
+      mode: serviceGameMode,
+      numPlayers: this.numPlayers
+    }).subscribe({
+      next: (gameState) => {
+        console.log('Game created:', gameState);
+        this.router.navigate(['/game', gameState.id]);
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error creating game:', error);
+        this.loading = false;
+      }
+    });
+  }
+
+  private mapGameMode(gameMode: GameMode): ServiceGameMode {
+    switch (gameMode) {
+      case GameMode.HUMAN_VS_CATANATRON:
+        return ServiceGameMode.HUMAN_VS_CATANATRON;
+      case GameMode.RANDOM_BOTS:
+        return ServiceGameMode.RANDOM_BOTS;
+      case GameMode.CATANATRON_BOTS:
+        return ServiceGameMode.CATANATRON_BOTS;
+      default:
+        return ServiceGameMode.HUMAN_VS_CATANATRON;
+    }
   }
 } 

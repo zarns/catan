@@ -1,12 +1,20 @@
 /* You can add global styles to this file, and also import other style files */
 
+// Cyberpunk 2077 color variables
+:root {
+  --cp-yellow: #f3ea15;
+  --cp-green: #63a375;
+  --cp-teal: #1e5a5a;
+  --cp-dark: #0a1c0a;
+}
+
 // Global styles
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: #000000;
+  background-color: var(--cp-dark);
   color: #ffffff;
   overflow: hidden;
 }
@@ -28,4 +36,76 @@ html, body {
 
 .gap-2 {
   gap: 1rem;
+}
+
+// Cyberpunk-specific utilities
+.text-yellow {
+  color: var(--cp-yellow);
+}
+
+.text-green {
+  color: var(--cp-green);
+}
+
+.glitch {
+  position: relative;
+  
+  &::before, &::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  
+  &::before {
+    left: 2px;
+    text-shadow: -1px 0 var(--cp-teal);
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim 5s infinite linear alternate-reverse;
+  }
+  
+  &::after {
+    left: -2px;
+    text-shadow: 1px 0 var(--cp-green);
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim 7s infinite linear alternate-reverse;
+  }
+}
+
+@keyframes glitch-anim {
+  0% {
+    clip: rect(31px, 9999px, 94px, 0);
+  }
+  10% {
+    clip: rect(112px, 9999px, 76px, 0);
+  }
+  20% {
+    clip: rect(85px, 9999px, 77px, 0);
+  }
+  30% {
+    clip: rect(27px, 9999px, 97px, 0);
+  }
+  40% {
+    clip: rect(64px, 9999px, 98px, 0);
+  }
+  50% {
+    clip: rect(61px, 9999px, 85px, 0);
+  }
+  60% {
+    clip: rect(99px, 9999px, 114px, 0);
+  }
+  70% {
+    clip: rect(34px, 9999px, 115px, 0);
+  }
+  80% {
+    clip: rect(98px, 9999px, 129px, 0);
+  }
+  90% {
+    clip: rect(43px, 9999px, 96px, 0);
+  }
+  100% {
+    clip: rect(82px, 9999px, 64px, 0);
+  }
 }
