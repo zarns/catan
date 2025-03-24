@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:catan": "node dist/catan/server/server.mjs"
+    "serve:ssr:catan": "node dist/catan/server/server.mjs",
+    "vercel-build": "ng build --configuration production"
   },
   "private": true,
   "dependencies": {
