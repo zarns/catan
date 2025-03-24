@@ -1,0 +1,20 @@
+@use '@angular/material' as mat;
+
+// Define the palettes for your theme using the Material Design palettes
+$primary-palette: mat.define-palette(mat.$blue-palette, 900);
+$secondary-palette: mat.define-palette(mat.$green-palette, 900);
+$accent-palette: mat.define-palette(mat.$pink-palette, A400);
+
+// Create the theme object
+$theme: mat.define-dark-theme((
+  color: (
+    primary: $primary-palette,
+    secondary: $secondary-palette,
+    accent: $accent-palette,
+  ),
+  typography: mat.define-typography-config(),
+  density: 0,
+));
+
+// Apply the theme to all Angular Material components
+@include mat.all-component-themes($theme); 
