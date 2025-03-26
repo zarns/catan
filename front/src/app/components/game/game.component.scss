@@ -1,0 +1,182 @@
+.game-container {
+  display: flex;
+  flex-direction: column;
+  margin: 20px;
+  padding: 20px;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+}
+
+.loading-container, .error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.error-message {
+  color: #f44336;
+  font-size: 18px;
+  margin-top: 20px;
+}
+
+.game-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.websocket-status {
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border-left: 4px solid #4caf50;
+}
+
+.connection-message {
+  font-size: 16px;
+  color: #4caf50;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.game-status {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  
+  &.waiting {
+    background-color: #ffa000;
+    color: #000;
+  }
+  
+  &.in_progress {
+    background-color: #2196f3;
+  }
+  
+  &.finished {
+    background-color: #4caf50;
+  }
+}
+
+.board-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.board-placeholder {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+}
+
+.players-container {
+  margin-top: 20px;
+}
+
+.player-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.player-card {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s;
+  
+  &.current-player {
+    box-shadow: 0 0 15px rgba(33, 150, 243, 0.5);
+    transform: translateY(-5px);
+  }
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #333;
+  border-top: 4px solid #aaa; // This will be overridden by player.color
+  
+  h4 {
+    margin: 0;
+    font-weight: 500;
+  }
+  
+  .player-status {
+    font-size: 12px;
+    background-color: #2196f3;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+}
+
+.player-stats {
+  padding: 15px;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  
+  .value {
+    font-weight: 500;
+  }
+  
+  .achievement {
+    color: #ffc107;
+    font-weight: 500;
+    font-style: italic;
+  }
+}
+
+.resources-container {
+  padding: 15px;
+  
+  h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #bbb;
+  }
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.resource-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background-color: #333;
+  border-radius: 4px;
+  
+  .resource-value {
+    font-weight: 500;
+    color: #64b5f6;
+  }
+} 

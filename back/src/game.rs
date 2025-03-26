@@ -54,7 +54,7 @@ pub struct GameBoard {
     // Board details will be implemented later
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
 pub enum GameAction {
     RollDice,
     BuildRoad,
@@ -103,7 +103,7 @@ impl Game {
         }
     }
 
-    pub fn process_action(&mut self, player_id: &str, action: GameAction) -> Result<(), String> {
+    pub fn process_action(&mut self, _player_id: &str, _action: GameAction) -> Result<(), String> {
         // Basic validation
         if self.winner.is_some() {
             return Err("Game already has a winner".into());

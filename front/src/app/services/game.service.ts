@@ -1,62 +1,80 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, tap, catchError, throwError } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { WebsocketService } from './websocket.service';
 
-export enum GameMode {
-  HUMAN_VS_CATANATRON = 'HUMAN_VS_CATANATRON',
-  RANDOM_BOTS = 'RANDOM_BOTS',
-  CATANATRON_BOTS = 'CATANATRON_BOTS'
+// Game-related types
+export interface Resource {
+  brick?: number;
+  lumber?: number;
+  wool?: number;
+  grain?: number;
+  ore?: number;
 }
 
-export interface GameConfig {
-  mode: GameMode;
-  numPlayers: number;
+export interface Player {
+  id: string;
+  name: string;
+  color: string;
+  resources: Resource;
+  dev_cards: string[];
+  knights_played: number;
+  victory_points: number;
+  longest_road: boolean;
+  largest_army: boolean;
+}
+
+export interface Game {
+  id: string;
+  players: Player[];
+  current_player_index: number;
+  dice_rolled: boolean;
+  winner: string | null;
+  turns: number;
 }
 
 export interface GameState {
   id: string;
   status: 'waiting' | 'in_progress' | 'finished';
-  // Additional game state properties will be added here
+  game?: Game;
+}
+
+export interface GameConfig {
+  mode: 'HUMAN_VS_CATANATRON' | 'RANDOM_BOTS' | 'CATANATRON_BOTS';
+  num_players: number;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class GameService {
-  private apiUrl = 'http://localhost:8000'; // Default Rust backend URL
+  private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private websocketService: WebsocketService
+  ) {}
 
-  /**
-   * Creates a new game with the specified configuration
-   */
   createGame(config: GameConfig): Observable<GameState> {
     return this.http.post<GameState>(`${this.apiUrl}/games`, config)
       .pipe(
-        catchError(this.handleError<GameState>('createGame'))
+        tap(gameState => console.log('Game created:', gameState)),
+        catchError(error => {
+          console.error('Error creating game:', error);
+          return throwError(() => new Error('Failed to create game. Please try again.'));
+        })
       );
   }
 
-  /**
-   * Gets the current state of a game
-   */
   getGameState(gameId: string): Observable<GameState> {
     return this.http.get<GameState>(`${this.apiUrl}/games/${gameId}`)
       .pipe(
-        catchError(this.handleError<GameState>('getGameState'))
+        tap(gameState => console.log('Game state retrieved:', gameState)),
+        catchError(error => {
+          console.error('Error retrieving game state:', error);
+          return throwError(() => new Error('Failed to load game state. Please try again.'));
+        })
       );
-  }
-
-  /**
-   * Error handler for HTTP requests
-   */
-  private handleError<T>(operation = 'operation', result?: T) {
-    return (error: any): Observable<T> => {
-      console.error(`${operation} failed: ${error.message}`);
-      
-      // Let the app keep running by returning an empty result
-      return of(result as T);
-    };
   }
 } 

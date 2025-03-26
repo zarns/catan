@@ -1,10 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { Router } from '@angular/router';
+import { GameService } from '../../services/game.service';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { GameService, GameMode as ServiceGameMode } from '../../services/game.service';
 
+// Define GameMode enum locally in the component
 enum GameMode {
   HUMAN_VS_CATANATRON = 'HUMAN_VS_CATANATRON',
   RANDOM_BOTS = 'RANDOM_BOTS',
@@ -224,7 +226,7 @@ enum GameMode {
     }
   `]
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   GameMode = GameMode;
   loading = false;
   numPlayers = 2;
@@ -233,6 +235,8 @@ export class HomeComponent {
     private router: Router,
     private gameService: GameService
   ) {}
+
+  ngOnInit() {}
 
   setNumPlayers(count: number) {
     this.numPlayers = count;
@@ -247,7 +251,7 @@ export class HomeComponent {
     // Call the backend API to create a game
     this.gameService.createGame({
       mode: serviceGameMode,
-      numPlayers: this.numPlayers
+      num_players: this.numPlayers
     }).subscribe({
       next: (gameState) => {
         console.log('Game created:', gameState);
@@ -261,16 +265,17 @@ export class HomeComponent {
     });
   }
 
-  private mapGameMode(gameMode: GameMode): ServiceGameMode {
-    switch (gameMode) {
+  // Map local GameMode enum to service string literals
+  private mapGameMode(mode: GameMode): 'HUMAN_VS_CATANATRON' | 'RANDOM_BOTS' | 'CATANATRON_BOTS' {
+    switch (mode) {
       case GameMode.HUMAN_VS_CATANATRON:
-        return ServiceGameMode.HUMAN_VS_CATANATRON;
+        return 'HUMAN_VS_CATANATRON';
       case GameMode.RANDOM_BOTS:
-        return ServiceGameMode.RANDOM_BOTS;
+        return 'RANDOM_BOTS';
       case GameMode.CATANATRON_BOTS:
-        return ServiceGameMode.CATANATRON_BOTS;
+        return 'CATANATRON_BOTS';
       default:
-        return ServiceGameMode.HUMAN_VS_CATANATRON;
+        return 'RANDOM_BOTS';
     }
   }
 } 
