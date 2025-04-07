@@ -3,8 +3,8 @@ import { HomeComponent } from './components/home/home.component';
 import { GameComponent } from './components/game/game.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/home', pathMatch: 'full' },
-  { path: 'home', component: HomeComponent },
-  { path: 'game', component: GameComponent },
-  { path: 'game/:id', component: GameComponent }
+  { path: '', component: HomeComponent },
+  { path: 'game/:id', component: GameComponent },
+  // Add more routes as needed
+  { path: '**', redirectTo: '' } // Redirect to home for any unknown routes
 ];

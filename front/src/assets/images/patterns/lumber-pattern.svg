@@ -1,0 +1,25 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="lumber-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#1a662e"/>
+    <!-- Circuit-like pattern -->
+    <path d="M10 10 H40 V30 H60 V50 H90 M10 90 H30 V70 H50 V40 H70 V20 H90" 
+          stroke="#2eb852" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5 40 H25 V60 H45 V80 H95 M5 60 H15 V40 H35 V20 H95" 
+          stroke="#2eb852" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Connection points -->
+    <circle cx="10" cy="10" r="3" fill="#45d66b"/>
+    <circle cx="40" cy="30" r="3" fill="#45d66b"/>
+    <circle cx="60" cy="50" r="3" fill="#45d66b"/>
+    <circle cx="90" cy="50" r="3" fill="#45d66b"/>
+    <circle cx="10" cy="90" r="3" fill="#45d66b"/>
+    <circle cx="30" cy="70" r="3" fill="#45d66b"/>
+    <circle cx="50" cy="40" r="3" fill="#45d66b"/>
+    <circle cx="70" cy="20" r="3" fill="#45d66b"/>
+    <circle cx="90" cy="20" r="3" fill="#45d66b"/>
+    <circle cx="25" cy="60" r="3" fill="#45d66b"/>
+    <circle cx="45" cy="80" r="3" fill="#45d66b"/>
+    <circle cx="15" cy="40" r="3" fill="#45d66b"/>
+    <circle cx="35" cy="20" r="3" fill="#45d66b"/>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#lumber-pattern)" />
+</svg> 

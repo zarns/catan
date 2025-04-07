@@ -1,4 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
 
 // Cyberpunk 2077 color variables
 :root {
@@ -11,27 +12,77 @@
 // Global styles
 html, body {
   height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: var(--cp-dark);
-  color: #ffffff;
-  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-center {
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-grow {
+  flex: 1;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Resource Colors */
+.brick { background-color: #d32f2f; }
+.lumber { background-color: #388e3c; }
+.wool { background-color: #7cb342; }
+.grain { background-color: #fbc02d; }
+.ore { background-color: #616161; }
+.desert { background-color: #e0e0e0; }
+.water { background-color: #2196f3; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
 
 // Utility classes
 .full-height {
   height: 100%;
-}
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flex-column {
-  flex-direction: column;
 }
 
 .gap-2 {

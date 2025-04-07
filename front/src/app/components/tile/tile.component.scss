@@ -1,0 +1,92 @@
+.tile {
+  position: absolute;
+  background-size: cover;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+  
+  &:hover {
+    transform: scale(1.05);
+    z-index: 10;
+  }
+  
+  &.brick {
+    background-color: #b74a3b;
+  }
+  
+  &.lumber {
+    background-color: #1a662e;
+  }
+  
+  &.wool {
+    background-color: #7bc346;
+  }
+  
+  &.grain {
+    background-color: #e2c759;
+  }
+  
+  &.ore {
+    background-color: #777777;
+  }
+  
+  &.desert {
+    background-color: #e0d09c;
+  }
+  
+  &.water {
+    background-color: #7ab7e8;
+    pointer-events: none;
+  }
+}
+
+.tile-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.number-token {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  font-size: 1.2rem;
+  
+  &.flashing {
+    animation: pulse 1.5s infinite;
+  }
+  
+  .pips {
+    font-size: 0.8rem;
+    line-height: 1;
+    color: #d32f2f;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+} 

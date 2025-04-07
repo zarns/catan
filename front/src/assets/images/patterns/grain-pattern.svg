@@ -1,0 +1,43 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="grain-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#e2c759"/>
+    <!-- Grain stalks -->
+    <g stroke="#c7a833" stroke-width="1.5" fill="none">
+      <!-- First column of grain stalks -->
+      <path d="M10 95 L10 50 M5 45 L10 50 L15 45" />
+      <path d="M10 50 L10 40 M5 35 L10 40 L15 35" />
+      <path d="M10 40 L10 30 M5 25 L10 30 L15 25" />
+      <path d="M10 30 L10 20 M5 15 L10 20 L15 15" />
+      <path d="M10 20 L10 10 M5 5 L10 10 L15 5" />
+      
+      <!-- Second column of grain stalks -->
+      <path d="M30 95 L30 50 M25 45 L30 50 L35 45" />
+      <path d="M30 50 L30 40 M25 35 L30 40 L35 35" />
+      <path d="M30 40 L30 30 M25 25 L30 30 L35 25" />
+      <path d="M30 30 L30 20 M25 15 L30 20 L35 15" />
+      <path d="M30 20 L30 10 M25 5 L30 10 L35 5" />
+      
+      <!-- Third column of grain stalks -->
+      <path d="M50 95 L50 50 M45 45 L50 50 L55 45" />
+      <path d="M50 50 L50 40 M45 35 L50 40 L55 35" />
+      <path d="M50 40 L50 30 M45 25 L50 30 L55 25" />
+      <path d="M50 30 L50 20 M45 15 L50 20 L55 15" />
+      <path d="M50 20 L50 10 M45 5 L50 10 L55 5" />
+      
+      <!-- Fourth column of grain stalks -->
+      <path d="M70 95 L70 50 M65 45 L70 50 L75 45" />
+      <path d="M70 50 L70 40 M65 35 L70 40 L75 35" />
+      <path d="M70 40 L70 30 M65 25 L70 30 L75 25" />
+      <path d="M70 30 L70 20 M65 15 L70 20 L75 15" />
+      <path d="M70 20 L70 10 M65 5 L70 10 L75 5" />
+      
+      <!-- Fifth column of grain stalks -->
+      <path d="M90 95 L90 50 M85 45 L90 50 L95 45" />
+      <path d="M90 50 L90 40 M85 35 L90 40 L95 35" />
+      <path d="M90 40 L90 30 M85 25 L90 30 L95 25" />
+      <path d="M90 30 L90 20 M85 15 L90 20 L95 15" />
+      <path d="M90 20 L90 10 M85 5 L90 10 L95 5" />
+    </g>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#grain-pattern)" />
+</svg> 

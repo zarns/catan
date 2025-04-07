@@ -1,73 +1,88 @@
 <div class="game-container">
-  <div *ngIf="loading" class="loading-container">
-    <mat-spinner></mat-spinner>
+  <!-- Drawer components -->
+  <app-left-drawer 
+    [gameState]="gameState" 
+    [isOpen]="isLeftDrawerOpen"
+    [isMobile]="isMobileView">
+  </app-left-drawer>
+  
+  <app-right-drawer
+    [gameState]="gameState"
+    [gameId]="gameId"
+    [isOpen]="isRightDrawerOpen"
+    [isMobile]="isMobileView">
+  </app-right-drawer>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner [diameter]="40" color="accent"></mat-spinner>
     <p>Loading game...</p>
   </div>
 
+  <!-- Error State -->
   <div *ngIf="error" class="error-container">
-    <p class="error-message">{{ error }}</p>
+    <p>Error: {{ error }}</p>
   </div>
 
-  <div *ngIf="!loading && !error && gameState" class="game-content">
-    <!-- WebSocket connection test display -->
-    <div class="websocket-status" *ngIf="greeting">
-      <div class="connection-message">{{ greeting }}</div>
-    </div>
+  <!-- Game Content -->
+  <div *ngIf="!isLoading && !error && gameState" class="game-content">
+    <!-- Main Game Area - Header removed as requested -->
+    <div class="main-game-area">
+      <!-- Board Component -->
+      <app-board 
+        [gameState]="gameState && gameState.game ? gameState.game.board : null" 
+        [nodeActions]="nodeActions"
+        [edgeActions]="edgeActions"
+        [isMovingRobber]="isMovingRobber"
+        (nodeClick)="onNodeClick($event)"
+        (edgeClick)="onEdgeClick($event)"
+        (hexClick)="onHexClick($event)">
+      </app-board>
 
-    <!-- Game header with game info -->
-    <div class="game-header">
-      <h2>Game #{{ gameState.id }}</h2>
-      <div class="game-status" [ngClass]="gameState.status">
-        Status: {{ gameState.status | titlecase }}
-      </div>
-    </div>
-
-    <!-- Game board visualization will go here -->
-    <div class="board-container" *ngIf="gameState.game">
-      <!-- Placeholder for game board visualization -->
-      <div class="board-placeholder">
-        <h3>Game Board</h3>
-        <p>Board visualization will be implemented soon</p>
-      </div>
-    </div>
-
-    <!-- Player list with resources and stats -->
-    <div class="players-container" *ngIf="gameState.game">
-      <h3>Players</h3>
-      <div class="player-list">
-        <div class="player-card" *ngFor="let player of gameState.game?.players; let i = index" 
-            [class.current-player]="i === gameState.game?.current_player_index">
-          <div class="player-header" [ngStyle]="{'border-color': player.color}">
-            <h4>{{ player.name }}</h4>
-            <div class="player-status" *ngIf="i === gameState.game?.current_player_index">Current Turn</div>
-          </div>
-          <div class="player-stats">
-            <div class="stats-row">
-              <span>Victory Points:</span>
-              <span class="value">{{ player.victory_points }}</span>
-            </div>
-            <div class="stats-row" *ngIf="player.longest_road">
-              <span class="achievement">Longest Road</span>
-            </div>
-            <div class="stats-row" *ngIf="player.largest_army">
-              <span class="achievement">Largest Army</span>
-            </div>
-            <div class="stats-row">
-              <span>Knights:</span>
-              <span class="value">{{ player.knights_played }}</span>
-            </div>
-          </div>
-          <div class="resources-container">
-            <h5>Resources</h5>
-            <div class="resources-grid">
-              <div class="resource-item" *ngFor="let resource of getResourceEntries(player)">
-                <span class="resource-name">{{ resource.name | titlecase }}:</span>
-                <span class="resource-value">{{ resource.count }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Actions Toolbar Component -->
+      <app-actions-toolbar
+        [gameState]="gameState"
+        [humanPlayer]="getHumanPlayer()"
+        [isBotThinking]="isBotThinking"
+        [isBotTurn]="isBotTurn"
+        [isGameOver]="isGameOver"
+        [isRoll]="isRoll"
+        [isBuildingSettlement]="isBuildingSettlement"
+        [isBuildingCity]="isBuildingCity"
+        [isBuildingRoad]="isBuildingRoad"
+        [canUseCards]="true"
+        [canPlayMonopoly]="true"
+        [canPlayYearOfPlenty]="true"
+        [canPlayRoadBuilding]="true"
+        [canPlayKnight]="true"
+        [canBuild]="true"
+        [canBuyDevCard]="true"
+        [canBuildCity]="true"
+        [canBuildSettlement]="true"
+        [canBuildRoad]="true"
+        [trades]="trades"
+        [isMainActionDisabled]="false"
+        (useCard)="onUseCard($event)"
+        (build)="onBuild($event)"
+        (trade)="onTrade($event)"
+        (mainAction)="onMainAction()">
+      </app-actions-toolbar>
     </div>
   </div>
+
+  <!-- Backdrop for mobile drawer -->
+  <div 
+    class="drawer-backdrop" 
+    [class.visible]="(isLeftDrawerOpen || isRightDrawerOpen) && isMobileView" 
+    (click)="closeDrawers()">
+  </div>
+
+  <!-- Resource Selector Dialog -->
+  <app-resource-selector
+    [open]="resourceSelectorOpen"
+    [options]="resourceSelectorOptions"
+    [mode]="resourceSelectorMode"
+    (onClose)="onResourceSelectorClose()"
+    (onSelect)="onResourceSelected($event)">
+  </app-resource-selector>
 </div> 

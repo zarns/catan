@@ -1,14 +1,27 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChild, HostListener, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
-import { GameService, GameState, Player } from '../../services/game.service';
+import { GameService, GameAction, GameState, Player, Coordinate } from '../../services/game.service';
 import { WebsocketService } from '../../services/websocket.service';
 import { Subscription } from 'rxjs';
+
+// Import our new components
+import { BoardComponent } from '../board/board.component';
+import { ActionsToolbarComponent } from '../actions-toolbar/actions-toolbar.component';
+import { LeftDrawerComponent } from '../left-drawer/left-drawer.component';
+import { RightDrawerComponent } from '../right-drawer/right-drawer.component';
+import { ResourceSelectorComponent } from '../resource-selector/resource-selector.component';
+
+// Extend Player interface to include the is_bot property
+interface ExtendedPlayer extends Player {
+  is_bot?: boolean;
+}
 
 @Component({
   selector: 'app-game',
@@ -19,407 +32,506 @@ import { Subscription } from 'rxjs';
     MatProgressSpinnerModule,
     MatBadgeModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    MatMenuModule,
+    BoardComponent,
+    ActionsToolbarComponent,
+    LeftDrawerComponent,
+    RightDrawerComponent,
+    ResourceSelectorComponent
   ],
-  template: `
-    <div class="game-container">
-      <ng-container *ngIf="gameState; else loading">
-        <div class="game-board">
-          <div class="game-header">
-            <h2>Game: {{ gameState.id }}</h2>
-            <div class="game-status" [ngClass]="gameState.status">
-              Status: {{ gameState.status | titlecase }}
-            </div>
-          </div>
-          
-          <div class="board-visualization">
-            <!-- This will be replaced with an actual board visualization later -->
-            <div class="placeholder-board">
-              <div *ngIf="gameState.game" class="game-turn">
-                Turn: {{ gameState.game.turns }}
-              </div>
-              <div class="board-placeholder">
-                Game Board Visualization
-                <div class="dice-area" *ngIf="gameState.game">
-                  <div *ngIf="gameState.game.dice_rolled" class="dice rolled">
-                    Dice Rolled
-                  </div>
-                  <div *ngIf="!gameState.game.dice_rolled" class="dice not-rolled">
-                    Waiting for Dice Roll
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="game-info">
-          <h2>Players</h2>
-          <div class="players-list" *ngIf="gameState.game">
-            <div *ngFor="let player of gameState.game.players; let i = index" 
-                 class="player-card"
-                 [class.active]="i === gameState.game.current_player_index"
-                 [style.border-color]="player.color">
-              <div class="player-name">{{ player.name }}</div>
-              <div class="player-stats">
-                <div class="stat">
-                  <mat-icon>stars</mat-icon>
-                  <span>{{ player.victory_points }}</span>
-                </div>
-                <div class="stat">
-                  <mat-icon>security</mat-icon>
-                  <span>{{ player.knights_played }}</span>
-                </div>
-              </div>
-              <div class="player-resources" *ngIf="player.resources">
-                <div class="resource" *ngFor="let resource of getResourceEntries(player)">
-                  <div class="resource-icon {{ resource.name }}"></div>
-                  <div class="resource-count">{{ resource.count }}</div>
-                </div>
-              </div>
-              <div class="player-achievement" *ngIf="player.longest_road">
-                <mat-icon>timeline</mat-icon> Longest Road
-              </div>
-              <div class="player-achievement" *ngIf="player.largest_army">
-                <mat-icon>military_tech</mat-icon> Largest Army
-              </div>
-            </div>
-          </div>
-        </div>
-      </ng-container>
-
-      <ng-template #loading>
-        <div class="loading-container">
-          <mat-spinner diameter="60"></mat-spinner>
-          <p>Loading game...</p>
-        </div>
-      </ng-template>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: block;
-      height: 100vh;
-      background-color: #0a1c0a;
-      background-image: 
-        radial-gradient(rgba(30, 90, 90, 0.3) 1px, transparent 1px), 
-        radial-gradient(rgba(30, 90, 90, 0.2) 1px, transparent 1px);
-      background-size: 40px 40px;
-      background-position: 0 0, 20px 20px;
-    }
-
-    .game-container {
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 2rem;
-      padding: 2rem;
-      height: 100%;
-      color: #f3ea15;
-      font-family: 'Roboto Mono', monospace;
-    }
-
-    .game-board {
-      background: rgba(30, 90, 90, 0.2);
-      border: 1px solid #63a375;
-      box-shadow: 0 0 15px rgba(99, 163, 117, 0.3);
-      padding: 2rem;
-      border-radius: 4px;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .game-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    
-    .game-status {
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      text-transform: uppercase;
-      font-size: 0.8rem;
-      letter-spacing: 1px;
-    }
-    
-    .game-status.waiting {
-      background-color: #2a6b6b;
-      border: 1px solid #63a375;
-    }
-    
-    .game-status.in_progress {
-      background-color: #1b5e20;
-      border: 1px solid #f3ea15;
-    }
-    
-    .game-status.finished {
-      background-color: #7d33cc;
-      border: 1px solid #ff00ff;
-    }
-    
-    .board-visualization {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .placeholder-board {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .game-turn {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-    
-    .board-placeholder {
-      flex: 1;
-      border: 2px dashed #63a375;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      color: rgba(243, 234, 21, 0.7);
-      position: relative;
-    }
-    
-    .dice-area {
-      position: absolute;
-      bottom: 2rem;
-      padding: 1rem;
-      border-radius: 4px;
-    }
-    
-    .dice {
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      text-align: center;
-    }
-    
-    .dice.rolled {
-      background-color: #1b5e20;
-      border: 1px solid #f3ea15;
-    }
-    
-    .dice.not-rolled {
-      background-color: #7d33cc;
-      border: 1px solid #ff00ff;
-    }
-
-    .game-info {
-      background: rgba(30, 90, 90, 0.2);
-      border: 1px solid #63a375;
-      box-shadow: 0 0 15px rgba(99, 163, 117, 0.3);
-      padding: 2rem;
-      border-radius: 4px;
-      overflow-y: auto;
-    }
-
-    h2 {
-      color: #f3ea15;
-      margin-top: 0;
-      font-family: 'Roboto Mono', monospace;
-      letter-spacing: 1px;
-      margin-bottom: 1.5rem;
-    }
-    
-    .players-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    
-    .player-card {
-      background-color: rgba(10, 28, 10, 0.8);
-      border: 2px solid;
-      border-radius: 4px;
-      padding: 1rem;
-      transition: all 0.3s ease;
-    }
-    
-    .player-card.active {
-      box-shadow: 0 0 15px #f3ea15;
-      transform: scale(1.02);
-    }
-    
-    .player-name {
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      font-size: 1.1rem;
-    }
-    
-    .player-stats {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .stat {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-    
-    .player-resources {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-    
-    .resource {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      background-color: rgba(30, 90, 90, 0.3);
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      min-width: 60px;
-    }
-    
-    .resource-icon {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-    }
-    
-    .resource-icon.brick {
-      background-color: #d32f2f;
-    }
-    
-    .resource-icon.lumber {
-      background-color: #388e3c;
-    }
-    
-    .resource-icon.wool {
-      background-color: #9e9e9e;
-    }
-    
-    .resource-icon.grain {
-      background-color: #fdd835;
-    }
-    
-    .resource-icon.ore {
-      background-color: #616161;
-    }
-    
-    .player-achievement {
-      margin-top: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.8rem;
-      color: #f3ea15;
-    }
-
-    .loading-container {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2rem;
-    }
-
-    .loading-container p {
-      color: #f3ea15;
-      font-family: 'Roboto Mono', monospace;
-    }
-
-    mat-spinner ::ng-deep circle {
-      stroke: #f3ea15;
-    }
-  `]
+  templateUrl: './game.component.html',
+  styleUrls: ['./game.component.scss']
 })
-export class GameComponent implements OnInit, OnDestroy {
-  gameState: GameState | null = null;
+export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
+  // State
+  isLoading = true;
   error: string | null = null;
-  loading = true;
-  gameId: string | null = null;
-  greeting: string = '';
+  gameState: GameState | null = null;
+  gameId: string = '';
+  isBotThinking = false;
   
-  private subscription: Subscription = new Subscription();
-  private webSocketSubscription: Subscription = new Subscription();
-
+  // Game play state
+  isBuildingRoad = false;
+  isBuildingSettlement = false;
+  isBuildingCity = false;
+  isMovingRobber = false;
+  isRoll = true;
+  isPlayingMonopoly = false;
+  isPlayingYearOfPlenty = false;
+  
+  // Drawer state
+  isLeftDrawerOpen = false;
+  isRightDrawerOpen = false;
+  isMobileView = false;
+  
+  // Resource selector state
+  resourceSelectorOpen = false;
+  resourceSelectorOptions: any[] = [];
+  resourceSelectorMode: 'monopoly' | 'yearOfPlenty' | 'discard' | 'trade' = 'monopoly';
+  
+  // Available trades
+  trades: any[] = [];
+  
+  // Board interactions
+  nodeActions: {[key: string]: any} = {};
+  edgeActions: {[key: string]: any} = {};
+  
+  @HostListener('window:resize', ['$event'])
+  onResize() {
+    this.checkMobileView();
+  }
+  
+  private subscription = new Subscription();
+  
   constructor(
     private route: ActivatedRoute,
     private gameService: GameService,
     private websocketService: WebsocketService
   ) {}
-
+  
   ngOnInit(): void {
-    // Get game ID from route
-    this.route.paramMap.subscribe(params => {
-      this.gameId = params.get('id');
-      if (this.gameId) {
-        // Get initial game state
-        this.gameService.getGameState(this.gameId).subscribe({
-          next: (gameState) => {
-            this.gameState = gameState;
-            this.loading = false;
-            
-            // Connect to WebSocket for live updates
-            this.websocketService.connect(this.gameId as string);
-            
-            // Subscribe to greeting messages
-            this.webSocketSubscription.add(
-              this.websocketService.lastGreeting$.subscribe(greeting => {
-                if (greeting) {
-                  this.greeting = greeting;
-                  console.log('Received greeting:', greeting);
-                }
-              })
-            );
-            
-            // Also subscribe to all WebSocket messages
-            this.webSocketSubscription.add(
-              this.websocketService.messages$.subscribe(message => {
-                console.log('Received message:', message);
-                if (message.type === 'game_state') {
-                  this.gameState = message.data;
-                }
-              })
-            );
-          },
-          error: (error) => {
-            console.error('Error fetching game:', error);
-            this.loading = false;
-            this.error = 'Game not found or could not be loaded.';
-          }
-        });
+    this.isLoading = true;
+    this.checkMobileView();
+    
+    // Get the game ID from the route
+    this.subscription.add(
+      this.route.paramMap.subscribe(params => {
+        this.gameId = params.get('id') || '';
+        if (this.gameId) {
+          this.loadGameState();
+        } else {
+          this.error = 'No game ID provided.';
+          this.isLoading = false;
+        }
+      })
+    );
+    
+    // Subscribe to game state updates
+    this.subscription.add(
+      this.gameService.gameUIState$.subscribe(uiState => {
+        this.gameState = uiState.gameState;
+        this.isBuildingRoad = uiState.isBuildingRoad;
+        this.isBuildingSettlement = uiState.isBuildingSettlement;
+        this.isBuildingCity = uiState.isBuildingCity;
+        this.isPlayingMonopoly = uiState.isPlayingMonopoly;
+        this.isPlayingYearOfPlenty = uiState.isPlayingYearOfPlenty;
+        this.isMovingRobber = uiState.isMovingRobber;
+        
+        if (this.gameState) {
+          this.isLoading = false;
+          this.updateGameState();
+        }
+      })
+    );
+  }
+  
+  ngAfterViewInit(): void {
+    // After view is initialized, set up any DOM-related features
+  }
+  
+  ngOnDestroy(): void {
+    this.subscription.unsubscribe();
+    // Clean up WebSocket connection
+    this.websocketService.disconnect();
+  }
+  
+  loadGameState(): void {
+    this.isLoading = true;
+    this.gameService.getGameState(this.gameId).subscribe({
+      next: () => {
+        // Game state will be updated via the subscription
+        // Connect to the WebSocket for real-time updates
+        this.websocketService.connect(this.gameId);
+      },
+      error: (err) => {
+        console.error('Error loading game state:', err);
+        this.error = 'Failed to load game state. Please try again.';
+        this.isLoading = false;
       }
     });
   }
-
-  ngOnDestroy(): void {
-    // Clean up subscriptions
-    this.subscription.unsubscribe();
-    this.webSocketSubscription.unsubscribe();
+  
+  updateGameState(): void {
+    if (!this.gameState || !this.gameState.game) return;
     
-    // Disconnect WebSocket
-    this.websocketService.disconnect();
+    // Update isRoll based on game state
+    this.isRoll = this.shouldShowRollButton();
+    
+    // Update node and edge actions based on current state
+    this.updateNodeActions();
+    this.updateEdgeActions();
+    
+    // Update available trades
+    this.updateTrades();
   }
-
-  // Helper method to format player resources for display
-  getResourceEntries(player: Player): { name: string, count: number }[] {
-    if (!player.resources) {
-      return [];
+  
+  shouldShowRollButton(): boolean {
+    if (!this.gameState || !this.gameState.game) return true;
+    
+    // Check if it's time to roll dice in the game
+    return this.gameState.status === 'in_progress' && 
+           !this.gameState.game.dice_rolled;
+  }
+  
+  updateNodeActions(): void {
+    this.nodeActions = {};
+    
+    if (!this.gameState || !this.gameState.game) return;
+    
+    if (this.isBuildingSettlement) {
+      // Find nodes where settlements can be built
+      this.gameState.game.board.nodes && Object.entries(this.gameState.game.board.nodes).forEach(([nodeId, node]) => {
+        // Check if the node is buildable - this would depend on game rules
+        // For now, we'll just check if it's empty
+        if (!node.building) {
+          this.nodeActions[nodeId] = { type: 'BUILD_SETTLEMENT' };
+        }
+      });
+    } else if (this.isBuildingCity) {
+      // Find nodes where cities can be built (must have a settlement)
+      this.gameState.game.board.nodes && Object.entries(this.gameState.game.board.nodes).forEach(([nodeId, node]) => {
+        // Check if the node has a settlement of the player's color
+        const humanPlayer = this.getCurrentPlayer();
+        if (node.building === 'Settlement' && node.color === humanPlayer?.color) {
+          this.nodeActions[nodeId] = { type: 'BUILD_CITY' };
+        }
+      });
     }
-
-    return Object.entries(player.resources).map(([resource, count]) => {
-      return {
-        name: resource.toLowerCase(),
-        count: count
-      };
+  }
+  
+  updateEdgeActions(): void {
+    this.edgeActions = {};
+    
+    if (!this.gameState || !this.gameState.game) return;
+    
+    if (this.isBuildingRoad) {
+      // Find edges where roads can be built
+      this.gameState.game.board.edges && Object.entries(this.gameState.game.board.edges).forEach(([edgeId, edge]) => {
+        // Check if the edge is buildable - for now, just check if it's empty
+        if (!edge.color) {
+          this.edgeActions[edgeId] = { type: 'BUILD_ROAD' };
+        }
+      });
+    }
+  }
+  
+  updateTrades(): void {
+    this.trades = [];
+    
+    if (!this.gameState || !this.gameState.game) return;
+    
+    // Here we would analyze the game state to determine available trades
+    // This would be populated from server data in a real implementation
+  }
+  
+  // Action handlers
+  
+  onNodeClick(nodeId: string): void {
+    if (!this.gameId) return;
+    
+    if (this.isBuildingSettlement) {
+      this.gameService.buildSettlement(this.gameId, nodeId).subscribe({
+        next: () => {
+          // Settlement built - state will update via WebSocket
+          this.isBuildingSettlement = false;
+        },
+        error: (err: Error) => {
+          console.error('Error building settlement:', err);
+        }
+      });
+    } else if (this.isBuildingCity) {
+      this.gameService.buildCity(this.gameId, nodeId).subscribe({
+        next: () => {
+          // City built - state will update via WebSocket
+          this.isBuildingCity = false;
+        },
+        error: (err: Error) => {
+          console.error('Error building city:', err);
+        }
+      });
+    }
+  }
+  
+  onEdgeClick(edgeId: string): void {
+    if (!this.gameId || !this.isBuildingRoad) return;
+    
+    this.gameService.buildRoad(this.gameId, edgeId).subscribe({
+      next: () => {
+        // Road built - state will update via WebSocket
+        this.isBuildingRoad = false;
+      },
+      error: (err: Error) => {
+        console.error('Error building road:', err);
+      }
     });
+  }
+  
+  onHexClick(coordinate: Coordinate): void {
+    if (!this.gameId || !this.isMovingRobber) return;
+    
+    // Move the robber to the selected hex
+    this.gameService.moveRobber(this.gameId, coordinate).subscribe({
+      next: () => {
+        this.isMovingRobber = false;
+      },
+      error: (err: Error) => {
+        console.error('Error moving robber:', err);
+      }
+    });
+  }
+  
+  onUseCard(cardType: string): void {
+    if (!this.gameId) return;
+    
+    if (cardType === 'MONOPOLY') {
+      this.resourceSelectorMode = 'monopoly';
+      this.resourceSelectorOptions = ['WOOD', 'BRICK', 'SHEEP', 'WHEAT', 'ORE'];
+      this.resourceSelectorOpen = true;
+    } else if (cardType === 'YEAR_OF_PLENTY') {
+      this.resourceSelectorMode = 'yearOfPlenty';
+      // This would need to be populated from allowed resource combinations
+      this.resourceSelectorOptions = [
+        ['WOOD'], ['BRICK'], ['SHEEP'], ['WHEAT'], ['ORE'],
+        ['WOOD', 'WOOD'], ['BRICK', 'BRICK'], ['SHEEP', 'SHEEP'], ['WHEAT', 'WHEAT'], ['ORE', 'ORE'],
+        ['WOOD', 'BRICK'], ['WOOD', 'SHEEP'], ['WOOD', 'WHEAT'], ['WOOD', 'ORE'],
+        ['BRICK', 'SHEEP'], ['BRICK', 'WHEAT'], ['BRICK', 'ORE'],
+        ['SHEEP', 'WHEAT'], ['SHEEP', 'ORE'],
+        ['WHEAT', 'ORE']
+      ];
+      this.resourceSelectorOpen = true;
+    } else if (cardType === 'ROAD_BUILDING') {
+      // Use a card action directly through the dispatch method to avoid API call in this example
+      this.gameService.dispatch({
+        type: GameAction.TOGGLE_BUILDING_ROAD
+      });
+      /* In a real implementation with API:
+      this.gameService.useCard(this.gameId, 'ROAD_BUILDING').subscribe({
+        next: () => {
+          // Card used - state will update via WebSocket
+          this.isBuildingRoad = true;
+        },
+        error: (err: Error) => {
+          console.error('Error using road building card:', err);
+        }
+      });
+      */
+    } else if (cardType === 'KNIGHT') {
+      // Use a card action directly through the dispatch method to avoid API call in this example
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_MOVING_ROBBER,
+        payload: true
+      });
+      /* In a real implementation with API:
+      this.gameService.useCard(this.gameId, 'KNIGHT').subscribe({
+        next: () => {
+          // Card used - state will update via WebSocket
+          this.isMovingRobber = true;
+        },
+        error: (err: Error) => {
+          console.error('Error using knight card:', err);
+        }
+      });
+      */
+    }
+  }
+  
+  onResourceSelected(resources: any): void {
+    if (!this.gameId) return;
+    
+    if (this.resourceSelectorMode === 'monopoly') {
+      // Update state directly to avoid API call in this example
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_PLAYING_MONOPOLY,
+        payload: false
+      });
+      this.resourceSelectorOpen = false;
+      /* In a real implementation with API:
+      this.gameService.useMonopoly(this.gameId, resources).subscribe({
+        next: () => {
+          // Monopoly card used - state will update via WebSocket
+          this.resourceSelectorOpen = false;
+        },
+        error: (err: Error) => {
+          console.error('Error using monopoly card:', err);
+        }
+      });
+      */
+    } else if (this.resourceSelectorMode === 'yearOfPlenty') {
+      // Update state directly to avoid API call in this example
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_PLAYING_YEAR_OF_PLENTY,
+        payload: false
+      });
+      this.resourceSelectorOpen = false;
+      /* In a real implementation with API:
+      this.gameService.useYearOfPlenty(this.gameId, resources).subscribe({
+        next: () => {
+          // Year of Plenty card used - state will update via WebSocket
+          this.resourceSelectorOpen = false;
+        },
+        error: (err: Error) => {
+          console.error('Error using year of plenty card:', err);
+        }
+      });
+      */
+    }
+  }
+  
+  onResourceSelectorClose(): void {
+    this.resourceSelectorOpen = false;
+  }
+  
+  onBuild(buildType: string): void {
+    if (buildType === 'ROAD') {
+      this.isBuildingRoad = !this.isBuildingRoad;
+      this.isBuildingSettlement = false;
+      this.isBuildingCity = false;
+    } else if (buildType === 'SETTLEMENT') {
+      this.isBuildingSettlement = !this.isBuildingSettlement;
+      this.isBuildingRoad = false;
+      this.isBuildingCity = false;
+    } else if (buildType === 'CITY') {
+      this.isBuildingCity = !this.isBuildingCity;
+      this.isBuildingRoad = false;
+      this.isBuildingSettlement = false;
+    } else if (buildType === 'DEV_CARD') {
+      this.gameService.buyDevelopmentCard(this.gameId).subscribe({
+        next: () => {
+          // Development card purchased - state will update via WebSocket
+        },
+        error: (err: Error) => {
+          console.error('Error buying development card:', err);
+        }
+      });
+    }
+  }
+  
+  onTrade(trade: any): void {
+    if (!this.gameId) return;
+    
+    // Example of direct state change without API call
+    console.log('Trade executed:', trade);
+    /* In a real implementation with API:
+    this.gameService.trade(this.gameId, trade).subscribe({
+      next: () => {
+        // Trade completed - state will update via WebSocket
+      },
+      error: (err: Error) => {
+        console.error('Error executing trade:', err);
+      }
+    });
+    */
+  }
+  
+  onMainAction(): void {
+    if (this.isRoll) {
+      this.rollDice();
+    } else if (this.gameState?.current_prompt === 'DISCARD') {
+      // Handle discard logic
+    } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
+      this.isMovingRobber = true;
+    } else {
+      this.endTurn();
+    }
+  }
+  
+  rollDice(): void {
+    if (!this.gameId) return;
+    
+    this.gameService.rollDice(this.gameId).subscribe({
+      next: () => {
+        // Dice rolled - state will update via WebSocket
+      },
+      error: (err: Error) => {
+        console.error('Error rolling dice:', err);
+      }
+    });
+  }
+  
+  endTurn(): void {
+    if (!this.gameId) return;
+    
+    this.gameService.endTurn(this.gameId).subscribe({
+      next: () => {
+        // Turn ended - state will update via WebSocket
+      },
+      error: (err: Error) => {
+        console.error('Error ending turn:', err);
+      }
+    });
+  }
+  
+  getCurrentPlayer(): ExtendedPlayer | null {
+    if (!this.gameState || !this.gameState.game) return null;
+    
+    return this.gameState.game.players[this.gameState.game.current_player_index] as ExtendedPlayer;
+  }
+  
+  getHumanPlayer(): ExtendedPlayer | null {
+    if (!this.gameState || !this.gameState.game) return null;
+    
+    // Return the first non-bot player (this would need to be adjusted based on your game logic)
+    return (this.gameState.game.players as ExtendedPlayer[]).find(player => !player.is_bot) || null;
+  }
+  
+  getResourceEntries(resources: Record<string, number>): Array<{key: string, value: number}> {
+    return resources ? Object.entries(resources).map(([key, value]) => ({ key, value })) : [];
+  }
+  
+  getResourceColor(resource: string): string {
+    const resourceColors: Record<string, string> = {
+      'wood': 'wood',
+      'brick': 'brick',
+      'sheep': 'sheep',
+      'wheat': 'wheat',
+      'ore': 'ore'
+    };
+    
+    return resourceColors[resource.toLowerCase()] || '';
+  }
+  
+  toggleLeftDrawer(): void {
+    this.isLeftDrawerOpen = !this.isLeftDrawerOpen;
+    
+    // Close right drawer when opening left drawer in mobile view
+    if (this.isMobileView && this.isLeftDrawerOpen) {
+      this.isRightDrawerOpen = false;
+    }
+  }
+  
+  toggleRightDrawer(): void {
+    this.isRightDrawerOpen = !this.isRightDrawerOpen;
+    
+    // Close left drawer when opening right drawer in mobile view
+    if (this.isMobileView && this.isRightDrawerOpen) {
+      this.isLeftDrawerOpen = false;
+    }
+  }
+  
+  closeDrawers(): void {
+    this.isLeftDrawerOpen = false;
+    this.isRightDrawerOpen = false;
+  }
+  
+  get isBotTurn(): boolean {
+    if (!this.gameState || !this.gameState.game) return false;
+    
+    const currentPlayer = this.getCurrentPlayer();
+    return currentPlayer?.is_bot || false;
+  }
+  
+  get isGameOver(): boolean {
+    return this.gameState?.status === 'finished';
+  }
+  
+  checkMobileView(): void {
+    this.isMobileView = window.innerWidth < 992;
+    
+    // Close drawers when switching to desktop view
+    if (!this.isMobileView) {
+      this.isLeftDrawerOpen = false;
+      this.isRightDrawerOpen = false;
+    }
   }
 } 

@@ -1,0 +1,97 @@
+.left-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 300px;
+  background-color: #1a1a1a;
+  z-index: 1000;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+  color: #f0f0f0;
+
+  &.mobile {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+
+    &.open {
+      transform: translateX(0);
+    }
+  }
+
+  .drawer-content {
+    padding: 16px 0;
+    
+    .player-section {
+      transition: background-color 0.2s ease;
+      border-left: 3px solid transparent;
+      
+      &.current-player {
+        background-color: rgba(255, 152, 0, 0.2);
+        border-left-color: #ff9800;
+      }
+    }
+  }
+
+  .log {
+    padding: 8px 16px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 16px;
+    
+    .action {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: white;
+      
+      &.red {
+        background-color: #d32f2f;
+      }
+      
+      &.blue {
+        background-color: #2196f3;
+      }
+      
+      &.green {
+        background-color: #4caf50;
+      }
+      
+      &.yellow {
+        background-color: #ffc107;
+        color: #212121;
+      }
+      
+      &.orange {
+        background-color: #ff9800;
+      }
+      
+      &.purple {
+        background-color: #9c27b0;
+      }
+    }
+  }
+}
+
+/* Responsive styles */
+@media (min-width: 992px) {
+  .left-drawer {
+    width: 300px;
+  }
+}
+
+@media (max-width: 991px) {
+  .left-drawer {
+    width: 280px;
+    
+    &:not(.open) {
+      display: none;
+    }
+    
+    &.open {
+      z-index: 1000;
+    }
+  }
+} 

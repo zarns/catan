@@ -1,0 +1,17 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="brick-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#b74a3b"/>
+    <rect x="0" y="0" width="50" height="20" fill="#a03e30" rx="2" ry="2"/>
+    <rect x="50" y="0" width="50" height="20" fill="#962f22" rx="2" ry="2"/>
+    <rect x="0" y="20" width="50" height="20" fill="#962f22" rx="2" ry="2"/>
+    <rect x="50" y="20" width="50" height="20" fill="#a03e30" rx="2" ry="2"/>
+    <rect x="0" y="40" width="50" height="20" fill="#a03e30" rx="2" ry="2"/>
+    <rect x="50" y="40" width="50" height="20" fill="#962f22" rx="2" ry="2"/>
+    <rect x="0" y="60" width="50" height="20" fill="#962f22" rx="2" ry="2"/>
+    <rect x="50" y="60" width="50" height="20" fill="#a03e30" rx="2" ry="2"/>
+    <rect x="0" y="80" width="50" height="20" fill="#a03e30" rx="2" ry="2"/>
+    <rect x="50" y="80" width="50" height="20" fill="#962f22" rx="2" ry="2"/>
+    <path d="M0 20 h100 M0 40 h100 M0 60 h100 M0 80 h100 M50 0 v100" stroke="#802a1d" stroke-width="2" stroke-opacity="0.5"/>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#brick-pattern)" />
+</svg> 

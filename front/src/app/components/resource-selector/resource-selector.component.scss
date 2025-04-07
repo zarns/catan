@@ -1,0 +1,264 @@
+.resource-selector {
+  padding: 16px;
+  
+  h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+    text-align: center;
+  }
+  
+  .resource-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+    
+    .resource-button {
+      padding: 12px;
+      text-transform: none;
+      
+      .resource-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        .resource-name {
+          font-weight: 500;
+          
+          &.wood {
+            color: #795548;
+          }
+          
+          &.brick {
+            color: #e57373;
+          }
+          
+          &.sheep {
+            color: #81c784;
+          }
+          
+          &.wheat {
+            color: #fdd835;
+          }
+          
+          &.ore {
+            color: #757575;
+          }
+        }
+        
+        .plus {
+          margin: 0 4px;
+          color: rgba(0, 0, 0, 0.54);
+        }
+      }
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
+    }
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    
+    .cancel-button {
+      color: rgba(0, 0, 0, 0.54);
+    }
+  }
+}
+
+@media (max-width: 599px) {
+  .resource-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.resource-selector-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.resource-selector-dialog {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #eee;
+  
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 500;
+  }
+}
+
+.resource-selector-content {
+  padding: 16px 24px;
+  flex-grow: 1;
+  
+  p {
+    margin: 0 0 16px;
+    color: #555;
+  }
+}
+
+.resource-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.resource-option {
+  background: none;
+  border: 2px solid #eee;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  
+  &:hover:not(:disabled) {
+    border-color: #999;
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  // Resource type colors
+  &.brick, &.clay {
+    border-color: #d35400;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(211, 84, 0, 0.1);
+    }
+  }
+  
+  &.lumber, &.wood {
+    border-color: #27ae60;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(39, 174, 96, 0.1);
+    }
+  }
+  
+  &.wool, &.sheep {
+    border-color: #2ecc71;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(46, 204, 113, 0.1);
+    }
+  }
+  
+  &.grain, &.wheat {
+    border-color: #f1c40f;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(241, 196, 15, 0.1);
+    }
+  }
+  
+  &.ore {
+    border-color: #7f8c8d;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(127, 140, 141, 0.1);
+    }
+  }
+}
+
+.resource-icon {
+  display: flex;
+  align-items: center;
+  
+  .resource-hex {
+    width: 20px;
+    height: 24px;
+    position: relative;
+    margin-right: 8px;
+    
+    // Hexagon shape via clip-path
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    
+    // Resource colors
+    .brick &, .clay & {
+      background-color: #d35400;
+    }
+    
+    .lumber &, .wood & {
+      background-color: #27ae60;
+    }
+    
+    .wool &, .sheep & {
+      background-color: #2ecc71;
+    }
+    
+    .grain &, .wheat & {
+      background-color: #f1c40f;
+    }
+    
+    .ore & {
+      background-color: #7f8c8d;
+    }
+  }
+  
+  .resource-label {
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+}
+
+.resource-count {
+  font-weight: 500;
+  color: #555;
+}
+
+.resource-selector-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  
+  button {
+    min-width: 100px;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 600px) {
+  .resource-selector-dialog {
+    width: 95%;
+    max-height: 80vh;
+  }
+  
+  .resource-options {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+} 

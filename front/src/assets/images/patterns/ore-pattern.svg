@@ -1,0 +1,29 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="ore-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#777777"/>
+    <!-- Ore/stone pattern -->
+    <path d="M20 20 L40 15 L70 25 L90 15 L80 45 L90 70 L70 80 L50 75 L30 80 L10 70 L15 40 Z" 
+          fill="#696969" stroke="#505050" stroke-width="2"/>
+    <path d="M30 30 L45 25 L65 30 L75 25 L70 45 L75 60 L60 70 L45 65 L35 70 L25 60 L30 45 Z" 
+          fill="#808080" stroke="#606060" stroke-width="1.5"/>
+    
+    <!-- Crack-like details -->
+    <path d="M35 25 L40 45 L50 60 L60 40 L75 30" stroke="#505050" stroke-width="1" fill="none"/>
+    <path d="M25 35 L35 55 L45 70 L55 60 L65 50" stroke="#505050" stroke-width="1" fill="none"/>
+    <path d="M55 25 L50 40 L45 55 L40 70 L35 80" stroke="#505050" stroke-width="1" fill="none"/>
+    
+    <!-- Highlights and shadows -->
+    <circle cx="30" cy="40" r="3" fill="#888888"/>
+    <circle cx="45" cy="35" r="2" fill="#888888"/>
+    <circle cx="60" cy="50" r="4" fill="#888888"/>
+    <circle cx="70" cy="35" r="3" fill="#888888"/>
+    <circle cx="50" cy="65" r="3" fill="#888888"/>
+    
+    <circle cx="40" cy="50" r="2" fill="#666666"/>
+    <circle cx="55" cy="40" r="3" fill="#666666"/>
+    <circle cx="65" cy="60" r="2" fill="#666666"/>
+    <circle cx="35" cy="65" r="3" fill="#666666"/>
+    <circle cx="75" cy="50" r="2" fill="#666666"/>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#ore-pattern)" />
+</svg> 

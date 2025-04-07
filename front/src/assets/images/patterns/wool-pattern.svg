@@ -1,0 +1,26 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="wool-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#7bc346"/>
+    <!-- Wavy pattern to simulate wool -->
+    <path d="M0 20 C10 15, 20 25, 30 20 C40 15, 50 25, 60 20 C70 15, 80 25, 90 20 C100 15, 110 25, 120 20" 
+          stroke="#a6e172" stroke-width="3" fill="none"/>
+    <path d="M0 40 C10 35, 20 45, 30 40 C40 35, 50 45, 60 40 C70 35, 80 45, 90 40 C100 35, 110 45, 120 40" 
+          stroke="#a6e172" stroke-width="3" fill="none"/>
+    <path d="M0 60 C10 55, 20 65, 30 60 C40 55, 50 65, 60 60 C70 55, 80 65, 90 60 C100 55, 110 65, 120 60" 
+          stroke="#a6e172" stroke-width="3" fill="none"/>
+    <path d="M0 80 C10 75, 20 85, 30 80 C40 75, 50 85, 60 80 C70 75, 80 85, 90 80 C100 75, 110 85, 120 80" 
+          stroke="#a6e172" stroke-width="3" fill="none"/>
+    
+    <!-- Add some circular tufts -->
+    <circle cx="15" cy="15" r="5" fill="#a6e172"/>
+    <circle cx="45" cy="25" r="4" fill="#a6e172"/>
+    <circle cx="75" cy="15" r="5" fill="#a6e172"/>
+    <circle cx="25" cy="55" r="4" fill="#a6e172"/>
+    <circle cx="55" cy="75" r="5" fill="#a6e172"/>
+    <circle cx="85" cy="55" r="4" fill="#a6e172"/>
+    <circle cx="35" cy="85" r="5" fill="#a6e172"/>
+    <circle cx="65" cy="95" r="4" fill="#a6e172"/>
+    <circle cx="95" cy="85" r="5" fill="#a6e172"/>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#wool-pattern)" />
+</svg> 

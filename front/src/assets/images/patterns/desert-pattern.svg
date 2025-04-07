@@ -1,0 +1,52 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <pattern id="desert-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <rect width="100%" height="100%" fill="#e0d09c"/>
+    
+    <!-- Sand dune patterns -->
+    <path d="M0 40 Q25 30, 50 40 Q75 50, 100 40" stroke="#ccbd8c" stroke-width="3" fill="none"/>
+    <path d="M0 60 Q25 50, 50 60 Q75 70, 100 60" stroke="#ccbd8c" stroke-width="3" fill="none"/>
+    <path d="M0 80 Q25 70, 50 80 Q75 90, 100 80" stroke="#ccbd8c" stroke-width="3" fill="none"/>
+    
+    <!-- Sand texture with small dots -->
+    <g fill="#ccbd8c">
+      <circle cx="10" cy="20" r="1.5"/>
+      <circle cx="30" cy="15" r="1"/>
+      <circle cx="50" cy="25" r="1.5"/>
+      <circle cx="70" cy="18" r="1"/>
+      <circle cx="90" cy="22" r="1.5"/>
+      
+      <circle cx="15" cy="35" r="1"/>
+      <circle cx="35" cy="38" r="1.5"/>
+      <circle cx="55" cy="32" r="1"/>
+      <circle cx="75" cy="37" r="1.5"/>
+      <circle cx="95" cy="33" r="1"/>
+      
+      <circle cx="5" cy="55" r="1.5"/>
+      <circle cx="25" cy="52" r="1"/>
+      <circle cx="45" cy="58" r="1.5"/>
+      <circle cx="65" cy="54" r="1"/>
+      <circle cx="85" cy="56" r="1.5"/>
+      
+      <circle cx="20" cy="75" r="1"/>
+      <circle cx="40" cy="72" r="1.5"/>
+      <circle cx="60" cy="78" r="1"/>
+      <circle cx="80" cy="74" r="1.5"/>
+      <circle cx="100" cy="76" r="1"/>
+      
+      <circle cx="15" cy="95" r="1.5"/>
+      <circle cx="35" cy="92" r="1"/>
+      <circle cx="55" cy="96" r="1.5"/>
+      <circle cx="75" cy="93" r="1"/>
+      <circle cx="95" cy="97" r="1.5"/>
+    </g>
+    
+    <!-- Cactus -->
+    <path d="M70 65 L70 40 L65 30 L65 40 L70 40 M70 50 L75 45 L75 55 L70 50" 
+          stroke="#aba278" stroke-width="2" fill="none"/>
+    
+    <!-- Small rock formations -->
+    <path d="M25 80 L30 75 L35 78 L40 75 L38 82 L30 85 Z" fill="#aba278"/>
+    <path d="M85 60 L88 57 L92 58 L94 55 L92 62 L87 64 Z" fill="#aba278"/>
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#desert-pattern)" />
+</svg> 
