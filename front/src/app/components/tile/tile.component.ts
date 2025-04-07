@@ -96,14 +96,14 @@ export class TileComponent {
   // Get tile image based on resource
   getTileImageSrc(resource: string): string {
     switch (resource?.toLowerCase()) {
-      case 'brick': return 'assets/tile_brick.svg';
-      case 'lumber': return 'assets/tile_wood.svg';
-      case 'wool': return 'assets/tile_sheep.svg';
-      case 'grain': return 'assets/tile_wheat.svg';
-      case 'ore': return 'assets/tile_ore.svg';
-      case 'desert': return 'assets/tile_desert.svg';
-      case 'water': return 'assets/tile_maritime.svg';
-      default: return 'assets/tile_desert.svg';
+      case 'brick': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'lumber': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'wool': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'grain': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'ore': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'desert': return 'assets/images/patterns/lumber-pattern.svg';
+      case 'water': return ''; // Water has no pattern
+      default: return 'assets/images/patterns/lumber-pattern.svg';
     }
   }
-} 
+}

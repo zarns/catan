@@ -23,11 +23,6 @@
   margin-top: -52px;
   transition: all 0.2s ease;
   
-  &:hover {
-    transform: scale(1.05);
-    z-index: 10;
-  }
-  
   .tile-content {
     position: absolute;
     width: 100%;
@@ -37,53 +32,6 @@
     align-items: center;
     justify-content: center;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    
-    &.brick {
-      background-color: #b74a3b;
-      background-image: url('/assets/images/patterns/brick-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.lumber {
-      background-color: #1a662e;
-      background-image: url('/assets/images/patterns/lumber-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.wool {
-      background-color: #7bc346;
-      background-image: url('/assets/images/patterns/wool-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.grain {
-      background-color: #e2c759;
-      background-image: url('/assets/images/patterns/grain-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.ore {
-      background-color: #777777;
-      background-image: url('/assets/images/patterns/ore-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.desert {
-      background-color: #e0d09c;
-      background-image: url('/assets/images/patterns/desert-pattern.svg');
-      background-size: cover;
-      background-blend-mode: overlay;
-    }
-    
-    &.water {
-      background-color: #000000;
-      pointer-events: none;
-    }
   }
   
   .number-token {
@@ -120,35 +68,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     z-index: 3;
     
-    &.brick {
-      background-color: rgba(183, 74, 59, 0.8);
-      color: white;
-    }
-    
-    &.lumber {
-      background-color: rgba(26, 102, 46, 0.8);
-      color: white;
-    }
-    
-    &.wool {
-      background-color: rgba(123, 195, 70, 0.8);
-      color: white;
-    }
-    
-    &.grain {
-      background-color: rgba(226, 199, 89, 0.8);
-      color: white;
-    }
-    
-    &.ore {
-      background-color: rgba(119, 119, 119, 0.8);
-      color: white;
-    }
-    
-    &.generic {
-      background-color: rgba(255, 255, 255, 0.8);
-      color: #333;
-    }
   }
 }
 

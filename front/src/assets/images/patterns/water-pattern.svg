@@ -1,0 +1,107 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="water-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a89c0" />
+      <stop offset="100%" stop-color="#3a6e9e" />
+    </linearGradient>
+    <linearGradient id="water-highlight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5998d2" />
+      <stop offset="100%" stop-color="#4a89c0" />
+    </linearGradient>
+    <linearGradient id="water-shadow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2c5a85" />
+      <stop offset="100%" stop-color="#3a6e9e" />
+    </linearGradient>
+  </defs>
+  
+  <pattern id="water-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
+    <!-- Base water color -->
+    <rect width="100%" height="100%" fill="url(#water-grad)"/>
+    
+    <!-- Ocean waves / ripples -->
+    <path d="M0 10 C 10 7, 20 13, 30 10 C 40 7, 50 13, 60 10 C 70 7, 80 13, 90 10 C 100 7, 110 13, 120 10" 
+          stroke="url(#water-highlight)" stroke-width="2" fill="none" opacity="0.6" />
+    <path d="M0 20 C 15 17, 30 23, 45 20 C 60 17, 75 23, 90 20 C 105 17, 120 23, 135 20" 
+          stroke="url(#water-highlight)" stroke-width="1.5" fill="none" opacity="0.5" />
+    <path d="M0 30 C 10 27, 20 33, 30 30 C 40 27, 50 33, 60 30 C 70 27, 80 33, 90 30 C 100 27, 110 33, 120 30" 
+          stroke="url(#water-shadow)" stroke-width="2" fill="none" opacity="0.5" />
+    <path d="M0 40 C 15 37, 30 43, 45 40 C 60 37, 75 43, 90 40 C 105 37, 120 43, 135 40" 
+          stroke="url(#water-highlight)" stroke-width="1.5" fill="none" opacity="0.4" />
+    <path d="M0 50 C 10 47, 20 53, 30 50 C 40 47, 50 53, 60 50 C 70 47, 80 53, 90 50 C 100 47, 110 53, 120 50" 
+          stroke="url(#water-shadow)" stroke-width="2" fill="none" opacity="0.5" />
+    <path d="M0 60 C 15 57, 30 63, 45 60 C 60 57, 75 63, 90 60 C 105 57, 120 63, 135 60" 
+          stroke="url(#water-highlight)" stroke-width="1.5" fill="none" opacity="0.4" />
+    <path d="M0 70 C 10 67, 20 73, 30 70 C 40 67, 50 73, 60 70 C 70 67, 80 73, 90 70 C 100 67, 110 73, 120 70" 
+          stroke="url(#water-shadow)" stroke-width="2" fill="none" opacity="0.5" />
+    <path d="M0 80 C 15 77, 30 83, 45 80 C 60 77, 75 83, 90 80 C 105 77, 120 83, 135 80" 
+          stroke="url(#water-highlight)" stroke-width="1.5" fill="none" opacity="0.4" />
+    <path d="M0 90 C 10 87, 20 93, 30 90 C 40 87, 50 93, 60 90 C 70 87, 80 93, 90 90 C 100 87, 110 93, 120 90" 
+          stroke="url(#water-shadow)" stroke-width="2" fill="none" opacity="0.5" />
+    
+    <!-- Surface ripple details -->
+    <path d="M15 5 C 17 4, 19 6, 21 5" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M35 15 C 37 14, 39 16, 41 15" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M55 5 C 57 4, 59 6, 61 5" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M75 15 C 77 14, 79 16, 81 15" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    
+    <path d="M5 25 C 7 24, 9 26, 11 25" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M25 35 C 27 34, 29 36, 31 35" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M45 25 C 47 24, 49 26, 51 25" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M65 35 C 67 34, 69 36, 71 35" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M85 25 C 87 24, 89 26, 91 25" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    
+    <path d="M15 45 C 17 44, 19 46, 21 45" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M35 55 C 37 54, 39 56, 41 55" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M55 45 C 57 44, 59 46, 61 45" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M75 55 C 77 54, 79 56, 81 55" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    
+    <path d="M5 65 C 7 64, 9 66, 11 65" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M25 75 C 27 74, 29 76, 31 75" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M45 65 C 47 64, 49 66, 51 65" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M65 75 C 67 74, 69 76, 71 75" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M85 65 C 87 64, 89 66, 91 65" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    
+    <path d="M15 85 C 17 84, 19 86, 21 85" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M35 95 C 37 94, 39 96, 41 95" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M55 85 C 57 84, 59 86, 61 85" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    <path d="M75 95 C 77 94, 79 96, 81 95" stroke="#6ba8db" stroke-width="0.8" opacity="0.6" fill="none" />
+    
+    <!-- Water sparkle highlights -->
+    <g fill="#ffffff" opacity="0.4">
+      <circle cx="12" cy="8" r="0.5" />
+      <circle cx="48" cy="12" r="0.4" />
+      <circle cx="68" cy="18" r="0.3" />
+      <circle cx="92" cy="6" r="0.5" />
+      
+      <circle cx="8" cy="28" r="0.3" />
+      <circle cx="36" cy="34" r="0.4" />
+      <circle cx="72" cy="26" r="0.5" />
+      <circle cx="84" cy="38" r="0.3" />
+      
+      <circle cx="18" cy="52" r="0.4" />
+      <circle cx="44" cy="46" r="0.5" />
+      <circle cx="64" cy="58" r="0.3" />
+      <circle cx="88" cy="54" r="0.4" />
+      
+      <circle cx="6" cy="76" r="0.5" />
+      <circle cx="32" cy="68" r="0.3" />
+      <circle cx="58" cy="74" r="0.4" />
+      <circle cx="78" cy="66" r="0.5" />
+      
+      <circle cx="24" cy="88" r="0.3" />
+      <circle cx="52" cy="92" r="0.4" />
+      <circle cx="76" cy="86" r="0.5" />
+      <circle cx="94" cy="94" r="0.3" />
+    </g>
+    
+    <!-- Deeper blue tones for depth -->
+    <g fill="#2c5a85" opacity="0.1">
+      <rect x="10" y="10" width="20" height="10" rx="5" />
+      <rect x="50" y="25" width="30" height="15" rx="7" />
+      <rect x="15" y="50" width="25" height="10" rx="5" />
+      <rect x="60" y="70" width="20" height="15" rx="7" />
+    </g>
+  </pattern>
+  
+  <rect width="100%" height="100%" fill="url(#water-pattern)" />
+</svg> 

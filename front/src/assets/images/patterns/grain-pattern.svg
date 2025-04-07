@@ -1,43 +1,128 @@
-<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-  <pattern id="grain-pattern" patternUnits="userSpaceOnUse" width="100" height="100">
-    <rect width="100%" height="100%" fill="#e2c759"/>
-    <!-- Grain stalks -->
-    <g stroke="#c7a833" stroke-width="1.5" fill="none">
-      <!-- First column of grain stalks -->
-      <path d="M10 95 L10 50 M5 45 L10 50 L15 45" />
-      <path d="M10 50 L10 40 M5 35 L10 40 L15 35" />
-      <path d="M10 40 L10 30 M5 25 L10 30 L15 25" />
-      <path d="M10 30 L10 20 M5 15 L10 20 L15 15" />
-      <path d="M10 20 L10 10 M5 5 L10 10 L15 5" />
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+  <defs>
+    <!-- Much darker green gradient for lumber/forest -->
+    <linearGradient id="tile-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#073D10" />
+      <stop offset="35%" stop-color="#05280A" />
+      <stop offset="65%" stop-color="#031906" />
+      <stop offset="100%" stop-color="#020F04" />
+    </linearGradient>
+    
+    <!-- Subtle green glow filter -->
+    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="
+        0.1 0 0 0 0
+        0 1.2 0 0 0.1
+        0 0 0.1 0 0
+        0 0 0 1.2 0
+      " result="neon" />
+      <feMerge>
+        <feMergeNode in="neon" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Forest noise texture -->
+    <!-- <filter id="forest-noise" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="
+        0.05 0 0 0 0
+        0 0.1 0 0 0
+        0 0 0.05 0 0
+        0 0 0 0.05 1
+      " result="colorNoise"/>
+      <feComposite in="SourceGraphic" in2="colorNoise" operator="arithmetic" k1="0" k2="1" k3="0.1" k4="0"/>
+    </filter> -->
+
+    <!-- Hexagonal circuit pattern with data flow animations -->
+    <pattern id="circuit-inner" patternUnits="userSpaceOnUse" width="30" height="30">
+      <!-- Hexagonal circuit grid -->
+      <path d="M15 0 L30 8.66 L30 25.98 L15 34.64 L0 25.98 L0 8.66 Z" fill="none" stroke="#22DD22" stroke-width="0.4" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="opacity" values="0.6;0.8;0.6" dur="2.5s" repeatCount="indefinite"/>
+      </path>
       
-      <!-- Second column of grain stalks -->
-      <path d="M30 95 L30 50 M25 45 L30 50 L35 45" />
-      <path d="M30 50 L30 40 M25 35 L30 40 L35 35" />
-      <path d="M30 40 L30 30 M25 25 L30 30 L35 25" />
-      <path d="M30 30 L30 20 M25 15 L30 20 L35 15" />
-      <path d="M30 20 L30 10 M25 5 L30 10 L35 5" />
+      <!-- Inner hexagon -->
+      <path d="M15 5 L25 10.83 L25 23.17 L15 29 L5 23.17 L5 10.83 Z" fill="none" stroke="#44DD44" stroke-width="0.3" opacity="0.5" filter="url(#neon-glow)">
+        <animate attributeName="opacity" values="0.5;0.7;0.5" dur="3s" repeatCount="indefinite"/>
+      </path>
       
-      <!-- Third column of grain stalks -->
-      <path d="M50 95 L50 50 M45 45 L50 50 L55 45" />
-      <path d="M50 50 L50 40 M45 35 L50 40 L55 35" />
-      <path d="M50 40 L50 30 M45 25 L50 30 L55 25" />
-      <path d="M50 30 L50 20 M45 15 L50 20 L55 15" />
-      <path d="M50 20 L50 10 M45 5 L50 10 L55 5" />
+      <!-- Data flow animation around the inner hex -->
+      <circle cx="15" cy="5" r="0.8" fill="#33DD33" filter="url(#neon-glow)">
+        <animate attributeName="cx" values="15;25;25;15;5;5;15" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="5;10.83;23.17;29;23.17;10.83;5" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="0.8;1.2;0.8" dur="2s" repeatCount="indefinite"/>
+      </circle>
       
-      <!-- Fourth column of grain stalks -->
-      <path d="M70 95 L70 50 M65 45 L70 50 L75 45" />
-      <path d="M70 50 L70 40 M65 35 L70 40 L75 35" />
-      <path d="M70 40 L70 30 M65 25 L70 30 L75 25" />
-      <path d="M70 30 L70 20 M65 15 L70 20 L75 15" />
-      <path d="M70 20 L70 10 M65 5 L70 10 L75 5" />
+      <!-- Circuit board pads at connection points -->
+      <circle cx="15" cy="15" r="1.5" fill="#66DD66" opacity="0.7" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1.5;2;1.5" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.7;0.9;0.7" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
       
-      <!-- Fifth column of grain stalks -->
-      <path d="M90 95 L90 50 M85 45 L90 50 L95 45" />
-      <path d="M90 50 L90 40 M85 35 L90 40 L95 35" />
-      <path d="M90 40 L90 30 M85 25 L90 30 L95 25" />
-      <path d="M90 30 L90 20 M85 15 L90 20 L95 15" />
-      <path d="M90 20 L90 10 M85 5 L90 10 L95 5" />
+      <!-- Additional connection pads -->
+      <circle cx="15" cy="5" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="25" cy="10.83" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="3.2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="25" cy="23.17" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="3.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="15" cy="29" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="3.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="5" cy="23.17" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="3.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="5" cy="10.83" r="1" fill="#77DD77" opacity="0.6" filter="url(#neon-glow)">
+        <animate attributeName="r" values="1;1.5;1" dur="4s" repeatCount="indefinite"/>
+      </circle>
+    </pattern>
+  </defs>
+
+  <!-- Main hexagon group that fills the entire viewport -->
+  <g>
+    <!-- Base hexagon with forest noise - full space coverage -->
+    <path d="M50 0 L97.5 25 L97.5 75 L50 100 L2.5 75 L2.5 25 Z" 
+          fill="url(#tile-grad)" 
+          filter="url(#forest-noise)"
+          stroke="#00AA00" 
+          stroke-width="1" 
+          stroke-opacity="0.8">
+      <animate attributeName="stroke-opacity" 
+               values="0.8;1;0.8" 
+               dur="2.5s" 
+               repeatCount="indefinite"/>
+    </path>
+
+    <!-- Circuit overlay - adjusted to fill completely -->
+    <path d="M50 2 L98 30 L98 70 L50 98 L2 70 L2 30 Z" 
+          fill="url(#circuit-inner)" 
+          opacity="0.75"/>
+          
+    <!-- Forest overlay - adjusted to fill completely -->
+    <path d="M50 5 L95 32 L95 68 L50 95 L5 68 L5 32 Z" 
+          fill="url(#forest-overlay)" 
+          opacity="0.6"/>
+
+    <!-- Hexagonally arranged circuit traces -->
+    <g stroke="#11DD11" stroke-width="0.8" opacity="0.5" filter="url(#neon-glow)">
+
+      <!-- Data transmission dots -->
+      <circle cx="25" cy="35" r="1" fill="#55DD55">
+        <animate attributeName="cx" values="25;75;25" dur="4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="75" cy="50" r="1" fill="#55DD55">
+        <animate attributeName="cx" values="75;25;75" dur="3.5s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="50;65;50" dur="3.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="25" cy="50" r="1" fill="#55DD55">
+        <animate attributeName="cx" values="25;75;25" dur="5s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="50;65;50" dur="5s" repeatCount="indefinite"/>
+      </circle>
     </g>
-  </pattern>
-  <rect width="100%" height="100%" fill="url(#grain-pattern)" />
-</svg> 
+  </g>
+</svg>
