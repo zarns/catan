@@ -29,7 +29,7 @@ export class WebsocketService {
     // Close existing connection if any
     this.disconnect();
 
-    const wsUrl = `${environment.wsUrl}/ws/games/${gameId}`;
+    const wsUrl = `${environment.wsUrl}/games/${gameId}`;
     console.log(`Connecting to WebSocket at ${wsUrl}`);
     
     this.socket = new WebSocket(wsUrl);

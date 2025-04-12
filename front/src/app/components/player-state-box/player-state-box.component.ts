@@ -37,16 +37,16 @@ import { MatDividerModule } from '@angular/material/divider';
       
       <div class="scores">
         <div class="num-knights center-text"
-             [ngClass]="{'bold': playerState[playerKey + '_HAS_ARMY']}"
+             [ngClass]="{'bold': hasLargestArmy()}"
              title="Knights Played">
-          <span>{{ playerState[playerKey + '_PLAYED_KNIGHT'] }}</span>
+          <span>{{ getKnightsPlayed() }}</span>
           <small>knights</small>
         </div>
         
         <div class="num-roads center-text"
-             [ngClass]="{'bold': playerState[playerKey + '_HAS_ROAD']}"
+             [ngClass]="{'bold': hasLongestRoad()}"
              title="Longest Road">
-          {{ playerState[playerKey + '_LONGEST_ROAD_LENGTH'] }}
+          {{ getLongestRoadLength() }}
           <small>roads</small>
         </div>
         
@@ -70,14 +70,133 @@ export class PlayerStateBoxComponent {
   developmentCardTypes = ['VICTORY_POINT', 'KNIGHT', 'MONOPOLY', 'YEAR_OF_PLENTY', 'ROAD_BUILDING'];
 
   get actualVictoryPoints(): number {
-    return this.playerState ? this.playerState[`${this.playerKey}_ACTUAL_VICTORY_POINTS`] : 0;
+    if (!this.playerState) return 0;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_ACTUAL_VICTORY_POINTS`]) {
+      return this.playerState[`${this.playerKey}_ACTUAL_VICTORY_POINTS`];
+    }
+    
+    // Fall back to the game object if available
+    if (this.playerState.game && this.playerState.game.players) {
+      const player = this.playerState.game.players.find((p: any) => 
+        p.color.toLowerCase() === this.playerKey.toLowerCase());
+      return player?.victory_points || 0;
+    }
+    
+    return 0;
   }
 
   getAmount(card: string): number {
     if (!this.playerState || !this.playerKey) {
       return 0;
     }
-    return this.playerState[`${this.playerKey}_${card}_IN_HAND`] || 0;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_${card}_IN_HAND`] !== undefined) {
+      return this.playerState[`${this.playerKey}_${card}_IN_HAND`] || 0;
+    }
+    
+    // Fall back to the game object if available
+    if (this.playerState.game && this.playerState.game.players) {
+      const player = this.playerState.game.players.find((p: any) => 
+        p.color.toLowerCase() === this.playerKey.toLowerCase());
+      
+      if (player && player.resources) {
+        // Map resource types to the backend format
+        const resourceMap: any = {
+          'WOOD': 'Lumber',
+          'BRICK': 'Brick',
+          'SHEEP': 'Wool',
+          'WHEAT': 'Grain',
+          'ORE': 'Ore'
+        };
+        
+        if (resourceMap[card] && player.resources[resourceMap[card]]) {
+          return player.resources[resourceMap[card]];
+        }
+      }
+    }
+    
+    return 0;
+  }
+
+  hasLargestArmy(): boolean {
+    if (!this.playerState) return false;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_HAS_ARMY`] !== undefined) {
+      return !!this.playerState[`${this.playerKey}_HAS_ARMY`];
+    }
+    
+    // Fall back to the game object if available
+    if (this.playerState.game && this.playerState.game.players) {
+      const player = this.playerState.game.players.find((p: any) => 
+        p.color.toLowerCase() === this.playerKey.toLowerCase());
+      return player?.largest_army || false;
+    }
+    
+    return false;
+  }
+
+  hasLongestRoad(): boolean {
+    if (!this.playerState) return false;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_HAS_ROAD`] !== undefined) {
+      return !!this.playerState[`${this.playerKey}_HAS_ROAD`];
+    }
+    
+    // Fall back to the game object if available
+    if (this.playerState.game && this.playerState.game.players) {
+      const player = this.playerState.game.players.find((p: any) => 
+        p.color.toLowerCase() === this.playerKey.toLowerCase());
+      return player?.longest_road || false;
+    }
+    
+    return false;
+  }
+
+  getLongestRoadLength(): number {
+    if (!this.playerState) return 0;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_LONGEST_ROAD_LENGTH`] !== undefined) {
+      return this.playerState[`${this.playerKey}_LONGEST_ROAD_LENGTH`] || 0;
+    }
+    
+    // We don't have this info in the current game object,
+    // so fallback to a count of player roads
+    if (this.playerState.game && this.playerState.game.board && this.playerState.game.board.edges) {
+      const edges = this.playerState.game.board.edges;
+      let roadCount = 0;
+      for (const edgeId in edges) {
+        if (edges[edgeId].color && edges[edgeId].color.toLowerCase() === this.playerKey.toLowerCase()) {
+          roadCount++;
+        }
+      }
+      return roadCount;
+    }
+    
+    return 0;
+  }
+
+  getKnightsPlayed(): number {
+    if (!this.playerState) return 0;
+    
+    // Try to get from the new backend format first
+    if (this.playerState[`${this.playerKey}_PLAYED_KNIGHT`] !== undefined) {
+      return this.playerState[`${this.playerKey}_PLAYED_KNIGHT`] || 0;
+    }
+    
+    // Fall back to the game object if available
+    if (this.playerState.game && this.playerState.game.players) {
+      const player = this.playerState.game.players.find((p: any) => 
+        p.color.toLowerCase() === this.playerKey.toLowerCase());
+      return player?.knights_played || 0;
+    }
+    
+    return 0;
   }
 
   getCardTitle(card: string): string {

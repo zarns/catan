@@ -25,7 +25,7 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
                class="player-section" 
                [ngClass]="{'current-player': i === gameState.game.current_player_index}">
             <app-player-state-box
-              [playerState]="gameState.player_state"
+              [playerState]="gameState"
               [playerKey]="player.color.toLowerCase()"
               [color]="player.color">
             </app-player-state-box>

@@ -99,6 +99,9 @@ async fn create_game(
         }
     };
     
+    // Clone actual_game before it's moved
+    let actual_game_clone = actual_game.clone();
+    
     let game_state = GameState {
         id: game_id.clone(),
         status: GameStatus::Waiting,
@@ -116,7 +119,7 @@ async fn create_game(
         WsMessage::GameState(GameState {
             id: game_id.clone(),
             status: GameStatus::Waiting,
-            game: None,
+            game: actual_game_clone,
         }),
     ));
     
@@ -141,7 +144,7 @@ async fn create_game(
                         WsMessage::GameState(GameState {
                             id: game_id_clone.clone(),
                             status: GameStatus::InProgress,
-                            game: None,
+                            game: game_state.game.clone(),
                         }),
                     ));
                     
@@ -236,7 +239,7 @@ async fn simulate_game_moves(state: SharedState, game_id: String, game: &mut Gam
                     WsMessage::GameState(GameState {
                         id: game_id.clone(),
                         status: GameStatus::Finished,
-                        game: None,
+                        game: Some(game.clone()),
                     }),
                 ));
             }

@@ -12,13 +12,11 @@ import { MatCardModule } from '@angular/material/card';
          [ngClass]="resource ? resource.toLowerCase() : ''"
          (click)="onClick.emit(coordinate)">
       
-      <img *ngIf="resource && resource !== 'Water'" 
-           [src]="getTileImageSrc(resource)" 
-           alt="{{ resource }}" 
-           class="tile-image">
+      <div class="pattern-overlay" *ngIf="resource" [style.background-image]="getPatternBackground()">
+      </div>
       
-      <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing }">
-        <div>{{ number }}</div>
+      <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
+        <div class="number">{{ number }}</div>
         <div class="pips">{{ numberToPips(number) }}</div>
       </div>
     </div>
@@ -70,6 +68,11 @@ export class TileComponent {
     return [pixelX, pixelY];
   }
   
+  // Check if this is a high probability number (6 or 8)
+  isHighProbability(): boolean {
+    return this.number === 6 || this.number === 8;
+  }
+  
   // Convert number to dots for display
   numberToPips(number: number): string {
     switch (number) {
@@ -93,17 +96,11 @@ export class TileComponent {
     }
   }
   
-  // Get tile image based on resource
-  getTileImageSrc(resource: string): string {
-    switch (resource?.toLowerCase()) {
-      case 'brick': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'lumber': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'wool': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'grain': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'ore': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'desert': return 'assets/images/patterns/lumber-pattern.svg';
-      case 'water': return ''; // Water has no pattern
-      default: return 'assets/images/patterns/lumber-pattern.svg';
-    }
+  // Get pattern background URL
+  getPatternBackground(): string {
+    if (!this.resource) return 'none';
+    
+    const resourceName = this.resource.toLowerCase();
+    return `url('assets/images/patterns/${resourceName}-pattern.svg')`;
   }
 }
