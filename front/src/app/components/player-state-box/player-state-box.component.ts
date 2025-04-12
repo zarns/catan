@@ -12,7 +12,7 @@ import { MatDividerModule } from '@angular/material/divider';
     MatDividerModule
   ],
   template: `
-    <div class="player-state-box foreground" [ngClass]="color?.toLowerCase()">
+    <div class="player-state-box foreground" [ngClass]="color.toLowerCase()">
       <div class="resource-cards" title="Resource Cards">
         <ng-container *ngFor="let card of resourceTypes">
           <div *ngIf="getAmount(card) !== 0" 

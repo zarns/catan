@@ -9,11 +9,9 @@ import { MatCardModule } from '@angular/material/card';
   template: `
     <div class="tile" 
          [ngStyle]="tileStyle"
-         [ngClass]="resource ? resource.toLowerCase() : ''"
          (click)="onClick.emit(coordinate)">
       
-      <div class="pattern-overlay" *ngIf="resource" [style.background-image]="getPatternBackground()">
-      </div>
+      <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
       
       <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
         <div class="number">{{ number }}</div>
@@ -25,7 +23,7 @@ import { MatCardModule } from '@angular/material/card';
 })
 export class TileComponent {
   @Input() coordinate: any;
-  @Input() resource: string = '';
+  @Input() resource: string | null = '';
   @Input() number: number | null | undefined = null;
   @Input() size: number = 60;
   @Input() centerX: number = 0;
@@ -96,11 +94,27 @@ export class TileComponent {
     }
   }
   
-  // Get pattern background URL
-  getPatternBackground(): string {
-    if (!this.resource) return 'none';
+  // Normalize the resource value (handle null, empty string as 'desert')
+  getNormalizedResource(): string {
+    return this.resource === null || this.resource === '' ? 'desert' : this.resource.toLowerCase();
+  }
+  
+  // Get SVG image source for the tile based on resource type
+  getTileImageSrc(): string {
+    const normalizedResource = this.getNormalizedResource();
     
-    const resourceName = this.resource.toLowerCase();
-    return `url('assets/images/patterns/${resourceName}-pattern.svg')`;
+    // Map resource names to file names
+    const resourceMap: {[key: string]: string} = {
+      'brick': 'tile_brick.svg',
+      'lumber': 'tile_wood.svg',
+      'wool': 'tile_sheep.svg',
+      'grain': 'tile_wheat.svg',
+      'ore': 'tile_ore.svg',
+      'desert': 'tile_desert.svg',
+      'port': 'tile_maritime.svg',
+    };
+    
+    // Get the matching SVG file or use the resource name directly
+    return `assets/${resourceMap[normalizedResource] || `tile_${normalizedResource}.svg`}`;
   }
 }
