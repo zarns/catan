@@ -45,6 +45,9 @@ export class EdgeComponent {
       top: `${tileY}px`,
       width: `${this.size * 0.9}px`,
       height: '12px',
+      // TODO: Remove temporary background color and border used for debugging edge positions
+      'background-color': this.flashing ? 'rgba(0, 255, 255, 0.5)' : 'rgba(200, 200, 200, 0.4)',
+      'border': '1px solid rgba(0, 0, 0, 0.3)',
       transform: transform
     };
   }

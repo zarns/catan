@@ -44,8 +44,11 @@ export class NodeComponent {
     const [tileX, tileY] = this.tilePixelVector();
     const [deltaX, deltaY] = this.getNodeDelta();
     
+    // Apply additional offset for NORTH nodes to avoid token overlap
+    const offsetMultiplier = this.direction === 'NORTH' ? 1.3 : 1;
+    
     const x = tileX + deltaX;
-    const y = tileY + deltaY;
+    const y = tileY + deltaY * offsetMultiplier;
     
     return {
       width: `${this.size * 0.5}px`,
@@ -53,7 +56,9 @@ export class NodeComponent {
       left: `${x}px`,
       top: `${y}px`,
       transform: 'translateY(-50%) translateX(-50%)',
-      'background-color': 'transparent',
+      // TODO: Remove temporary background color used for debugging node positions
+      'background-color': this.flashing ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 255, 0.3)',
+      'border': '1px solid rgba(0, 0, 0, 0.3)',
       'z-index': this.building ? 13 : 3,
     };
   }
