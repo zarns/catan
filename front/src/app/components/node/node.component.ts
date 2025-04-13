@@ -44,14 +44,8 @@ export class NodeComponent {
     const [tileX, tileY] = this.tilePixelVector();
     const [deltaX, deltaY] = this.getNodeDelta();
     
-    let offsetMultiplier = 1;
-    // Apply a slightly larger offset for north nodes to avoid token overlap
-    if (this.direction === 'NORTH') {
-      offsetMultiplier = 1.05;
-    }
-    
-    const x = tileX + deltaX * offsetMultiplier;
-    const y = tileY + deltaY * offsetMultiplier;
+    const x = tileX + deltaX;
+    const y = tileY + deltaY;
     
     return {
       width: `${this.size * 0.5}px`,
@@ -59,7 +53,7 @@ export class NodeComponent {
       left: `${x}px`,
       top: `${y}px`,
       transform: 'translateY(-50%) translateX(-50%)',
-      'background-color': this.building ? 'transparent' : '',
+      'background-color': 'transparent',
       'z-index': this.building ? 13 : 3,
     };
   }
@@ -91,15 +85,15 @@ export class NodeComponent {
       case 'NORTH':
         return [0, -h/2];
       case 'NORTHEAST':
-        return [w/4, -h/4];
+        return [w/2, -h/4];
       case 'SOUTHEAST':
-        return [w/4, h/4];
+        return [w/2, h/4];
       case 'SOUTH':
         return [0, h/2];
       case 'SOUTHWEST':
-        return [-w/4, h/4];
+        return [-w/2, h/4];
       case 'NORTHWEST':
-        return [-w/4, -h/4];
+        return [-w/2, -h/4];
       default:
         return [0, 0];
     }

@@ -98,48 +98,26 @@
 
 .node {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  margin-left: -14px;
-  margin-top: -14px;
   background-color: transparent;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  border: none;
   z-index: 4;
-  transition: all 0.2s ease;
   pointer-events: auto;
   
   &.buildable {
     cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
     animation: pulse 1.5s infinite;
     z-index: 10;
     
     &:hover {
-      transform: scale(1.3);
+      transform: scale(1.1);
     }
   }
   
   &.settlement {
-    background-color: currentColor;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    border-radius: 0;
-    border: none;
-    transform: scale(1.2);
     z-index: 15;
   }
   
   &.city {
-    background-color: currentColor;
-    width: 34px;
-    height: 34px;
-    margin-left: -17px;
-    margin-top: -17px;
-    clip-path: polygon(0% 50%, 30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%);
-    border-radius: 0;
-    border: none;
-    transform: scale(1.2);
     z-index: 15;
   }
 }

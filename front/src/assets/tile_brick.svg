@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6.7 -6.7 86.6 100">
   <defs>
     <!-- Maroon gradient -->
     <linearGradient id="maroon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -22,16 +22,16 @@
     </filter>
   </defs>
 
-  <!-- Main hexagon - pointed upward -->
+  <!-- Main hexagon - pointed up, perfectly proportioned -->
   <g>
     <!-- Base hexagon with maroon fill -->
-    <path d="M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z" 
+    <path d="M50.0 -6.7 L93.3 18.3 L93.3 68.3 L50.0 93.3 L6.7 68.3 L6.7 18.3 Z" 
           fill="url(#maroon-grad)" 
           stroke="#990000" 
           stroke-width="0.8"/>
     
     <!-- Circuit overlay with digital noise -->
-    <path d="M50 2 L98 26 L98 74 L50 98 L2 74 L2 26 Z" 
+    <path d="M50.0 -6.7 L93.3 18.3 L93.3 68.3 L50.0 93.3 L6.7 68.3 L6.7 18.3 Z" 
           fill="none" 
           filter="url(#noise-filter)"
           opacity="0.7"/>    
