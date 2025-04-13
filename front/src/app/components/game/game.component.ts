@@ -231,7 +231,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameId) return;
     
     if (this.isBuildingSettlement) {
-      this.gameService.buildSettlement(this.gameId, nodeId).subscribe({
+      this.gameService.buildSettlementAction(this.gameId, nodeId).subscribe({
         next: () => {
           // Settlement built - state will update via WebSocket
           this.isBuildingSettlement = false;
@@ -241,7 +241,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       });
     } else if (this.isBuildingCity) {
-      this.gameService.buildCity(this.gameId, nodeId).subscribe({
+      this.gameService.buildCityAction(this.gameId, nodeId).subscribe({
         next: () => {
           // City built - state will update via WebSocket
           this.isBuildingCity = false;
@@ -256,7 +256,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onEdgeClick(edgeId: string): void {
     if (!this.gameId || !this.isBuildingRoad) return;
     
-    this.gameService.buildRoad(this.gameId, edgeId).subscribe({
+    this.gameService.buildRoadAction(this.gameId, edgeId).subscribe({
       next: () => {
         // Road built - state will update via WebSocket
         this.isBuildingRoad = false;
@@ -271,7 +271,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameId || !this.isMovingRobber) return;
     
     // Move the robber to the selected hex
-    this.gameService.moveRobber(this.gameId, coordinate).subscribe({
+    this.gameService.moveRobberAction(this.gameId, coordinate).subscribe({
       next: () => {
         this.isMovingRobber = false;
       },
@@ -290,7 +290,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       this.resourceSelectorOpen = true;
     } else if (cardType === 'YEAR_OF_PLENTY') {
       this.resourceSelectorMode = 'yearOfPlenty';
-      // This would need to be populated from allowed resource combinations
+      // Resource combinations
       this.resourceSelectorOptions = [
         ['WOOD'], ['BRICK'], ['SHEEP'], ['WHEAT'], ['ORE'],
         ['WOOD', 'WOOD'], ['BRICK', 'BRICK'], ['SHEEP', 'SHEEP'], ['WHEAT', 'WHEAT'], ['ORE', 'ORE'],
@@ -301,38 +301,30 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       ];
       this.resourceSelectorOpen = true;
     } else if (cardType === 'ROAD_BUILDING') {
-      // Use a card action directly through the dispatch method to avoid API call in this example
-      this.gameService.dispatch({
-        type: GameAction.TOGGLE_BUILDING_ROAD
-      });
-      /* In a real implementation with API:
-      this.gameService.useCard(this.gameId, 'ROAD_BUILDING').subscribe({
+      this.gameService.playRoadBuildingAction(this.gameId).subscribe({
         next: () => {
-          // Card used - state will update via WebSocket
-          this.isBuildingRoad = true;
+          // Set UI state to building roads
+          this.gameService.dispatch({
+            type: GameAction.TOGGLE_BUILDING_ROAD
+          });
         },
         error: (err: Error) => {
           console.error('Error using road building card:', err);
         }
       });
-      */
     } else if (cardType === 'KNIGHT') {
-      // Use a card action directly through the dispatch method to avoid API call in this example
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_MOVING_ROBBER,
-        payload: true
-      });
-      /* In a real implementation with API:
-      this.gameService.useCard(this.gameId, 'KNIGHT').subscribe({
+      this.gameService.playKnightAction(this.gameId).subscribe({
         next: () => {
-          // Card used - state will update via WebSocket
-          this.isMovingRobber = true;
+          // Set UI state to moving robber
+          this.gameService.dispatch({
+            type: GameAction.SET_IS_MOVING_ROBBER,
+            payload: true
+          });
         },
         error: (err: Error) => {
           console.error('Error using knight card:', err);
         }
       });
-      */
     }
   }
   
@@ -340,41 +332,31 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameId) return;
     
     if (this.resourceSelectorMode === 'monopoly') {
-      // Update state directly to avoid API call in this example
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_PLAYING_MONOPOLY,
-        payload: false
-      });
-      this.resourceSelectorOpen = false;
-      /* In a real implementation with API:
-      this.gameService.useMonopoly(this.gameId, resources).subscribe({
+      this.gameService.playMonopolyAction(this.gameId, resources).subscribe({
         next: () => {
-          // Monopoly card used - state will update via WebSocket
           this.resourceSelectorOpen = false;
+          this.gameService.dispatch({
+            type: GameAction.SET_IS_PLAYING_MONOPOLY,
+            payload: false
+          });
         },
         error: (err: Error) => {
           console.error('Error using monopoly card:', err);
         }
       });
-      */
     } else if (this.resourceSelectorMode === 'yearOfPlenty') {
-      // Update state directly to avoid API call in this example
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_PLAYING_YEAR_OF_PLENTY,
-        payload: false
-      });
-      this.resourceSelectorOpen = false;
-      /* In a real implementation with API:
-      this.gameService.useYearOfPlenty(this.gameId, resources).subscribe({
+      this.gameService.playYearOfPlentyAction(this.gameId, resources).subscribe({
         next: () => {
-          // Year of Plenty card used - state will update via WebSocket
           this.resourceSelectorOpen = false;
+          this.gameService.dispatch({
+            type: GameAction.SET_IS_PLAYING_YEAR_OF_PLENTY,
+            payload: false
+          });
         },
         error: (err: Error) => {
           console.error('Error using year of plenty card:', err);
         }
       });
-      */
     }
   }
   
@@ -383,20 +365,24 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onBuild(buildType: string): void {
+    if (!this.gameId) return;
+    
     if (buildType === 'ROAD') {
-      this.isBuildingRoad = !this.isBuildingRoad;
-      this.isBuildingSettlement = false;
-      this.isBuildingCity = false;
+      this.gameService.dispatch({
+        type: GameAction.TOGGLE_BUILDING_ROAD
+      });
     } else if (buildType === 'SETTLEMENT') {
-      this.isBuildingSettlement = !this.isBuildingSettlement;
-      this.isBuildingRoad = false;
-      this.isBuildingCity = false;
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_BUILDING_SETTLEMENT,
+        payload: !this.isBuildingSettlement
+      });
     } else if (buildType === 'CITY') {
-      this.isBuildingCity = !this.isBuildingCity;
-      this.isBuildingRoad = false;
-      this.isBuildingSettlement = false;
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_BUILDING_CITY,
+        payload: !this.isBuildingCity
+      });
     } else if (buildType === 'DEV_CARD') {
-      this.gameService.buyDevelopmentCard(this.gameId).subscribe({
+      this.gameService.buyDevelopmentCardAction(this.gameId).subscribe({
         next: () => {
           // Development card purchased - state will update via WebSocket
         },
@@ -410,27 +396,29 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onTrade(trade: any): void {
     if (!this.gameId) return;
     
-    // Example of direct state change without API call
-    console.log('Trade executed:', trade);
-    /* In a real implementation with API:
-    this.gameService.trade(this.gameId, trade).subscribe({
-      next: () => {
-        // Trade completed - state will update via WebSocket
-      },
-      error: (err: Error) => {
-        console.error('Error executing trade:', err);
-      }
-    });
-    */
+    // Example implementation for bank trades
+    if (trade.type === 'BANK') {
+      this.gameService.tradeWithBankAction(this.gameId, trade.give, trade.receive).subscribe({
+        next: () => {
+          // Trade completed - state will update via WebSocket
+        },
+        error: (err: Error) => {
+          console.error('Error executing trade:', err);
+        }
+      });
+    }
   }
   
   onMainAction(): void {
     if (this.isRoll) {
       this.rollDice();
     } else if (this.gameState?.current_prompt === 'DISCARD') {
-      // Handle discard logic
+      // Handle discard logic - would open resource selector in full implementation
     } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
-      this.isMovingRobber = true;
+      this.gameService.dispatch({
+        type: GameAction.SET_IS_MOVING_ROBBER,
+        payload: true
+      });
     } else {
       this.endTurn();
     }
@@ -439,7 +427,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   rollDice(): void {
     if (!this.gameId) return;
     
-    this.gameService.rollDice(this.gameId).subscribe({
+    this.gameService.rollDiceAction(this.gameId).subscribe({
       next: () => {
         // Dice rolled - state will update via WebSocket
       },
@@ -452,7 +440,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   endTurn(): void {
     if (!this.gameId) return;
     
-    this.gameService.endTurn(this.gameId).subscribe({
+    this.gameService.endTurnAction(this.gameId).subscribe({
       next: () => {
         // Turn ended - state will update via WebSocket
       },

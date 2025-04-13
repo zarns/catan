@@ -46,7 +46,7 @@ export class EdgeComponent {
     return {
       left: `${tileX}px`,
       top: `${tileY}px`,
-      width: `${this.size * 0.8}px`,
+      width: `${this.size * 0.75}px`,
       height: '8px',
       transform: transform,
       'z-index': this.color ? 16 : 15,

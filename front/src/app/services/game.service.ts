@@ -434,4 +434,111 @@ export class GameService {
       })
     );
   }
+
+  // Core action method to match React UI's postAction function
+  // This sends actions via WebSocket instead of HTTP
+  postAction(gameId: string, action?: any): Observable<GameState> {
+    const subject = new Subject<GameState>();
+    
+    if (!action) {
+      // This is a bot action in the React implementation
+      this.websocketService.sendMessage({
+        type: 'bot_action',
+        game_id: gameId
+      });
+    } else {
+      // Regular player action
+      this.websocketService.sendMessage({
+        type: 'player_action',
+        game_id: gameId,
+        action: action
+      });
+    }
+    
+    // Set up one-time listener for the response
+    const subscription = this.websocketService.messages$.subscribe((message: WsMessage) => {
+      if (message.type === 'game_state') {
+        // Update internal state
+        this.dispatch({
+          type: GameAction.SET_GAME_STATE,
+          payload: message.data
+        });
+        
+        // Emit the response
+        subject.next(message.data);
+        subject.complete();
+        
+        // Clean up subscription
+        subscription.unsubscribe();
+      } else if (message.type === 'error') {
+        subject.error(new Error(message.data.message || 'Action failed'));
+        subscription.unsubscribe();
+      }
+    });
+    
+    return subject.asObservable();
+  }
+  
+  // Simplified helper methods that match the React implementation pattern
+  
+  // Build a road using the generic postAction format
+  buildRoadAction(gameId: string, edgeId: string): Observable<GameState> {
+    return this.postAction(gameId, ['BUILD_ROAD', edgeId]);
+  }
+  
+  // Build a settlement using the generic postAction format
+  buildSettlementAction(gameId: string, nodeId: string): Observable<GameState> {
+    return this.postAction(gameId, ['BUILD_SETTLEMENT', nodeId]);
+  }
+  
+  // Build a city using the generic postAction format
+  buildCityAction(gameId: string, nodeId: string): Observable<GameState> {
+    return this.postAction(gameId, ['BUILD_CITY', nodeId]);
+  }
+  
+  // Roll dice using the generic postAction format
+  rollDiceAction(gameId: string): Observable<GameState> {
+    return this.postAction(gameId, ['ROLL']);
+  }
+  
+  // End turn using the generic postAction format
+  endTurnAction(gameId: string): Observable<GameState> {
+    return this.postAction(gameId, ['END_TURN']);
+  }
+  
+  // Move robber using the generic postAction format
+  moveRobberAction(gameId: string, coordinate: Coordinate, targetColor?: string): Observable<GameState> {
+    if (targetColor) {
+      return this.postAction(gameId, ['MOVE_ROBBER', coordinate, targetColor]);
+    } else {
+      return this.postAction(gameId, ['MOVE_ROBBER', coordinate]);
+    }
+  }
+  
+  // Play development cards using the generic postAction format
+  playMonopolyAction(gameId: string, resource: string): Observable<GameState> {
+    return this.postAction(gameId, ['PLAY_MONOPOLY', resource]);
+  }
+  
+  playYearOfPlentyAction(gameId: string, resources: string[]): Observable<GameState> {
+    return this.postAction(gameId, ['PLAY_YEAR_OF_PLENTY', ...resources]);
+  }
+  
+  playRoadBuildingAction(gameId: string): Observable<GameState> {
+    return this.postAction(gameId, ['PLAY_ROAD_BUILDING']);
+  }
+  
+  playKnightAction(gameId: string): Observable<GameState> {
+    return this.postAction(gameId, ['PLAY_KNIGHT']);
+  }
+  
+  // Buying development card
+  buyDevelopmentCardAction(gameId: string): Observable<GameState> {
+    return this.postAction(gameId, ['BUY_DEVELOPMENT_CARD']);
+  }
+  
+  // Trading
+  tradeWithBankAction(gameId: string, give: string, receive: string): Observable<GameState> {
+    return this.postAction(gameId, ['TRADE_WITH_BANK', give, receive]);
+  }
 } 

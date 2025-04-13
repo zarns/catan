@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type WsMessageType = 'game_state' | 'error' | 'greeting';
+export type WsMessageType = 'game_state' | 'error' | 'greeting' | 'player_action' | 'bot_action' | 'action_result';
 
 export interface WsMessage {
   type: WsMessageType;
