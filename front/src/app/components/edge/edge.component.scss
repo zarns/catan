@@ -2,7 +2,7 @@
   position: absolute;
   display: flex;
   justify-content: center;
-  height: 12px; /* Fixed height is critical for correct positioning */
+  height: 8px; /* Reduced height for smaller edges */
   border: none;
   z-index: 15;
   transition: all 0.2s ease;
@@ -10,6 +10,22 @@
   
   &:hover {
     z-index: 16;
+  }
+  
+  /* Debug label styling */
+  .debug-label {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 9px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 1px 3px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 100;
   }
 }
 

@@ -13,6 +13,7 @@ interface NodeCoordinate {
   imports: [CommonModule],
   template: `
     <div class="node" 
+         [ngClass]="direction"
          [ngStyle]="nodeStyle"
          (click)="onClick.emit(id)">
       <div *ngIf="color" [ngClass]="[color.toLowerCase(), buildingClass]" class="building"></div>
@@ -44,22 +45,17 @@ export class NodeComponent {
     const [tileX, tileY] = this.tilePixelVector();
     const [deltaX, deltaY] = this.getNodeDelta();
     
-    // Apply additional offset for NORTH nodes to avoid token overlap
-    const offsetMultiplier = this.direction === 'NORTH' ? 1.3 : 1;
-    
+    // Calculate the final position with the delta
     const x = tileX + deltaX;
-    const y = tileY + deltaY * offsetMultiplier;
+    const y = tileY + deltaY;
     
     return {
-      width: `${this.size * 0.5}px`,
-      height: `${this.size * 0.5}px`,
+      width: `${this.size * 0.21}px`,
+      height: `${this.size * 0.21}px`,
       left: `${x}px`,
       top: `${y}px`,
       transform: 'translateY(-50%) translateX(-50%)',
-      // TODO: Remove temporary background color used for debugging node positions
-      'background-color': this.flashing ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 255, 0.3)',
-      'border': '1px solid rgba(0, 0, 0, 0.3)',
-      'z-index': this.building ? 13 : 3,
+      'z-index': this.building ? 13 : 3
     };
   }
   
@@ -83,23 +79,38 @@ export class NodeComponent {
   
   // Calculate the delta position based on the node direction
   getNodeDelta(): [number, number] {
+    // Calculate the hex dimensions
     const w = this.SQRT3 * this.size;
     const h = 2 * this.size;
     
+    // Handle both full and abbreviated direction formats
     switch(this.direction) {
       case 'NORTH':
-        return [0, -h/2];
+      case 'N':
+        return [0, -h/2];  // Top point
+      
       case 'NORTHEAST':
-        return [w/2, -h/4];
+      case 'NE':
+        return [w/2, -h/4]; // Top-right point
+      
       case 'SOUTHEAST':
-        return [w/2, h/4];
+      case 'SE':
+        return [w/2, h/4];  // Bottom-right point
+      
       case 'SOUTH':
-        return [0, h/2];
+      case 'S':
+        return [0, h/2];   // Bottom point
+      
       case 'SOUTHWEST':
-        return [-w/2, h/4];
+      case 'SW':
+        return [-w/2, h/4]; // Bottom-left point
+      
       case 'NORTHWEST':
-        return [-w/2, -h/4];
+      case 'NW':
+        return [-w/2, -h/4]; // Top-left point
+      
       default:
+        console.warn(`Node ${this.id} has invalid direction: "${this.direction}"`);
         return [0, 0];
     }
   }

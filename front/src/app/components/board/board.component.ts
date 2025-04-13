@@ -17,7 +17,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
     RobberComponent
   ],
   template: `
-    <div class="board-container" #boardContainer [ngClass]="{'show': show}">
+    <div class="board-container" #boardContainer [ngClass]="{'show': show, 'debug-mode': debugMode}">
       <ng-container *ngIf="gameState">
         <!-- Tiles -->
         <app-tile *ngFor="let tile of getTiles()"
@@ -90,6 +90,9 @@ export class BoardComponent implements OnInit, AfterViewInit {
   // Constants
   readonly SQRT3 = 1.732;
   
+  // Debug flag - set to true to make nodes visible for testing
+  debugMode: boolean = true;
+  
   // Safe accessor methods
   getTiles(): any[] {
     return this.gameState?.tiles || [];
@@ -99,10 +102,13 @@ export class BoardComponent implements OnInit, AfterViewInit {
     if (!this.gameState || !this.gameState.nodes) {
       return [];
     }
-    return Object.entries(this.gameState.nodes).map(([id, node]) => ({
-      ...node,
-      id
-    }));
+    
+    return Object.entries(this.gameState.nodes).map(([id, node]) => {
+      return {
+        ...node,
+        id
+      };
+    });
   }
   
   getEdges(): any[] {

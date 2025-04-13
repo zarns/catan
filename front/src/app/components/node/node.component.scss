@@ -1,6 +1,6 @@
 .node {
   position: absolute;
-  background-color: transparent;
+  background-color: rgba(255, 255, 255, 0.2); /* Temporary background for visibility */
   border: none;
   display: flex;
   justify-content: center;
@@ -12,6 +12,24 @@
   
   &:hover {
     z-index: 15;
+    /* Temporary: make nodes more visible on hover */
+    background-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 5px white;
+  }
+  
+  // Debug styles
+  .debug-label {
+    position: absolute;
+    top: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }
 
@@ -107,4 +125,47 @@
   100% {
     transform: scale(0.8);
   }
+}
+
+// Debug info styling (temporary)
+.debug-info {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+// Debug class for temporary node visualization
+// This can be toggled on/off or removed entirely in production
+.debug-mode .node {
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background-color: red;
+    border-radius: 50%;
+    z-index: 2;
+  }
+  
+  // Color-code directions for debugging
+  &.NORTH::after { background-color: red; }
+  &.NORTHEAST::after { background-color: orange; }
+  &.SOUTHEAST::after { background-color: yellow; }
+  &.SOUTH::after { background-color: green; }
+  &.SOUTHWEST::after { background-color: blue; }
+  &.NORTHWEST::after { background-color: purple; }
 } 

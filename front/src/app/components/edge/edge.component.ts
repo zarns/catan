@@ -40,15 +40,19 @@ export class EdgeComponent {
     const [tileX, tileY] = this.tilePixelVector();
     const transform = this.getEdgeTransform();
     
+    // Uniform transparent white for all edges
+    const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, 0.4)';
+    
     return {
       left: `${tileX}px`,
       top: `${tileY}px`,
-      width: `${this.size * 0.9}px`,
-      height: '12px',
-      // TODO: Remove temporary background color and border used for debugging edge positions
-      'background-color': this.flashing ? 'rgba(0, 255, 255, 0.5)' : 'rgba(200, 200, 200, 0.4)',
-      'border': '1px solid rgba(0, 0, 0, 0.3)',
-      transform: transform
+      width: `${this.size * 0.8}px`,
+      height: '8px',
+      transform: transform,
+      'z-index': this.color ? 16 : 15,
+      'background-color': debugColor,
+      'border': '1px solid rgba(0, 0, 0, 0.4)',
+      'border-radius': '2px'
     };
   }
   
@@ -74,21 +78,34 @@ export class EdgeComponent {
   getEdgeTransform(): string {
     const distanceToEdge = this.size * 0.865;
     
-    // The React implementation uses this transform formula with specific angles
+    // Handle both full and abbreviated direction formats
     switch(this.direction) {
       case 'NORTHEAST':
+      case 'NE':
         return `translateX(-50%) translateY(-50%) rotate(30deg) translateY(${-distanceToEdge}px)`;
+      
       case 'EAST':
+      case 'E':
         return `translateX(-50%) translateY(-50%) rotate(90deg) translateY(${-distanceToEdge}px)`;
+      
       case 'SOUTHEAST':
+      case 'SE':
         return `translateX(-50%) translateY(-50%) rotate(150deg) translateY(${-distanceToEdge}px)`;
+      
       case 'SOUTHWEST':
+      case 'SW':
         return `translateX(-50%) translateY(-50%) rotate(210deg) translateY(${-distanceToEdge}px)`;
+      
       case 'WEST':
+      case 'W':
         return `translateX(-50%) translateY(-50%) rotate(270deg) translateY(${-distanceToEdge}px)`;
+      
       case 'NORTHWEST':
+      case 'NW':
         return `translateX(-50%) translateY(-50%) rotate(330deg) translateY(${-distanceToEdge}px)`;
+      
       default:
+        console.warn(`Edge ${this.id} has invalid direction: "${this.direction}"`);
         return `translateX(-50%) translateY(-50%) rotate(0deg) translateY(${-distanceToEdge}px)`;
     }
   }
