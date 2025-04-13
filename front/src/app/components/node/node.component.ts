@@ -41,22 +41,26 @@ export class NodeComponent {
   }
   
   get nodeStyle() {
-    // Calculate the position of the node
-    const w = this.SQRT3 * this.size;
-    const h = 2 * this.size;
-    
     const [tileX, tileY] = this.tilePixelVector();
     const [deltaX, deltaY] = this.getNodeDelta();
     
-    const x = tileX + deltaX;
-    const y = tileY + deltaY;
+    let offsetMultiplier = 1;
+    // Apply a slightly larger offset for north nodes to avoid token overlap
+    if (this.direction === 'NORTH') {
+      offsetMultiplier = 1.05;
+    }
+    
+    const x = tileX + deltaX * offsetMultiplier;
+    const y = tileY + deltaY * offsetMultiplier;
     
     return {
       width: `${this.size * 0.5}px`,
       height: `${this.size * 0.5}px`,
       left: `${x}px`,
       top: `${y}px`,
-      transform: 'translateY(-50%) translateX(-50%)'
+      transform: 'translateY(-50%) translateX(-50%)',
+      'background-color': this.building ? 'transparent' : '',
+      'z-index': this.building ? 13 : 3,
     };
   }
   

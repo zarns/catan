@@ -13,6 +13,7 @@ import { MatCardModule } from '@angular/material/card';
       
       <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
       
+      <!-- Only render the number token if there's a number -->
       <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
         <div class="number">{{ number }}</div>
         <div class="pips">{{ numberToPips(number) }}</div>
