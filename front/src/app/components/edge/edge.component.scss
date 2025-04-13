@@ -1,101 +1,76 @@
 .edge {
   position: absolute;
-  height: 12px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  height: 12px; /* Fixed height is critical for correct positioning */
+  background-color: transparent;
+  border: none;
   z-index: 15;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.2s ease;
   cursor: pointer;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   
   &:hover {
-    transform: translateX(-50%) scale(1.2) !important;
-    background-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 2px 5px rgba(255, 255, 255, 0.3);
-  }
-  
-  // Direction-specific styles
-  &.NORTH {
-    transform-origin: center;
-  }
-  
-  &.NORTHEAST {
-    transform-origin: center;
-  }
-  
-  &.SOUTHEAST {
-    transform-origin: center;
-  }
-  
-  &.SOUTH {
-    transform-origin: center;
-  }
-  
-  &.SOUTHWEST {
-    transform-origin: center;
-  }
-  
-  &.NORTHWEST {
-    transform-origin: center;
+    z-index: 16;
   }
 }
 
 .road {
+  position: absolute;
+  border: 1px solid #333;
   width: 100%;
   height: 100%;
-  border-radius: 6px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
   
-  // Player colors with improved appearance
+  // Player colors with minimal styling
   &.red {
     background-color: #f44336;
-    background-image: linear-gradient(to right, #d32f2f, #f44336, #d32f2f);
   }
   
   &.blue {
     background-color: #2196f3;
-    background-image: linear-gradient(to right, #1976d2, #2196f3, #1976d2);
   }
   
   &.white {
     background-color: #ffffff;
-    background-image: linear-gradient(to right, #e0e0e0, #ffffff, #e0e0e0);
   }
   
   &.orange {
     background-color: #ff9800;
-    background-image: linear-gradient(to right, #f57c00, #ff9800, #f57c00);
-  }
-  
-  &.green {
-    background-color: #4caf50;
-    background-image: linear-gradient(to right, #388e3c, #4caf50, #388e3c);
-  }
-  
-  &.brown {
-    background-color: #795548;
-    background-image: linear-gradient(to right, #5d4037, #795548, #5d4037);
   }
 }
 
 .pulse {
+  cursor: pointer;
   position: absolute;
-  width: 100%;
-  height: 100%;
-  animation: pulse 1.5s infinite;
-  background-color: rgba(255, 255, 255, 0.5);
-  border-radius: 6px;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  width: 90%;
+  height: 90%;
+  
+  &:after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+    animation: pulse-dot 1.25s cubic-bezier(0.455, 0.03, 0.515, 0.955) -0.4s infinite;
+  }
 }
 
-@keyframes pulse {
+@keyframes pulse-dot {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    transform: scale(0.8);
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  50% {
+    transform: scale(1);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    transform: scale(0.8);
   }
 } 

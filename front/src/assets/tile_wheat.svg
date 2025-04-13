@@ -3,8 +3,8 @@
   <defs>
     <!-- Wheat field gradient -->
     <linearGradient id="wheat-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F5DEB3" />
-      <stop offset="35%" stop-color="#E6C67A" />
+      <stop offset="0%" stop-color="#E6C67A" />
+      <stop offset="35%" stop-color="#E0C280" />
       <stop offset="65%" stop-color="#D4AF37" />
       <stop offset="100%" stop-color="#B8860B" />
     </linearGradient>

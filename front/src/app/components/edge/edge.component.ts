@@ -44,6 +44,7 @@ export class EdgeComponent {
       left: `${tileX}px`,
       top: `${tileY}px`,
       width: `${this.size * 0.9}px`,
+      height: '12px',
       transform: transform
     };
   }
@@ -68,21 +69,24 @@ export class EdgeComponent {
   
   // Get the transform style for the edge based on direction
   getEdgeTransform(): string {
+    const distanceToEdge = this.size * 0.865;
+    
+    // The React implementation uses this transform formula with specific angles
     switch(this.direction) {
-      case 'NORTH':
-        return 'translateX(-50%) rotate(0deg)';
       case 'NORTHEAST':
-        return 'translateX(-50%) rotate(60deg)';
+        return `translateX(-50%) translateY(-50%) rotate(30deg) translateY(${-distanceToEdge}px)`;
+      case 'EAST':
+        return `translateX(-50%) translateY(-50%) rotate(90deg) translateY(${-distanceToEdge}px)`;
       case 'SOUTHEAST':
-        return 'translateX(-50%) rotate(120deg)';
-      case 'SOUTH':
-        return 'translateX(-50%) rotate(0deg)';
+        return `translateX(-50%) translateY(-50%) rotate(150deg) translateY(${-distanceToEdge}px)`;
       case 'SOUTHWEST':
-        return 'translateX(-50%) rotate(60deg)';
+        return `translateX(-50%) translateY(-50%) rotate(210deg) translateY(${-distanceToEdge}px)`;
+      case 'WEST':
+        return `translateX(-50%) translateY(-50%) rotate(270deg) translateY(${-distanceToEdge}px)`;
       case 'NORTHWEST':
-        return 'translateX(-50%) rotate(120deg)';
+        return `translateX(-50%) translateY(-50%) rotate(330deg) translateY(${-distanceToEdge}px)`;
       default:
-        return 'translateX(-50%) rotate(0deg)';
+        return `translateX(-50%) translateY(-50%) rotate(0deg) translateY(${-distanceToEdge}px)`;
     }
   }
 } 

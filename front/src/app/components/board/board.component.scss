@@ -69,30 +69,12 @@
 
 .edge {
   position: absolute;
-  height: 10px;
-  width: 40px;
   z-index: 15;
-  margin-left: -20px;
-  margin-top: -5px;
-  background-color: rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(0, 0, 0, 0.5);
-  transition: all 0.2s ease;
+  pointer-events: auto;
   
   &.buildable {
     cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
     animation: pulse 1.5s infinite;
-    
-    &:hover {
-      transform: scale(1.2);
-    }
-  }
-  
-  &.has-road {
-    height: 12px;
-    background-color: currentColor;
-    border: none;
   }
 }
 
