@@ -3,6 +3,7 @@
   "public": true,
   "buildCommand": "cd front && npm install && npm run build -- --configuration production",
   "outputDirectory": "front/dist/catan/browser",
+  "cleanUrls": true,
   "routes": [
     { "handle": "filesystem" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
