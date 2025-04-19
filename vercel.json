@@ -1,16 +1,8 @@
 {
   "version": 2,
   "public": true,
-  "builds": [
-    {
-      "src": "front/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist/catan/browser",
-        "buildCommand": "npm run vercel-build"
-      }
-    }
-  ],
+  "buildCommand": "cd front && npm install && npm run build -- --configuration production",
+  "outputDirectory": "front/dist/catan/browser",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
