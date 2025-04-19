@@ -1,8 +1,8 @@
 {
   "version": 2,
   "public": true,
-  "buildCommand": "cd front && npm install && npm run build -- --configuration production",
-  "outputDirectory": "front/dist/catan/browser",
+  "buildCommand": "npm install && npm run build -- --configuration production",
+  "outputDirectory": "dist/catan/browser",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
