@@ -7,16 +7,13 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -51,18 +48,13 @@ jobs:
           # Do the same for the 404.html file
           sed -i 's/src="\//src=".\//g' dist/catan/browser/404.html
           sed -i 's/href="\//href=".\//g' dist/catan/browser/404.html
-          
-          # Fix paths in any JavaScript files if needed
-          find dist/catan/browser -name "*.js" -exec sed -i 's/src="\//src=".\//g' {} \;
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: 'front/dist/catan/browser'
-
+      # Deploy directly to GitHub Pages branch
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2 
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: front/dist/catan/browser
+          branch: gh-pages
+          clean: true
+          clean-exclude: |
+            .nojekyll 
