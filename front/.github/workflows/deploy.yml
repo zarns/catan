@@ -35,11 +35,25 @@ jobs:
       - name: Build
         working-directory: ./front
         run: |
-          # For GitHub Pages, get the repository name to use as the base href
-          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | cut -d '/' -f 2)
-          echo "Building with base-href=/$REPO_NAME/"
-          npm run build -- --configuration production --base-href="/$REPO_NAME/"
+          # Use a fixed base-href for GitHub Pages
+          npm run build -- --configuration production --base-href="/catan/"
+          
+          # Create 404.html from index.html for SPA routing
           cp dist/catan/browser/index.html dist/catan/browser/404.html
+          
+          # Create .nojekyll file to bypass Jekyll processing
+          touch dist/catan/browser/.nojekyll
+          
+          # Ensure the index.html file has proper paths
+          sed -i 's/src="\//src=".\//g' dist/catan/browser/index.html
+          sed -i 's/href="\//href=".\//g' dist/catan/browser/index.html
+          
+          # Do the same for the 404.html file
+          sed -i 's/src="\//src=".\//g' dist/catan/browser/404.html
+          sed -i 's/href="\//href=".\//g' dist/catan/browser/404.html
+          
+          # Fix paths in any JavaScript files if needed
+          find dist/catan/browser -name "*.js" -exec sed -i 's/src="\//src=".\//g' {} \;
 
       - name: Setup Pages
         uses: actions/configure-pages@v3

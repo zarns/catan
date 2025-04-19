@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /404.html
+
+# Sitemap location
+Sitemap: https://zarns.github.io/catan/sitemap.xml 
