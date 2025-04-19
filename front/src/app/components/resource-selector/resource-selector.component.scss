@@ -5,82 +5,6 @@ $wool-color: #2ecc71;
 $grain-color: #f1c40f;
 $ore-color: #7f8c8d;
 
-.resource-selector {
-  padding: 16px;
-  
-  h2 {
-    margin: 0 0 16px;
-    font-size: 18px;
-    text-align: center;
-  }
-  
-  .resource-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-    
-    .resource-button {
-      padding: 12px;
-      text-transform: none;
-      
-      .resource-content {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        
-        .resource-name {
-          font-weight: 500;
-          
-          &.wood {
-            color: #795548;
-          }
-          
-          &.brick {
-            color: #e57373;
-          }
-          
-          &.sheep {
-            color: #81c784;
-          }
-          
-          &.wheat {
-            color: #fdd835;
-          }
-          
-          &.ore {
-            color: #757575;
-          }
-        }
-        
-        .plus {
-          margin: 0 4px;
-          color: rgba(0, 0, 0, 0.54);
-        }
-      }
-      
-      &:hover {
-        background-color: rgba(0, 0, 0, 0.04);
-      }
-    }
-  }
-  
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    
-    .cancel-button {
-      color: rgba(0, 0, 0, 0.54);
-    }
-  }
-}
-
-@media (max-width: 599px) {
-  .resource-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .resource-selector-overlay {
   position: fixed;
   top: 0;
@@ -146,10 +70,9 @@ $ore-color: #7f8c8d;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: all 0.2s ease;
   
   &:hover:not(:disabled) {
-    border-color: #999;
     background-color: rgba(0, 0, 0, 0.03);
   }
   
@@ -158,31 +81,12 @@ $ore-color: #7f8c8d;
     cursor: not-allowed;
   }
   
-  /* Resource type colors using variables */
-  &.brick, &.clay {
-    border-color: $brick-color;
-    &:hover:not(:disabled) { background-color: rgba($brick-color, 0.1); }
-  }
-  
-  &.lumber, &.wood {
-    border-color: $lumber-color;
-    &:hover:not(:disabled) { background-color: rgba($lumber-color, 0.1); }
-  }
-  
-  &.wool, &.sheep {
-    border-color: $wool-color;
-    &:hover:not(:disabled) { background-color: rgba($wool-color, 0.1); }
-  }
-  
-  &.grain, &.wheat {
-    border-color: $grain-color;
-    &:hover:not(:disabled) { background-color: rgba($grain-color, 0.1); }
-  }
-  
-  &.ore {
-    border-color: $ore-color;
-    &:hover:not(:disabled) { background-color: rgba($ore-color, 0.1); }
-  }
+  /* Resource colors */
+  &.brick, &.clay { border-color: $brick-color; }
+  &.lumber, &.wood { border-color: $lumber-color; }
+  &.wool, &.sheep { border-color: $wool-color; }
+  &.grain, &.wheat { border-color: $grain-color; }
+  &.ore { border-color: $ore-color; }
 }
 
 .resource-icon {
@@ -191,22 +95,17 @@ $ore-color: #7f8c8d;
   
   .resource-hex {
     width: 20px;
-    height: 24px; /* Slightly taller for hexagon shape */
+    height: 24px;
     position: relative;
     margin-right: 8px;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    
-    /* Resource colors using variables */
-    .brick & { background-color: $brick-color; }
-    .clay & { background-color: $brick-color; } /* Alias */
-    .lumber & { background-color: $lumber-color; }
-    .wood & { background-color: $lumber-color; } /* Alias */
-    .wool & { background-color: $wool-color; }
-    .sheep & { background-color: $wool-color; } /* Alias */
-    .grain & { background-color: $grain-color; }
-    .wheat & { background-color: $grain-color; } /* Alias */
-    .ore & { background-color: $ore-color; }
   }
+  
+  .brick &, .clay & { .resource-hex { background-color: $brick-color; }}
+  .lumber &, .wood & { .resource-hex { background-color: $lumber-color; }}
+  .wool &, .sheep & { .resource-hex { background-color: $wool-color; }}
+  .grain &, .wheat & { .resource-hex { background-color: $grain-color; }}
+  .ore & { .resource-hex { background-color: $ore-color; }}
   
   .resource-label {
     font-weight: 500;
@@ -230,7 +129,6 @@ $ore-color: #7f8c8d;
   }
 }
 
-// Responsive adjustments
 @media (max-width: 600px) {
   .resource-selector-dialog {
     width: 95%;
