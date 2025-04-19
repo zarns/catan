@@ -3,14 +3,9 @@
   "version": 2,
   "public": true,
   "buildCommand": "npm install && npm run build -- --configuration production",
-  "outputDirectory": "dist/catan/browser",
+  "outputDirectory": "dist/catan",
   "framework": "angular",
   "redirects": [
-    { "source": "/", "destination": "/browser", "permanent": true }
-  ],
-  "rewrites": [
-    { "source": "/browser", "destination": "/browser/index.html" },
-    { "source": "/browser/(.*)", "destination": "/browser/$1" },
-    { "source": "/(.*)", "destination": "/browser/index.html" }
+    { "source": "/", "destination": "/browser" }
   ]
 } 
