@@ -1,12 +1,13 @@
 {
   "version": 2,
+  "framework": "angular",
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist/catan/browser",
-        "buildCommand": "npm run build -- --configuration production"
+        "buildCommand": "npm run vercel-build"
       }
     }
   ],
