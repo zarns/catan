@@ -1,3 +1,10 @@
+/* Define resource colors */
+$brick-color: #d35400;
+$lumber-color: #27ae60;
+$wool-color: #2ecc71;
+$grain-color: #f1c40f;
+$ore-color: #7f8c8d;
+
 .resource-selector {
   padding: 16px;
   
@@ -139,7 +146,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
   
   &:hover:not(:disabled) {
     border-color: #999;
@@ -151,45 +158,30 @@
     cursor: not-allowed;
   }
   
-  // Resource type colors
+  /* Resource type colors using variables */
   &.brick, &.clay {
-    border-color: #d35400;
-    
-    &:hover:not(:disabled) {
-      background-color: rgba(211, 84, 0, 0.1);
-    }
+    border-color: $brick-color;
+    &:hover:not(:disabled) { background-color: rgba($brick-color, 0.1); }
   }
   
   &.lumber, &.wood {
-    border-color: #27ae60;
-    
-    &:hover:not(:disabled) {
-      background-color: rgba(39, 174, 96, 0.1);
-    }
+    border-color: $lumber-color;
+    &:hover:not(:disabled) { background-color: rgba($lumber-color, 0.1); }
   }
   
   &.wool, &.sheep {
-    border-color: #2ecc71;
-    
-    &:hover:not(:disabled) {
-      background-color: rgba(46, 204, 113, 0.1);
-    }
+    border-color: $wool-color;
+    &:hover:not(:disabled) { background-color: rgba($wool-color, 0.1); }
   }
   
   &.grain, &.wheat {
-    border-color: #f1c40f;
-    
-    &:hover:not(:disabled) {
-      background-color: rgba(241, 196, 15, 0.1);
-    }
+    border-color: $grain-color;
+    &:hover:not(:disabled) { background-color: rgba($grain-color, 0.1); }
   }
   
   &.ore {
-    border-color: #7f8c8d;
-    
-    &:hover:not(:disabled) {
-      background-color: rgba(127, 140, 141, 0.1);
-    }
+    border-color: $ore-color;
+    &:hover:not(:disabled) { background-color: rgba($ore-color, 0.1); }
   }
 }
 
@@ -199,33 +191,21 @@
   
   .resource-hex {
     width: 20px;
-    height: 24px;
+    height: 24px; /* Slightly taller for hexagon shape */
     position: relative;
     margin-right: 8px;
-    
-    // Hexagon shape via clip-path
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     
-    // Resource colors
-    .brick &, .clay & {
-      background-color: #d35400;
-    }
-    
-    .lumber &, .wood & {
-      background-color: #27ae60;
-    }
-    
-    .wool &, .sheep & {
-      background-color: #2ecc71;
-    }
-    
-    .grain &, .wheat & {
-      background-color: #f1c40f;
-    }
-    
-    .ore & {
-      background-color: #7f8c8d;
-    }
+    /* Resource colors using variables */
+    .brick & { background-color: $brick-color; }
+    .clay & { background-color: $brick-color; } /* Alias */
+    .lumber & { background-color: $lumber-color; }
+    .wood & { background-color: $lumber-color; } /* Alias */
+    .wool & { background-color: $wool-color; }
+    .sheep & { background-color: $wool-color; } /* Alias */
+    .grain & { background-color: $grain-color; }
+    .wheat & { background-color: $grain-color; } /* Alias */
+    .ore & { background-color: $ore-color; }
   }
   
   .resource-label {
