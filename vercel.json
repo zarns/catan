@@ -1,5 +1,5 @@
 {
   "framework": "angular",
-  "buildCommand": "cd front && npm install && npm run build",
-  "outputDirectory": "front/dist/catan/browser"
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist/catan/browser"
 } 
