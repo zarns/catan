@@ -1,10 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "public": true,
   "buildCommand": "npm install && npm run build -- --configuration production",
   "outputDirectory": "dist/catan/browser",
-  "cleanUrls": true,
+  "framework": "angular",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 } 
