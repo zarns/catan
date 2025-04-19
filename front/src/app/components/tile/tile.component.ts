@@ -116,6 +116,7 @@ export class TileComponent {
     };
     
     // Get the matching SVG file or use the resource name directly
-    return `assets/${resourceMap[normalizedResource] || `tile_${normalizedResource}.svg`}`;
+    // Use relative path for GitHub Pages compatibility
+    return `./assets/${resourceMap[normalizedResource] || `tile_${normalizedResource}.svg`}`;
   }
 }
