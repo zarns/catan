@@ -1,5 +1,8 @@
 {
-  "redirects": [
-    { "source": "/(.*)", "destination": "/front/$1" }
-  ]
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/front/dist/catan/browser/$1" }
+  ],
+  "buildCommand": "cd front && npm install && npm run vercel-build",
+  "outputDirectory": "front/dist/catan/browser",
+  "installCommand": "cd front && npm install"
 } 
