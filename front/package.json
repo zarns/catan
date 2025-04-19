@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:catan": "node dist/catan/server/server.mjs",
-    "vercel-build": "ng build --configuration production && cp public/404.html dist/catan/browser/404.html",
+    "vercel-build": "ng build --configuration production",
     "deploy:gh-pages": "ng build --configuration production --base-href=/catan/ && cp dist/catan/browser/index.html dist/catan/browser/404.html"
   },
   "private": true,
