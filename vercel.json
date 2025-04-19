@@ -5,10 +5,12 @@
   "buildCommand": "npm install && npm run build -- --configuration production",
   "outputDirectory": "dist/catan/browser",
   "framework": "angular",
+  "redirects": [
+    { "source": "/", "destination": "/browser", "permanent": true }
+  ],
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/browser", "destination": "/browser/index.html" },
+    { "source": "/browser/(.*)", "destination": "/browser/$1" },
+    { "source": "/(.*)", "destination": "/browser/index.html" }
   ]
 } 
