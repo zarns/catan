@@ -1,18 +1,16 @@
-name: Deploy to GitHub Pages
+name: Build Angular App for GitHub Pages
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# Sets permissions of the GITHUB_TOKEN
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,29 +30,39 @@ jobs:
       - name: Build
         working-directory: ./front
         run: |
-          # Use a fixed base-href for GitHub Pages
+          # Build Angular app
           npm run build -- --configuration production --base-href="/catan/"
           
-          # Create 404.html from index.html for SPA routing
+          # Create 404.html for SPA routing
           cp dist/catan/browser/index.html dist/catan/browser/404.html
           
           # Create .nojekyll file to bypass Jekyll processing
           touch dist/catan/browser/.nojekyll
           
-          # Ensure the index.html file has proper paths
+          # Fix asset paths in index.html
           sed -i 's/src="\//src=".\//g' dist/catan/browser/index.html
           sed -i 's/href="\//href=".\//g' dist/catan/browser/index.html
           
-          # Do the same for the 404.html file
+          # Fix asset paths in 404.html
           sed -i 's/src="\//src=".\//g' dist/catan/browser/404.html
           sed -i 's/href="\//href=".\//g' dist/catan/browser/404.html
 
-      # Deploy directly to GitHub Pages branch
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: front/dist/catan/browser
-          branch: gh-pages
-          clean: true
-          clean-exclude: |
-            .nojekyll 
+      - name: Push built app to main branch
+        run: |
+          # Create docs directory in repository root (GitHub Pages can serve from /docs)
+          mkdir -p docs
+          
+          # Copy the built Angular app to docs directory
+          cp -r front/dist/catan/browser/* docs/
+          
+          # Add .nojekyll to docs
+          touch docs/.nojekyll
+          
+          # Configure git
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          # Commit and push the built app to main branch
+          git add docs
+          git commit -m "Build Angular app for GitHub Pages" || echo "No changes to commit"
+          git push origin main 
