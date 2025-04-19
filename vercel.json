@@ -1,8 +1,20 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/front/dist/catan/browser/$1" }
+  "version": 2,
+  "public": true,
+  "builds": [
+    {
+      "src": "front/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/catan/browser",
+        "buildCommand": "npm run vercel-build"
+      }
+    }
   ],
-  "buildCommand": "cd front && npm install && npm run vercel-build",
-  "outputDirectory": "front/dist/catan/browser",
-  "installCommand": "cd front && npm install"
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*\\.[a-z0-9]+$)", "dest": "/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 } 
