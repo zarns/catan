@@ -2,12 +2,10 @@
   "version": 2,
   "public": true,
   "buildCommand": "cd front && npm install && npm run build -- --configuration production",
-  "outputDirectory": "front/dist/catan/browser",
+  "outputDirectory": "front/dist/catan",
   "cleanUrls": true,
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/(.*\\.[a-z0-9]+$)", "dest": "/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/assets/(.*)", "dest": "/browser/assets/$1" },
+    { "src": "/(.*)", "dest": "/browser/index.html" }
   ]
 } 
