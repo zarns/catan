@@ -1,0 +1,29 @@
+name: GitHub Pages Setup
+
+on: workflow_dispatch
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Configure GitHub Pages
+        run: |
+          echo "This workflow exists to ensure GitHub Pages is configured to deploy from gh-pages branch"
+          echo "GitHub Pages should be configured with Custom domain: No, Source: Deploy from a branch, Branch: gh-pages"
+          
+      - name: Create .nojekyll file
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+          
+      - name: Ensure .nojekyll exists
+        run: |
+          touch .nojekyll
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add .nojekyll
+          git commit -m "Add .nojekyll file" || echo "No changes to commit"
+          git push 
