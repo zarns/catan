@@ -3,7 +3,9 @@
 ## front
 
 - run `ng serve`
-- to deploy `firebase login`
+- to deploy:
+  - `ng build --configuration production` (builds with production settings)
+  - `firebase login`
   - `firebase deploy`
 
 ## back
