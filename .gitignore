@@ -39,3 +39,7 @@ Thumbs.db
 # Logs
 *.log
 .vercel
+
+# Firebase
+.firebase/
+firebase-debug.log

@@ -1,5 +1,0 @@
-{
-  "framework": "angular",
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": "dist/catan/browser"
-} 

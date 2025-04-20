@@ -13,24 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: front/package-lock.json
-          
-      - name: Install dependencies and build
-        working-directory: ./front
-        run: |
-          npm install
-          npm run build -- --configuration production
-          
+      - run: npm ci
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CATAN_FF996 }}
-          projectId: catan-ff996
-          entryPoint: ./front
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CATANATRON }}
+          projectId: catanatron
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
+    defaults:
+      run:
+        working-directory: front
