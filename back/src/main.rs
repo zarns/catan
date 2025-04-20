@@ -394,7 +394,8 @@ async fn main() -> shuttle_axum::ShuttleAxum {
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers(Any)
-        .allow_origin("http://localhost:4200".parse::<HeaderValue>().unwrap());
+        .allow_origin("http://localhost:4200".parse::<HeaderValue>().unwrap())
+        .allow_origin("https://catanatron.web.app".parse::<HeaderValue>().unwrap());
     
     // Create router with routes
     let app = Router::new()
