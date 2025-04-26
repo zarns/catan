@@ -155,6 +155,13 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   updateGameState(): void {
     if (!this.gameState || !this.gameState.game) return;
     
+    // Debug: Check for ports in the game state
+    if (this.gameState.game.board.ports) {
+      console.log(`Found ${this.gameState.game.board.ports.length} ports in game state:`, this.gameState.game.board.ports);
+    } else {
+      console.warn('No ports array found in game board data');
+    }
+    
     // Update isRoll based on game state
     this.isRoll = this.shouldShowRollButton();
     

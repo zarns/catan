@@ -8,6 +8,7 @@ import { MatCardModule } from '@angular/material/card';
   imports: [CommonModule, MatCardModule],
   template: `
     <div class="tile" 
+         [ngClass]="{'port-tile': isPort}"
          [ngStyle]="tileStyle"
          (click)="onClick.emit(coordinate)">
       
@@ -17,6 +18,12 @@ import { MatCardModule } from '@angular/material/card';
       <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
         <div class="number">{{ number }}</div>
         <div class="pips">{{ numberToPips(number) }}</div>
+      </div>
+      
+      <!-- Port indicator for harbors -->
+      <div *ngIf="isPort" [ngClass]="getPortClass()">
+        <div class="port-ratio">{{ getPortRatio() }}</div>
+        <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()"></div>
       </div>
     </div>
   `,
@@ -30,6 +37,13 @@ export class TileComponent {
   @Input() centerX: number = 0;
   @Input() centerY: number = 0;
   @Input() flashing: boolean = false;
+  
+  // Port-specific properties
+  @Input() isPort: boolean = false;
+  @Input() portResource: string | null = null;
+  @Input() portRatio: number = 3;
+  @Input() portDirection: string = '';
+  
   @Output() onClick = new EventEmitter<any>();
   
   // Constants
@@ -107,9 +121,9 @@ export class TileComponent {
     // Map resource names to file names
     const resourceMap: {[key: string]: string} = {
       'brick': 'tile_brick.svg',
-      'lumber': 'tile_wood.svg',
-      'wool': 'tile_sheep.svg',
-      'grain': 'tile_wheat.svg',
+      'wood': 'tile_wood.svg',
+      'sheep': 'tile_sheep.svg',
+      'wheat': 'tile_wheat.svg',
       'ore': 'tile_ore.svg',
       'desert': 'tile_desert.svg',
       'port': 'tile_maritime.svg',
@@ -118,5 +132,38 @@ export class TileComponent {
     // Get the matching SVG file or use the resource name directly
     // Use relative path for GitHub Pages compatibility
     return `./assets/${resourceMap[normalizedResource] || `tile_${normalizedResource}.svg`}`;
+  }
+  
+  // Port-specific methods
+  
+  // Get CSS class for port direction
+  getPortClass(): string {
+    if (!this.isPort) return '';
+    
+    let classes = ['port-indicator'];
+    if (this.portDirection) {
+      // Convert direction to lowercase to match CSS class names
+      const direction = this.portDirection.toLowerCase();
+      classes.push(`port-${direction}`);
+    }
+    return classes.join(' ');
+  }
+  
+  // Get port ratio display text
+  getPortRatio(): string {
+    return `${this.portRatio}:1`;
+  }
+  
+  // Check if this is a resource-specific port
+  isResourcePort(): boolean {
+    return this.isPort && !!this.portResource;
+  }
+  
+  // Get CSS class for the port resource
+  getPortResourceClass(): string {
+    if (!this.portResource) return '';
+    
+    const normalizedResource = this.portResource.toLowerCase();
+    return `resource-${normalizedResource}`;
   }
 }

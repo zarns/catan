@@ -34,6 +34,7 @@ export interface Edge {
 
 export interface GameBoard {
   tiles: TilePosition[];
+  ports: { coordinate: Coordinate, port: { resource: string | null, ratio: number, direction: string } }[];
   nodes: { [nodeId: string]: Node };
   edges: { [edgeId: string]: Edge };
   robber_coordinate: Coordinate;

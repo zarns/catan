@@ -113,11 +113,11 @@ pub enum Tile {
 
 #[derive(Debug)]
 pub struct MapInstance {
-    tiles: HashMap<Coordinate, Tile>,
-    land_tiles: HashMap<Coordinate, LandTile>,
-    port_nodes: HashMap<NodeId, Option<Resource>>,
-    adjacent_land_tiles: HashMap<NodeId, Vec<LandTile>>,
-    node_production: HashMap<NodeId, HashMap<Resource, f64>>,
+    pub tiles: HashMap<Coordinate, Tile>,
+    pub land_tiles: HashMap<Coordinate, LandTile>,
+    pub port_nodes: HashMap<NodeId, Option<Resource>>,
+    pub adjacent_land_tiles: HashMap<NodeId, Vec<LandTile>>,
+    pub node_production: HashMap<NodeId, HashMap<Resource, f64>>,
 
     // TODO: Since this doesn't change per map_instance but per template, move
     //  these to MapTemplate.
@@ -129,13 +129,13 @@ pub struct MapInstance {
     // - Shortest path between nodes
     // - BFS capabilities
     // all which doesn't sound too bad to implement.
-    land_nodes: HashSet<NodeId>,
+    pub land_nodes: HashSet<NodeId>,
 
     // TODO: Track valid edges for building roads.
     #[allow(dead_code)]
-    land_edges: HashSet<EdgeId>,
-    node_neighbors: HashMap<NodeId, Vec<NodeId>>,
-    edge_neighbors: HashMap<NodeId, Vec<EdgeId>>,
+    pub land_edges: HashSet<EdgeId>,
+    pub node_neighbors: HashMap<NodeId, Vec<NodeId>>,
+    pub edge_neighbors: HashMap<NodeId, Vec<EdgeId>>,
 }
 
 impl MapInstance {

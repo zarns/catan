@@ -31,6 +31,20 @@ import { Coordinate, GameBoard } from '../../services/game.service';
                   (onClick)="onTileClick(tile.coordinate)">
         </app-tile>
         
+        <!-- Port Tiles -->
+        <app-tile *ngFor="let port of getPorts()"
+                  [coordinate]="port.coordinate"
+                  [resource]="'port'"
+                  [isPort]="true"
+                  [portResource]="port.port.resource"
+                  [portRatio]="port.port.ratio"
+                  [portDirection]="port.port.direction"
+                  [size]="size"
+                  [centerX]="centerX"
+                  [centerY]="centerY"
+                  (onClick)="onTileClick(port.coordinate)">
+        </app-tile>
+        
         <!-- Edges (Roads) -->
         <app-edge *ngFor="let edge of getEdges()"
                   [id]="edge.id"
@@ -98,6 +112,11 @@ export class BoardComponent implements OnInit, AfterViewInit {
     return this.gameState?.tiles || [];
   }
   
+  getPorts(): any[] {
+    // This method is used to access port tiles
+    return this.gameState?.ports || [];
+  }
+  
   getNodes(): any[] {
     if (!this.gameState || !this.gameState.nodes) {
       return [];
@@ -136,6 +155,15 @@ export class BoardComponent implements OnInit, AfterViewInit {
   
   ngOnInit(): void {
     this.updateBoardSize();
+    
+    // Debug: log port data if available
+    setTimeout(() => {
+      if (this.gameState?.ports && this.gameState.ports.length > 0) {
+        console.log('Port data found:', this.gameState.ports);
+      } else {
+        console.warn('No ports data in game board');
+      }
+    }, 2000);
   }
   
   ngAfterViewInit(): void {

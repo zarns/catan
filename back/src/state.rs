@@ -1,11 +1,12 @@
 use log::debug;
 use std::{
     collections::{HashMap, HashSet},
-    rc::Rc,
+    sync::Arc,
 };
+use serde::{Serialize, Deserialize};
 
 use crate::{
-    enums::{ActionPrompt, GameConfiguration, MapType},
+    enums::{ActionPrompt, GameConfiguration, MapType, BuildingType as EnumBuildingType},
     global_state::GlobalState,
     map_instance::{EdgeId, MapInstance, NodeId},
     state_vector::{
@@ -17,17 +18,26 @@ use crate::{
     },
 };
 
+pub mod move_application;
+pub mod move_generation;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Building {
     Settlement(u8, NodeId), // Color, NodeId
     City(u8, NodeId),       // Color, NodeId
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BuildingType {
+    Settlement,
+    City,
+}
+
 #[derive(Debug)]
 pub struct State {
     // These two are immutable
-    config: Rc<GameConfiguration>,
-    map_instance: Rc<MapInstance>,
+    config: Arc<GameConfiguration>,
+    map_instance: Arc<MapInstance>,
 
     // This is mutable
     vector: StateVector,
@@ -45,11 +55,8 @@ pub struct State {
     largest_army_count: u8,
 }
 
-mod move_application;
-mod move_generation;
-
 impl State {
-    pub fn new(config: Rc<GameConfiguration>, map_instance: Rc<MapInstance>) -> Self {
+    pub fn new(config: Arc<GameConfiguration>, map_instance: Arc<MapInstance>) -> Self {
         debug!(
             "State::new: config={:?}, num_players={}",
             config, config.num_players
@@ -107,7 +114,7 @@ impl State {
             &global_state.dice_probas,
             0,
         );
-        State::new(Rc::new(config), Rc::new(map_instance))
+        State::new(Arc::new(config), Arc::new(map_instance))
     }
 
     fn get_num_players(&self) -> u8 {
@@ -260,7 +267,13 @@ impl State {
         }
     }
 
-    // TODO: Potentially cache this implementation
+    pub fn get_building_type(&self, node_id: NodeId) -> Option<BuildingType> {
+        self.buildings.get(&node_id).map(|building| match building {
+            Building::Settlement(_, _) => BuildingType::Settlement,
+            Building::City(_, _) => BuildingType::City,
+        })
+    }
+
     pub fn board_buildable_edges(&self, color: u8) -> Vec<EdgeId> {
         let color_components = self.connected_components.get(&color).unwrap();
         let expandable_nodes: Vec<NodeId> = color_components
@@ -308,19 +321,17 @@ impl State {
         None
     }
 
-    fn is_enemy_node(&self, color: u8, a: u8) -> bool {
-        let node_color = self.get_node_color(a);
-        match node_color {
-            None => false,
-            Some(node_color) => node_color != color,
-        }
+    pub fn get_node_color(&self, node_id: NodeId) -> Option<u8> {
+        self.buildings.get(&node_id).map(|building| match building {
+            Building::Settlement(owner_color, _) => *owner_color,
+            Building::City(owner_color, _) => *owner_color,
+        })
     }
 
-    fn get_node_color(&self, a: u8) -> Option<u8> {
-        match self.buildings.get(&a) {
-            Some(Building::Settlement(color, _)) => Some(*color),
-            Some(Building::City(color, _)) => Some(*color),
-            None => None,
+    pub fn is_enemy_node(&self, color: u8, node_id: NodeId) -> bool {
+        match self.get_node_color(node_id) {
+            None => false, // No building, so not an enemy node
+            Some(node_owner_color) => node_owner_color != color, // It's an enemy if the owner is different
         }
     }
 

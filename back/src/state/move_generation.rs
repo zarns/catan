@@ -1,10 +1,13 @@
-use crate::deck_slices::{freqdeck_contains, CITY_COST, ROAD_COST, SETTLEMENT_COST};
-use crate::enums::{Action, ActionPrompt, DevCard};
-use crate::state::State;
-use crate::state_vector::get_free_roads_available;
-use std::collections::HashSet;
+#[path = "../deck_slices.rs"]
+mod deck_slices_import;
+use deck_slices_import::{freqdeck_contains, CITY_COST, ROAD_COST, SETTLEMENT_COST};
 
 use super::Building;
+use super::State;
+
+use crate::enums::{Action, ActionPrompt, DevCard};
+use crate::state_vector::get_free_roads_available;
+use std::collections::HashSet;
 
 const TOTAL_ROADS_PER_PLAYER: u8 = 15;
 const TOTAL_CITIES_PER_PLAYER: u8 = 4;
@@ -38,7 +41,7 @@ impl State {
                 })
                 .collect()
         } else {
-            let has_resources = freqdeck_contains(self.get_player_hand(color), SETTLEMENT_COST);
+            let has_resources = freqdeck_contains(self.get_player_hand(color), &SETTLEMENT_COST);
             let settlements_used = self.get_settlements(color).len();
             let has_settlements_available = settlements_used < 5;
 
@@ -76,7 +79,7 @@ impl State {
             return vec![];
         }
 
-        if is_free || freqdeck_contains(self.get_player_hand(color), ROAD_COST) {
+        if is_free || freqdeck_contains(self.get_player_hand(color), &ROAD_COST) {
             self.board_buildable_edges(color)
                 .iter()
                 .map(|edge_id| Action::BuildRoad {
@@ -90,7 +93,7 @@ impl State {
     }
 
     pub fn city_possibilities(&self, color: u8) -> Vec<Action> {
-        let has_money = freqdeck_contains(self.get_player_hand(color), CITY_COST);
+        let has_money = freqdeck_contains(self.get_player_hand(color), &CITY_COST);
         if !has_money {
             return vec![];
         }

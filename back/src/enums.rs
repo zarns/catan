@@ -1,10 +1,13 @@
 use crate::{
-    deck_slices::FreqDeck,
     map_instance::{EdgeId, NodeId},
     map_template::Coordinate,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+// Define FreqDeck type directly in this module
+pub type FreqDeck = [u8; 5]; // 5 resources
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Color {
     Red = 0,
     Blue = 1,
@@ -14,7 +17,7 @@ pub enum Color {
 
 pub const COLORS: [Color; 4] = [Color::Red, Color::Blue, Color::Orange, Color::White];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Resource {
     Wood,
     Brick,
@@ -23,7 +26,7 @@ pub enum Resource {
     Ore,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DevCard {
     Knight,
     YearOfPlenty,
@@ -32,14 +35,14 @@ pub enum DevCard {
     VictoryPoint,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum BuildingType {
     Settlement,
     City,
     Road,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum NodeRef {
     North,
     Northeast,
@@ -49,7 +52,7 @@ pub enum NodeRef {
     Northwest,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum EdgeRef {
     East,
     Southeast,
@@ -59,7 +62,7 @@ pub enum EdgeRef {
     Northeast,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ActionPrompt {
     BuildInitialSettlement,
     BuildInitialRoad,
@@ -70,7 +73,7 @@ pub enum ActionPrompt {
     DecideAcceptees,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Action {
     Roll {
         color: u8,
@@ -142,14 +145,14 @@ pub enum Action {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MapType {
     Mini,
     Base,
     Tournament,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameConfiguration {
     pub discard_limit: u8,
     pub vps_to_win: u8,

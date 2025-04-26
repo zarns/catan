@@ -1,7 +1,7 @@
 use log::info;
 
-pub mod deck_slices;
 pub mod decks;
+pub mod deck_slices;
 pub mod enums;
 pub mod game;
 pub mod global_state;
@@ -19,7 +19,7 @@ pub fn init_logger() {
 }
 
 // Export public types
+pub use enums::Action;
 pub use game::Game;
 pub use players::{Player, RandomPlayer};
-pub use enums::Action;
 pub use state::State;

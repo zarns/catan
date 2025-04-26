@@ -105,10 +105,10 @@ export class PlayerStateBoxComponent {
       if (player && player.resources) {
         // Map resource types to the backend format
         const resourceMap: any = {
-          'WOOD': 'Lumber',
+          'WOOD': 'Wood',
           'BRICK': 'Brick',
-          'SHEEP': 'Wool',
-          'WHEAT': 'Grain',
+          'SHEEP': 'Sheep',
+          'WHEAT': 'Wheat',
           'ORE': 'Ore'
         };
         

@@ -3,15 +3,19 @@ use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
 
-use crate::{
-    deck_slices::*,
-    enums::{Action, DevCard},
-    map_instance::{EdgeId, NodeId},
-    state::Building,
-    state_vector::*,
-};
-
+// Import from parent module's imports
+use super::Building;
 use super::State;
+
+// Import directly from lib scope
+#[path = "../deck_slices.rs"]
+mod deck_slices_import;
+use deck_slices_import::{freqdeck_add, freqdeck_sub, FreqDeck, SETTLEMENT_COST, ROAD_COST, CITY_COST, DEVCARD_COST};
+
+// Other imports
+use crate::enums::{Action, DevCard};
+use crate::map_instance::{EdgeId, NodeId};
+use crate::state_vector::*;
 
 impl State {
     pub fn apply_action(&mut self, action: Action) {

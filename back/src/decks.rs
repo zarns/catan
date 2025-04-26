@@ -1,4 +1,5 @@
 use crate::enums::{DevCard, Resource};
+use crate::deck_slices::FreqDeck;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResourceDeck {
@@ -158,14 +159,8 @@ impl ResourceDeck {
     }
 }
 
-pub fn starting_dev_listdeck() -> [u8; 25] {
-    let mut listdeck: [u8; 25] = [0; 25];
-    listdeck[0..14].copy_from_slice(&[DevCard::Knight as u8; 14]);
-    listdeck[14..16].copy_from_slice(&[DevCard::YearOfPlenty as u8; 2]);
-    listdeck[16..18].copy_from_slice(&[DevCard::RoadBuilding as u8; 2]);
-    listdeck[18..20].copy_from_slice(&[DevCard::Monopoly as u8; 2]);
-    listdeck[20..25].copy_from_slice(&[DevCard::VictoryPoint as u8; 5]);
-    listdeck
+pub fn starting_dev_listdeck() -> Vec<u8> {
+    vec![0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4, 4]
 }
 
 #[derive(Debug, Clone)]
