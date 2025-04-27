@@ -26,15 +26,17 @@ import { MatCardModule } from '@angular/material/card';
         <div class="pips">{{ numberToPips(number) }}</div>
       </div>
       
-      <!-- Port indicator for harbors -->
-      <div *ngIf="isPort" [ngClass]="getPortClass()">
-        <div class="port-ratio">{{ getPortRatio() }}</div>
-        <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
-          <div class="resource-icon">{{ getResourceIconText() }}</div>
+      <!-- Port indicator for harbors - move this with the same transform as the port tile -->
+      <div *ngIf="isPort" class="port-container" [ngStyle]="getPortTranslateStyle()">
+        <div [ngClass]="getPortClass()">
+          <div class="port-ratio">{{ getPortRatio() }}</div>
+          <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
+            <div class="resource-icon">{{ getResourceIconText() }}</div>
+          </div>
+          <!-- Show coordinates and port type for debugging -->
+          <div class="coord-debug">{{getCoordinateString()}}</div>
+          <div class="port-type-debug">{{portDirection}} Port</div>
         </div>
-        <!-- Show coordinates and port type for debugging -->
-        <div class="coord-debug">{{getCoordinateString()}}</div>
-        <div class="port-type-debug">{{portDirection}} Port</div>
       </div>
     </div>
   `,
@@ -75,13 +77,19 @@ export class TileComponent {
     // Make port tiles smaller (60% of normal size)
     const scale = this.isPort ? 0.6 : 1.0;
     
+    // For port tiles, apply both translation and scaling
+    let transform = 'none';
+    if (this.isPort) {
+      transform = `scale(${scale}) ${this.getPortTileTransform()}`;
+    }
+    
     // Add the coordinates as a custom CSS property
     return {
-      left: `${x - (w*scale)/2}px`,
-      top: `${y - (h*scale)/2}px`,
-      width: `${w*scale}px`,
-      height: `${h*scale}px`,
-      transform: this.isPort ? this.getPortTileTransform() : 'none',
+      left: `${x - w/2}px`, // Don't apply scale here
+      top: `${y - h/2}px`,  // Don't apply scale here
+      width: `${w}px`,      // Use original size
+      height: `${h}px`,     // Use original size
+      transform: transform, // Apply both scaling and translation in one transform
       '--hex-x': this.coordinate?.x,
       '--hex-y': this.coordinate?.y,
       '--hex-z': this.coordinate?.z
@@ -202,7 +210,7 @@ export class TileComponent {
 
   // Get a transform to shift port tiles toward the edge
   getPortTileTransform(): string {
-    if (!this.portDirection || !this.isPort) return 'none';
+    if (!this.portDirection || !this.isPort) return '';
     
     const size = this.size;
     let x = 0;
@@ -211,32 +219,53 @@ export class TileComponent {
     // Normalize direction to uppercase for consistent handling
     const direction = this.portDirection.toUpperCase();
     
-    // Move tiles in the direction indicated by their name
-    // (opposite of previous implementation)
-    if (direction === 'EAST' || direction === 'E') {
-      // East port - move eastward
-      x = size / 3;  // Move east
-    } else if (direction === 'SOUTHEAST' || direction === 'SE') {
-      // Southeast port - move southeast
-      x = size / 4;  // Move east slightly
-      y = size / 4;  // Move south slightly
-    } else if (direction === 'SOUTHWEST' || direction === 'SW') {
-      // Southwest port - move southwest
-      x = -size / 4; // Move west slightly
-      y = size / 4;  // Move south slightly
-    } else if (direction === 'WEST' || direction === 'W') {
-      // West port - move westward
-      x = -size / 3; // Move west
-    } else if (direction === 'NORTHWEST' || direction === 'NW') {
-      // Northwest port - move northwest
-      x = -size / 4; // Move west slightly
-      y = -size / 4; // Move north slightly
-    } else if (direction === 'NORTHEAST' || direction === 'NE') {
-      // Northeast port - move northeast
-      x = size / 4;  // Move east slightly
-      y = -size / 4; // Move north slightly
+    // Calculate movement along hexagonal axes based on direction
+    // In a hexagonal grid, we need to calculate the proper offsets
+    switch (direction) {
+      case 'EAST':
+      case 'E':
+        // Move along the x-axis (60° from horizontal)
+        x = size;
+        break;
+      case 'SOUTHEAST':
+      case 'SE':
+        // Move along the z-axis (120° from horizontal)
+        x = size * 0.5;     // cos(120°) = -0.5, but we need positive for SE
+        y = size * 0.866;   // sin(120°) = 0.866
+        break;
+      case 'SOUTHWEST':
+      case 'SW':
+        // Move along the y-axis (180° from horizontal)
+        x = -size * 0.5;    // cos(180°) = -0.5
+        y = size * 0.866;   // sin(180°) = 0.866
+        break;
+      case 'WEST':
+      case 'W':
+        // Opposite of East
+        x = -size;
+        break;
+      case 'NORTHWEST':
+      case 'NW':
+        // Opposite of Southeast
+        x = -size * 0.5;
+        y = -size * 0.866;
+        break;
+      case 'NORTHEAST':
+      case 'NE':
+        // Opposite of Southwest
+        x = size * 0.5;
+        y = -size * 0.866;
+        break;
     }
     
-    return `translate(${x}px, ${y}px)`;
+    // Apply 50% of the calculated offset for a more subtle effect
+    return `translate(${x * 0.5}px, ${y * 0.5}px)`;
+  }
+
+  // Helper method to get style object for port container
+  getPortTranslateStyle() {
+    // Don't apply any additional transform to the port container
+    // The port indicator should stay centered within the scaled and translated tile
+    return {}; 
   }
 }
