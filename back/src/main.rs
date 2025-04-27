@@ -58,8 +58,8 @@ enum GameStatus {
 struct GameState {
     id: String,
     status: GameStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    game_view: Option<Game>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    game: Option<Game>,
 }
 
 // WebSocket message types
@@ -115,7 +115,7 @@ async fn create_game(
     let game_state = GameState {
         id: game_id.clone(),
         status: GameStatus::Waiting,
-        game_view: game_view.clone(),
+        game: game_view.clone(),
     };
 
     {
@@ -129,7 +129,7 @@ async fn create_game(
         WsMessage::GameState(GameState {
             id: game_id.clone(),
             status: GameStatus::Waiting,
-            game_view,
+            game: game_view,
         }),
     ));
 
@@ -170,7 +170,7 @@ async fn create_game(
                 let mut games = state_clone.games.lock().await;
                 if let Some(game_state) = games.get_mut(&game_id_clone) {
                     game_state.status = GameStatus::InProgress;
-                    game_state.game_view = Some(sim_view.clone());
+                    game_state.game = Some(sim_view.clone());
 
                     // Broadcast the updated state
                     let _ = state_clone.tx.send((
@@ -192,13 +192,16 @@ async fn create_game(
                 let update_msg = WsMessage::GameState(GameState {
                     id: game_id_clone.clone(),
                     status: GameStatus::InProgress,
-                    game_view: Some(sim_view.clone()),
+                    game: Some(sim_view.clone()),
                 });
                 let _ = state_clone.tx.send((game_id_clone.clone(), update_msg));
 
                 // Random chance of winning
                 if rand::random::<u8>() % 20 == 0 {
-                    sim_view.winner = Some(sim_view.players[0].name.clone());
+                    // Use the game_state enum instead of a direct winner field
+                    sim_view.game_state = game::GameState::Finished { 
+                        winner: sim_view.players[0].name.clone() 
+                    };
                     break;
                 }
             }
@@ -206,15 +209,15 @@ async fn create_game(
             // Update the game state with the final game state
             let mut games = state_clone.games.lock().await;
             if let Some(game_state) = games.get_mut(&game_id_clone) {
-                game_state.game_view = Some(sim_view.clone());
-                game_state.status = if sim_view.winner.is_some() {
+                game_state.game = Some(sim_view.clone());
+                game_state.status = if let game::GameState::Finished { .. } = sim_view.game_state {
                     GameStatus::Finished
                 } else {
                     GameStatus::InProgress
                 };
 
                 // Broadcast final update if game finished
-                if sim_view.winner.is_some() {
+                if let game::GameState::Finished { .. } = sim_view.game_state {
                     let _ = state_clone.tx.send((
                         game_id_clone.clone(),
                         WsMessage::GameState(game_state.clone()),
@@ -228,7 +231,7 @@ async fn create_game(
     let response = GameState {
         id: game_state.id,
         status: game_state.status,
-        game_view: None,
+        game: None,
     };
 
     Ok(Json(response))
