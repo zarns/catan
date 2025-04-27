@@ -6,7 +6,7 @@ use std::{
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    enums::{ActionPrompt, GameConfiguration, MapType, BuildingType as EnumBuildingType},
+    enums::{ActionPrompt, GameConfiguration, MapType},
     global_state::GlobalState,
     map_instance::{EdgeId, MapInstance, NodeId},
     state_vector::{

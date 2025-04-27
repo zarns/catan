@@ -1,17 +1,15 @@
 use crate::enums::{
-    Action as EnumAction, ActionPrompt, Color, DevCard, GameConfiguration, MapType, Resource as EnumResource,
+    Action as EnumAction, DevCard, GameConfiguration, MapType, Resource as EnumResource,
 };
 use crate::global_state::GlobalState;
 use crate::map_instance::{
-    Direction, EdgeId, EdgeRef, Hexagon, LandTile, MapInstance, NodeId, NodeRef, PortTile, Tile,
-    WaterTile,
+    Direction, EdgeRef, LandTile, MapInstance, NodeRef, PortTile, Tile,
 };
-use crate::map_template::{Coordinate as CubeCoordinate, TileSlot};
-use crate::state::{Building, State, BuildingType};
+use crate::map_template::Coordinate as CubeCoordinate;
+use crate::state::{State, BuildingType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 // Use EnumAction instead of defining GameAction
 pub type GameAction = EnumAction;

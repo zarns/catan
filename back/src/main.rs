@@ -7,7 +7,7 @@ mod ordered_hashmap;
 mod state_vector;
 mod state;
 
-use axum::http::{HeaderValue, Method};
+use axum::http::Method;
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -29,7 +29,7 @@ use tokio::time::sleep;
 use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
-use crate::game::{simulate_bot_game, start_human_vs_catanatron, Game, GameAction, GameBoard, Player};
+use crate::game::{simulate_bot_game, start_human_vs_catanatron, Game};
 
 // Game-related structures
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
