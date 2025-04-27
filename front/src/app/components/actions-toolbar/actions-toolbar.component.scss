@@ -1,3 +1,6 @@
+// Import the global variables
+@import '../../../variables';
+
 .actions-area {
   position: absolute;
   bottom: 0;
@@ -40,11 +43,11 @@
     height: 18px;
     border-radius: 3px;
     
-    &.brick { background-color: #b74a3b; }
-    &.wood { background-color: #1a662e; }
-    &.sheep { background-color: #7bc346; }
-    &.wheat { background-color: #e2c759; }
-    &.ore { background-color: #777777; }
+    &.brick { background-color: $color-brick; }
+    &.wood { background-color: $color-wood; }
+    &.sheep { background-color: $color-sheep; }
+    &.wheat { background-color: $color-wheat; }
+    &.ore { background-color: $color-ore; }
   }
   
   .resource-value {

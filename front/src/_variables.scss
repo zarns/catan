@@ -1,0 +1,15 @@
+// Resource type colors
+$color-wood: #1a662e;
+$color-brick: #b74a3b;
+$color-sheep: #7bc346;
+$color-wheat: #e2c759;
+$color-ore: #777777;
+
+// Export as CSS variables as well for components that need them
+:root {
+  --color-wood: #{$color-wood};
+  --color-brick: #{$color-brick};
+  --color-sheep: #{$color-sheep};
+  --color-wheat: #{$color-wheat};
+  --color-ore: #{$color-ore};
+} 

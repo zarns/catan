@@ -1,3 +1,13 @@
+// Import the global variables
+@import '../../../variables';
+
+// Resource colors - updated to match actions-toolbar values
+$color-wood: #1a662e;
+$color-brick: #b74a3b;
+$color-sheep: #7bc346;
+$color-wheat: #e2c759;
+$color-ore: #777777;
+
 .tile {
   position: absolute;
   background-size: cover;
@@ -145,15 +155,15 @@
     }
     
     &.resource-wood {
-      background-color: #6b8e23;
+      background-color: $color-wood;
     }
     
     &.resource-brick {
-      background-color: #b22222;
+      background-color: $color-brick;
     }
     
     &.resource-sheep {
-      background-color: #98fb98;
+      background-color: $color-sheep;
       
       .resource-icon {
         color: #333;
@@ -162,7 +172,7 @@
     }
     
     &.resource-wheat {
-      background-color: #f5deb3;
+      background-color: $color-wheat;
       
       .resource-icon {
         color: #333;
@@ -171,7 +181,7 @@
     }
     
     &.resource-ore {
-      background-color: #708090;
+      background-color: $color-ore;
     }
   }
 }

@@ -1,9 +1,5 @@
-/* Define resource colors */
-$brick-color: #d35400;
-$wood-color: #27ae60;
-$sheep-color: #2ecc71;
-$wheat-color: #f1c40f;
-$ore-color: #7f8c8d;
+/* Import global resource colors */
+@import '../../../variables';
 
 .resource-selector-overlay {
   position: fixed;
@@ -82,11 +78,11 @@ $ore-color: #7f8c8d;
   }
   
   /* Resource colors */
-  &.brick { border-color: $brick-color; }
-  &.wood { border-color: $wood-color; }
-  &.sheep { border-color: $sheep-color; }
-  &.wheat { border-color: $wheat-color; }
-  &.ore { border-color: $ore-color; }
+  &.brick { border-color: $color-brick; }
+  &.wood { border-color: $color-wood; }
+  &.sheep { border-color: $color-sheep; }
+  &.wheat { border-color: $color-wheat; }
+  &.ore { border-color: $color-ore; }
 }
 
 .resource-icon {
@@ -101,11 +97,11 @@ $ore-color: #7f8c8d;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   }
   
-  .brick & { .resource-hex { background-color: $brick-color; }}
-  .wood & { .resource-hex { background-color: $wood-color; }}
-  .sheep & { .resource-hex { background-color: $sheep-color; }}
-  .wheat & { .resource-hex { background-color: $wheat-color; }}
-  .ore & { .resource-hex { background-color: $ore-color; }}
+  .brick & { .resource-hex { background-color: $color-brick; }}
+  .wood & { .resource-hex { background-color: $color-wood; }}
+  .sheep & { .resource-hex { background-color: $color-sheep; }}
+  .wheat & { .resource-hex { background-color: $color-wheat; }}
+  .ore & { .resource-hex { background-color: $color-ore; }}
   
   .resource-label {
     font-weight: 500;
