@@ -10,7 +10,8 @@
   z-index: 1;
   overflow: hidden;
   
-  // Add coordinate display in the pseudo-element
+  // Comment out coordinate display in the pseudo-element
+  /*
   &::after {
     content: attr(data-hex-coord);
     position: absolute;
@@ -26,16 +27,19 @@
     z-index: 10;
     opacity: 0.7;
   }
+  */
   
   &:hover {
     filter: brightness(1.1);
     
-    // Show coordinates more clearly on hover
+    // Comment out coordinates hover behavior
+    /*
     &::after {
       font-size: 10px;
       background: rgba(0, 0, 0, 0.8);
       opacity: 1;
     }
+    */
   }
   
   &.port-tile {
@@ -184,7 +188,8 @@
   }
 }
 
-.coord-debug {
+// Comment out the coord-debug class
+/* .coord-debug {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -196,9 +201,9 @@
   white-space: nowrap;
   z-index: 30;
   pointer-events: none;
-  width: max-content; /* Ensure text doesn't wrap */
+  width: max-content; 
   bottom: -15px;
-}
+} */
 
 .port-container {
   position: absolute;

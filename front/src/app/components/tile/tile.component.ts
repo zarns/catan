@@ -32,8 +32,8 @@ import { MatCardModule } from '@angular/material/card';
           <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
             <div class="resource-icon">{{ getResourceIconText() }}</div>
           </div>
-          <!-- Show coordinates for debugging -->
-          <div class="coord-debug">{{getCoordinateString()}}</div>
+          <!-- Comment out coordinates for debugging -->
+          <!-- <div class="coord-debug">{{getCoordinateString()}}</div> -->
         </div>
       </div>
     </div>
