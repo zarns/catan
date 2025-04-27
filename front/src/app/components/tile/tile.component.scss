@@ -10,8 +10,50 @@
   z-index: 1;
   overflow: hidden;
   
+  // Add coordinate display in the pseudo-element
+  &::after {
+    content: attr(data-hex-coord);
+    position: absolute;
+    font-size: 8px;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 1px 3px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0.7;
+  }
+  
+  // Add port direction type in before pseudo-element
+  &.port-tile::before {
+    content: attr(data-port-type);
+    position: absolute;
+    font-size: 8px;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 30, 0.7);
+    color: white;
+    padding: 1px 3px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0.9;
+    white-space: nowrap;
+  }
+  
   &:hover {
     filter: brightness(1.1);
+    
+    // Show coordinates more clearly on hover
+    &::after, &::before {
+      font-size: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      opacity: 1;
+    }
   }
   
   &.port-tile {
@@ -205,4 +247,35 @@
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
+}
+
+.coord-debug {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 8px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  white-space: nowrap;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.port-type-debug {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 120, 0.8);
+  color: white;
+  font-size: 8px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  white-space: nowrap;
+  z-index: 30;
+  pointer-events: none;
+  font-weight: bold;
 } 

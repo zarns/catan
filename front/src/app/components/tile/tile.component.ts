@@ -8,8 +8,14 @@ import { MatCardModule } from '@angular/material/card';
   imports: [CommonModule, MatCardModule],
   template: `
     <div class="tile" 
-         [ngClass]="{'port-tile': isPort}"
+         [ngClass]="{'port-tile': isPort, 'hex-coord': true, 'hex-x-{{coordinate?.x}}': true, 'hex-y-{{coordinate?.y}}': true, 'hex-z-{{coordinate?.z}}': true}"
          [ngStyle]="tileStyle"
+         [attr.data-hex-x]="coordinate?.x"
+         [attr.data-hex-y]="coordinate?.y"
+         [attr.data-hex-z]="coordinate?.z"
+         [attr.data-hex-coord]="getCoordinateString()"
+         [attr.data-direction]="isPort ? portDirection : ''"
+         [attr.data-port-type]="isPort ? 'Port:' + portDirection : ''"
          (click)="onClick.emit(coordinate)">
       
       <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
@@ -26,6 +32,9 @@ import { MatCardModule } from '@angular/material/card';
         <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
           <div class="resource-icon">{{ getResourceIconText() }}</div>
         </div>
+        <!-- Show coordinates and port type for debugging -->
+        <div class="coord-debug">{{getCoordinateString()}}</div>
+        <div class="port-type-debug">{{portDirection}} Port</div>
       </div>
     </div>
   `,
@@ -51,17 +60,31 @@ export class TileComponent {
   // Constants
   readonly SQRT3 = 1.732;
   
+  // Get coordinate as a string for display
+  getCoordinateString(): string {
+    if (!this.coordinate) return '';
+    return `(${this.coordinate.x},${this.coordinate.y},${this.coordinate.z})`;
+  }
+  
   get tileStyle() {
     const w = this.SQRT3 * this.size;
     const h = 2 * this.size;
     
     const [x, y] = this.tilePixelVector();
     
+    // Make port tiles smaller (60% of normal size)
+    const scale = this.isPort ? 0.6 : 1.0;
+    
+    // Add the coordinates as a custom CSS property
     return {
-      left: `${x - w/2}px`,
-      top: `${y - h/2}px`,
-      width: `${w}px`,
-      height: `${h}px`
+      left: `${x - (w*scale)/2}px`,
+      top: `${y - (h*scale)/2}px`,
+      width: `${w*scale}px`,
+      height: `${h*scale}px`,
+      transform: this.isPort ? this.getPortTileTransform() : 'none',
+      '--hex-x': this.coordinate?.x,
+      '--hex-y': this.coordinate?.y,
+      '--hex-z': this.coordinate?.z
     };
   }
   
@@ -169,11 +192,51 @@ export class TileComponent {
     return `resource-${normalizedResource}`;
   }
 
-  // New method to get resource icon text
+  // Get resource icon text for display
   getResourceIconText(): string {
     if (!this.portResource) return '';
     
     const normalizedResource = this.portResource.toLowerCase();
     return normalizedResource.charAt(0).toUpperCase();
+  }
+
+  // Get a transform to shift port tiles toward the edge
+  getPortTileTransform(): string {
+    if (!this.portDirection || !this.isPort) return 'none';
+    
+    const size = this.size;
+    let x = 0;
+    let y = 0;
+    
+    // Normalize direction to uppercase for consistent handling
+    const direction = this.portDirection.toUpperCase();
+    
+    // Move tiles in the direction indicated by their name
+    // (opposite of previous implementation)
+    if (direction === 'EAST' || direction === 'E') {
+      // East port - move eastward
+      x = size / 3;  // Move east
+    } else if (direction === 'SOUTHEAST' || direction === 'SE') {
+      // Southeast port - move southeast
+      x = size / 4;  // Move east slightly
+      y = size / 4;  // Move south slightly
+    } else if (direction === 'SOUTHWEST' || direction === 'SW') {
+      // Southwest port - move southwest
+      x = -size / 4; // Move west slightly
+      y = size / 4;  // Move south slightly
+    } else if (direction === 'WEST' || direction === 'W') {
+      // West port - move westward
+      x = -size / 3; // Move west
+    } else if (direction === 'NORTHWEST' || direction === 'NW') {
+      // Northwest port - move northwest
+      x = -size / 4; // Move west slightly
+      y = -size / 4; // Move north slightly
+    } else if (direction === 'NORTHEAST' || direction === 'NE') {
+      // Northeast port - move northeast
+      x = size / 4;  // Move east slightly
+      y = -size / 4; // Move north slightly
+    }
+    
+    return `translate(${x}px, ${y}px)`;
   }
 }
