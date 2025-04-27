@@ -15,7 +15,6 @@ import { MatCardModule } from '@angular/material/card';
          [attr.data-hex-z]="coordinate?.z"
          [attr.data-hex-coord]="getCoordinateString()"
          [attr.data-direction]="isPort ? portDirection : ''"
-         [attr.data-port-type]="isPort ? 'Port:' + portDirection : ''"
          (click)="onClick.emit(coordinate)">
       
       <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
@@ -28,14 +27,13 @@ import { MatCardModule } from '@angular/material/card';
       
       <!-- Port indicator for harbors - move this with the same transform as the port tile -->
       <div *ngIf="isPort" class="port-container" [ngStyle]="getPortTranslateStyle()">
-        <div [ngClass]="getPortClass()">
+        <div class="port-indicator">
           <div class="port-ratio">{{ getPortRatio() }}</div>
           <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
             <div class="resource-icon">{{ getResourceIconText() }}</div>
           </div>
-          <!-- Show coordinates and port type for debugging -->
+          <!-- Show coordinates for debugging -->
           <div class="coord-debug">{{getCoordinateString()}}</div>
-          <div class="port-type-debug">{{portDirection}} Port</div>
         </div>
       </div>
     </div>
@@ -169,19 +167,6 @@ export class TileComponent {
   
   // Port-specific methods
   
-  // Get CSS class for port direction
-  getPortClass(): string {
-    if (!this.isPort) return '';
-    
-    let classes = ['port-indicator'];
-    if (this.portDirection) {
-      // Convert direction to lowercase to match CSS class names
-      const direction = this.portDirection.toLowerCase();
-      classes.push(`port-${direction}`);
-    }
-    return classes.join(' ');
-  }
-  
   // Get port ratio display text
   getPortRatio(): string {
     return `${this.portRatio}:1`;
@@ -261,11 +246,10 @@ export class TileComponent {
     // Apply 50% of the calculated offset for a more subtle effect
     return `translate(${x * 0.5}px, ${y * 0.5}px)`;
   }
-
+  
   // Helper method to get style object for port container
   getPortTranslateStyle() {
-    // Don't apply any additional transform to the port container
-    // The port indicator should stay centered within the scaled and translated tile
-    return {}; 
+    // Keep port indicators centered in their tiles
+    return {}; // No translation applied to the indicators
   }
 }
