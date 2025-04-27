@@ -110,6 +110,8 @@ pub struct Game {
     pub current_player_index: usize,
     pub dice_rolled: bool,
     pub turns: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_dice_roll: Option<[u8; 2]>,
     #[serde(skip)]
     pub state: Option<State>, // Internal game logic state, skipped in serialization
 }
@@ -322,6 +324,7 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
         current_player_index: 0,
         dice_rolled: false,
         turns: 0,
+        current_dice_roll: None,
         state: Some(state),
     }
 }
@@ -388,6 +391,7 @@ impl Game {
             current_player_index: 0,
             dice_rolled: false,
             turns: 0,
+            current_dice_roll: None,
             state: Some(state),
         }
     }

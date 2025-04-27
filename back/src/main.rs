@@ -57,17 +57,29 @@ enum GameStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct GameState {
     id: String,
+    #[serde(rename = "status")]
     status: GameStatus,
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     game: Option<Game>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_prompt: Option<String>,
+    #[serde(default)]
+    bot_colors: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    winning_color: Option<String>,
 }
 
 // WebSocket message types
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "data")]
 enum WsMessage {
+    #[serde(rename = "game_state")]
     GameState(GameState),
+    #[serde(rename = "error")]
     Error(String),
+    #[serde(rename = "greeting")]
     Greeting(String),
 }
 
@@ -111,11 +123,36 @@ async fn create_game(
 
     // Convert to view for serialization
     let game_view = actual_game.clone();
+    
+    // Determine which players are bots
+    let bot_colors = if let Some(game) = &game_view {
+        match config.mode {
+            GameMode::HumanVsCatanatron => {
+                // All players except the first one are bots
+                game.players.iter()
+                    .skip(1)
+                    .map(|p| p.color.clone())
+                    .collect()
+            },
+            GameMode::RandomBots | GameMode::CatanatronBots => {
+                // All players are bots
+                game.players.iter()
+                    .map(|p| p.color.clone())
+                    .collect()
+            }
+        }
+    } else {
+        Vec::new()
+    };
 
     let game_state = GameState {
         id: game_id.clone(),
         status: GameStatus::Waiting,
         game: game_view.clone(),
+        current_color: game_view.as_ref().and_then(|g| g.players.get(0).map(|p| p.color.clone())),
+        current_prompt: Some("PLAY_TURN".to_string()),
+        bot_colors,
+        winning_color: None,
     };
 
     {
@@ -126,11 +163,7 @@ async fn create_game(
     // Broadcast the game creation
     let _ = state.tx.send((
         game_id.clone(),
-        WsMessage::GameState(GameState {
-            id: game_id.clone(),
-            status: GameStatus::Waiting,
-            game: game_view,
-        }),
+        WsMessage::GameState(game_state.clone()),
     ));
 
     // If it's a bot game, start a background task to simulate the game
@@ -193,6 +226,10 @@ async fn create_game(
                     id: game_id_clone.clone(),
                     status: GameStatus::InProgress,
                     game: Some(sim_view.clone()),
+                    current_color: sim_view.players.get(sim_view.current_player_index).map(|p| p.color.clone()),
+                    current_prompt: Some("PLAY_TURN".to_string()),
+                    bot_colors: sim_view.players.iter().map(|p| p.color.clone()).collect(),
+                    winning_color: None,
                 });
                 let _ = state_clone.tx.send((game_id_clone.clone(), update_msg));
 
@@ -229,9 +266,13 @@ async fn create_game(
 
     // Create a response without the game field to reduce data size
     let response = GameState {
-        id: game_state.id,
-        status: game_state.status,
+        id: game_state.id.clone(),
+        status: game_state.status.clone(),
         game: None,
+        current_color: game_state.current_color.clone(),
+        current_prompt: game_state.current_prompt.clone(),
+        bot_colors: game_state.bot_colors.clone(),
+        winning_color: game_state.winning_color.clone(),
     };
 
     Ok(Json(response))
