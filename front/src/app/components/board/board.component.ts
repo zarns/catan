@@ -160,6 +160,14 @@ export class BoardComponent implements OnInit, AfterViewInit {
     setTimeout(() => {
       if (this.gameState?.ports && this.gameState.ports.length > 0) {
         console.log('Port data found:', this.gameState.ports);
+        console.log('Number of ports:', this.gameState.ports.length);
+        // Log each port separately for easier inspection
+        this.gameState.ports.forEach((port, index) => {
+          console.log(`Port ${index + 1}:`, port.coordinate, 
+                     'Resource:', port.port.resource, 
+                     'Ratio:', port.port.ratio,
+                     'Direction:', port.port.direction);
+        });
       } else {
         console.warn('No ports data in game board');
       }
@@ -182,11 +190,20 @@ export class BoardComponent implements OnInit, AfterViewInit {
   updateBoardSize(): void {
     if (!this.width || !this.height) return;
     
-    // Match the React implementation's calculations
-    const containerHeight = this.height - 144 - 38 - 40; // Header, footer, padding
+    // No need to subtract toolbar height as parent container already handles this with padding
+    const containerHeight = this.height;
     const containerWidth = this.isMobile ? this.width - 280 : this.width;
     
     this.size = this.computeDefaultSize(containerWidth, containerHeight);
+    
+    // Log dimensions for debugging
+    console.debug('Board dimensions:', { 
+      width: this.width, 
+      height: this.height,
+      containerWidth,
+      containerHeight,
+      hexSize: this.size
+    });
   }
   
   // Update board center coordinates

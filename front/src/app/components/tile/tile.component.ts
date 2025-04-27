@@ -23,7 +23,9 @@ import { MatCardModule } from '@angular/material/card';
       <!-- Port indicator for harbors -->
       <div *ngIf="isPort" [ngClass]="getPortClass()">
         <div class="port-ratio">{{ getPortRatio() }}</div>
-        <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()"></div>
+        <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
+          <div class="resource-icon">{{ getResourceIconText() }}</div>
+        </div>
       </div>
     </div>
   `,
@@ -165,5 +167,13 @@ export class TileComponent {
     
     const normalizedResource = this.portResource.toLowerCase();
     return `resource-${normalizedResource}`;
+  }
+
+  // New method to get resource icon text
+  getResourceIconText(): string {
+    if (!this.portResource) return '';
+    
+    const normalizedResource = this.portResource.toLowerCase();
+    return normalizedResource.charAt(0).toUpperCase();
   }
 }
