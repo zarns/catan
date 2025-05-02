@@ -27,3 +27,10 @@ rand = "0.8"
 itertools = "0.12"
 futures = "0.3"
 tokio-stream = "0.1"
+
+# CLI tools
+clap = { version = "4.5", features = ["derive"] }
+
+[[bin]]
+name = "simulate"
+path = "src/bin/simulate.rs"
