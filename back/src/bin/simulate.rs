@@ -1,7 +1,7 @@
 use catan::enums::{Action, GameConfiguration, MapType};
 use catan::global_state::GlobalState;
 use catan::map_instance::MapInstance;
-use catan::players::{Player, RandomPlayer};
+use catan::players::{Player, RandomPlayer, MctsPlayer};
 use catan::state::State;
 use clap::{Parser, ValueEnum};
 use std::sync::Arc;
@@ -20,7 +20,7 @@ struct Args {
     players: String,
 
     /// Number of games to simulate
-    #[arg(short, long, default_value_t = 100)]
+    #[arg(short, long, default_value_t = 1)]
     num_games: usize,
 
     /// Whether to print detailed logs of each game
@@ -38,12 +38,7 @@ enum PlayerType {
 fn create_player(player_type: PlayerType) -> Box<dyn Player> {
     match player_type {
         PlayerType::Random => Box::new(RandomPlayer {}),
-        PlayerType::MCTS => {
-            // When MCTS is implemented, uncomment this line
-            // Box::new(MctsPlayer::new())
-            // For now, default to random
-            Box::new(RandomPlayer {})
-        }
+        PlayerType::MCTS => Box::new(MctsPlayer::new()),
     }
 }
 
