@@ -1,7 +1,7 @@
 use log::info;
 
-pub mod decks;
 pub mod deck_slices;
+pub mod decks;
 pub mod enums;
 pub mod game;
 pub mod global_state;

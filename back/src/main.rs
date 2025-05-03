@@ -4,8 +4,8 @@ mod global_state;
 mod map_instance;
 mod map_template;
 mod ordered_hashmap;
-mod state_vector;
 mod state;
+mod state_vector;
 
 use axum::http::Method;
 use axum::{
@@ -123,22 +123,21 @@ async fn create_game(
 
     // Convert to view for serialization
     let game_view = actual_game.clone();
-    
+
     // Determine which players are bots
     let bot_colors = if let Some(game) = &game_view {
         match config.mode {
             GameMode::HumanVsCatanatron => {
                 // All players except the first one are bots
-                game.players.iter()
+                game.players
+                    .iter()
                     .skip(1)
                     .map(|p| p.color.clone())
                     .collect()
-            },
+            }
             GameMode::RandomBots | GameMode::CatanatronBots => {
                 // All players are bots
-                game.players.iter()
-                    .map(|p| p.color.clone())
-                    .collect()
+                game.players.iter().map(|p| p.color.clone()).collect()
             }
         }
     } else {
@@ -149,7 +148,9 @@ async fn create_game(
         id: game_id.clone(),
         status: GameStatus::Waiting,
         game: game_view.clone(),
-        current_color: game_view.as_ref().and_then(|g| g.players.get(0).map(|p| p.color.clone())),
+        current_color: game_view
+            .as_ref()
+            .and_then(|g| g.players.get(0).map(|p| p.color.clone())),
         current_prompt: Some("PLAY_TURN".to_string()),
         bot_colors,
         winning_color: None,
@@ -161,32 +162,29 @@ async fn create_game(
     }
 
     // Broadcast the game creation
-    let _ = state.tx.send((
-        game_id.clone(),
-        WsMessage::GameState(game_state.clone()),
-    ));
+    let _ = state
+        .tx
+        .send((game_id.clone(), WsMessage::GameState(game_state.clone())));
 
     // If it's a bot game, start a background task to simulate the game
     if config.mode == GameMode::RandomBots || config.mode == GameMode::CatanatronBots {
         let state_clone = state.clone();
         let game_id_clone = game_id.clone();
-        
+
         // Create player names for the simulation
         let num_players = config.num_players;
         let colors = vec!["red", "blue", "white", "orange"];
         let players: Vec<game::Player> = (0..num_players)
-            .map(|i| {
-                game::Player {
-                    id: format!("player_{}", i),
-                    name: format!("Bot {}", i + 1),
-                    color: colors[i as usize % colors.len()].to_string(),
-                    resources: HashMap::new(),
-                    dev_cards: Vec::new(),
-                    knights_played: 0,
-                    victory_points: 0,
-                    longest_road: false,
-                    largest_army: false,
-                }
+            .map(|i| game::Player {
+                id: format!("player_{}", i),
+                name: format!("Bot {}", i + 1),
+                color: colors[i as usize % colors.len()].to_string(),
+                resources: HashMap::new(),
+                dev_cards: Vec::new(),
+                knights_played: 0,
+                victory_points: 0,
+                longest_road: false,
+                largest_army: false,
             })
             .collect();
 
@@ -196,7 +194,7 @@ async fn create_game(
 
             // Create a direct GameView for simulation
             let mut sim_view = simulate_bot_game(0); // placeholder: create a basic Game for initial view
-            // TODO: populate sim_view fields properly
+                                                     // TODO: populate sim_view fields properly
 
             // Update game status to in progress
             {
@@ -213,20 +211,24 @@ async fn create_game(
                 }
             }
 
-            // Simulate game moves - simple simulation 
+            // Simulate game moves - simple simulation
             for _ in 0..10 {
                 sleep(Duration::from_millis(500)).await;
 
                 // Simple simulation: increment turns
                 sim_view.turns += 1;
-                sim_view.current_player_index = (sim_view.current_player_index + 1) % sim_view.players.len();
+                sim_view.current_player_index =
+                    (sim_view.current_player_index + 1) % sim_view.players.len();
 
                 // Broadcast update
                 let update_msg = WsMessage::GameState(GameState {
                     id: game_id_clone.clone(),
                     status: GameStatus::InProgress,
                     game: Some(sim_view.clone()),
-                    current_color: sim_view.players.get(sim_view.current_player_index).map(|p| p.color.clone()),
+                    current_color: sim_view
+                        .players
+                        .get(sim_view.current_player_index)
+                        .map(|p| p.color.clone()),
                     current_prompt: Some("PLAY_TURN".to_string()),
                     bot_colors: sim_view.players.iter().map(|p| p.color.clone()).collect(),
                     winning_color: None,
@@ -236,8 +238,8 @@ async fn create_game(
                 // Random chance of winning
                 if rand::random::<u8>() % 20 == 0 {
                     // Use the game_state enum instead of a direct winner field
-                    sim_view.game_state = game::GameState::Finished { 
-                        winner: sim_view.players[0].name.clone() 
+                    sim_view.game_state = game::GameState::Finished {
+                        winner: sim_view.players[0].name.clone(),
                     };
                     break;
                 }
@@ -333,9 +335,9 @@ async fn ws_game_connection(socket: WebSocket, game_id: String, state: SharedSta
         }
 
         // Get initial state if game exists
-        games.get(&game_id).map(|game_state| {
-            WsMessage::GameState(game_state.clone())
-        })
+        games
+            .get(&game_id)
+            .map(|game_state| WsMessage::GameState(game_state.clone()))
     };
 
     // Send the initial game state

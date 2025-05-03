@@ -299,14 +299,14 @@ fn starting_dev_listdeck() -> Vec<u8> {
     let mut deck = Vec::with_capacity(25);
     // Knights (14)
     deck.extend(vec![0; 14]); // 0 = Knight
-    // Year of Plenty (2)
-    deck.extend(vec![1; 2]);  // 1 = Year of Plenty
-    // Road Building (2)
-    deck.extend(vec![2; 2]);  // 2 = Road Building
-    // Monopoly (2)
-    deck.extend(vec![3; 2]);  // 3 = Monopoly
-    // Victory Points (5)
-    deck.extend(vec![4; 5]);  // 4 = Victory Point
-    
+                              // Year of Plenty (2)
+    deck.extend(vec![1; 2]); // 1 = Year of Plenty
+                             // Road Building (2)
+    deck.extend(vec![2; 2]); // 2 = Road Building
+                             // Monopoly (2)
+    deck.extend(vec![3; 2]); // 3 = Monopoly
+                             // Victory Points (5)
+    deck.extend(vec![4; 5]); // 4 = Victory Point
+
     deck
 }

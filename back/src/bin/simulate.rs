@@ -1,7 +1,7 @@
 use catan::enums::{Action, GameConfiguration, MapType};
 use catan::global_state::GlobalState;
 use catan::map_instance::MapInstance;
-use catan::players::{Player, RandomPlayer, MctsPlayer, WeightedRandomPlayer};
+use catan::players::{MctsPlayer, Player, RandomPlayer, WeightedRandomPlayer};
 use catan::state::State;
 use clap::{Parser, ValueEnum};
 use std::sync::Arc;
@@ -60,7 +60,7 @@ fn parse_player_config(config: &str) -> Vec<PlayerType> {
 fn run_game(player_types: &[PlayerType], verbose: bool) -> (Option<usize>, usize) {
     // Create global state which has map templates
     let global_state = GlobalState::new();
-    
+
     // Create game configuration
     let config = Arc::new(GameConfiguration {
         map_type: MapType::Base,
@@ -69,31 +69,29 @@ fn run_game(player_types: &[PlayerType], verbose: bool) -> (Option<usize>, usize
         vps_to_win: 10,
         max_ticks: 1000, // Prevent infinite games
     });
-    
+
     // Create map instance using global state's templates
     let map_instance = Arc::new(MapInstance::new(
         &global_state.base_map_template,
         &global_state.dice_probas,
         rand::random::<u64>(), // Use random seed
     ));
-    
+
     // Create state
     let mut state = State::new(config, map_instance);
 
     // Create players
-    let players: Vec<Box<dyn Player>> = player_types
-        .iter()
-        .map(|&pt| create_player(pt))
-        .collect();
+    let players: Vec<Box<dyn Player>> = player_types.iter().map(|&pt| create_player(pt)).collect();
 
     // Play the game
     let mut actions = 0;
     let start_time = Instant::now();
 
-    while actions < 10000 { // Safety limit to prevent infinite loops
+    while actions < 10000 {
+        // Safety limit to prevent infinite loops
         // Get the available actions
         let playable_actions = state.generate_playable_actions();
-        
+
         if playable_actions.is_empty() {
             if verbose {
                 println!("No playable actions available. Game ended.");
@@ -103,10 +101,10 @@ fn run_game(player_types: &[PlayerType], verbose: bool) -> (Option<usize>, usize
 
         // Get the current player index
         let current_color = state.get_current_color() as usize;
-        
+
         // Let the player decide which action to take
         let chosen_action = players[current_color].decide(&state, &playable_actions);
-        
+
         if verbose {
             println!("Player {} took action: {:?}", current_color, chosen_action);
         }
@@ -125,7 +123,7 @@ fn run_game(player_types: &[PlayerType], verbose: bool) -> (Option<usize>, usize
     }
 
     let duration = start_time.elapsed();
-    
+
     if verbose {
         println!(
             "Game completed in {:.2?} with {} actions. No winner determined (hit action limit).",
@@ -142,48 +140,56 @@ fn main() {
 
     // Parse command line arguments
     let args = Args::parse();
-    
+
     // Parse player configuration
     let player_types = parse_player_config(&args.players);
-    
+
     if player_types.len() < 2 || player_types.len() > 4 {
         eprintln!("Error: Player configuration must specify 2-4 players");
         std::process::exit(1);
     }
-    
-    println!("Simulating {} games with configuration: {}", args.num_games, args.players);
+
+    println!(
+        "Simulating {} games with configuration: {}",
+        args.num_games, args.players
+    );
     println!("Player types: {:?}", player_types);
-    
+
     // Initialize statistics
     let mut wins = vec![0; player_types.len()];
     let mut total_actions = 0;
     let total_start_time = Instant::now();
-    
+
     // Run the simulations
     for i in 0..args.num_games {
         if args.verbose {
             println!("\nStarting game {}/{}", i + 1, args.num_games);
         }
-        
+
         let (winner, actions) = run_game(&player_types, args.verbose);
-        
+
         if let Some(winner_idx) = winner {
             wins[winner_idx] += 1;
         }
         total_actions += actions;
     }
-    
+
     let total_duration = total_start_time.elapsed();
-    
+
     // Print statistics
     println!("\n=== Simulation Results ===");
     println!("Total time: {:.2?}", total_duration);
-    println!("Average actions per game: {:.2}", total_actions as f64 / args.num_games as f64);
+    println!(
+        "Average actions per game: {:.2}",
+        total_actions as f64 / args.num_games as f64
+    );
     println!("Win distribution:");
-    
+
     for (i, &win_count) in wins.iter().enumerate() {
         let win_rate = win_count as f64 / args.num_games as f64 * 100.0;
-        println!("  Player {} ({:?}): {}/{} games ({:.2}%)", 
-                 i, player_types[i], win_count, args.num_games, win_rate);
+        println!(
+            "  Player {} ({:?}): {}/{} games ({:.2}%)",
+            i, player_types[i], win_count, args.num_games, win_rate
+        );
     }
-} 
+}

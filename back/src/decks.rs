@@ -1,5 +1,5 @@
-use crate::enums::{DevCard, Resource};
 use crate::deck_slices::FreqDeck;
+use crate::enums::{DevCard, Resource};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResourceDeck {

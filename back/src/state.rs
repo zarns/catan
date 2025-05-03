@@ -1,9 +1,9 @@
 use log::debug;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use serde::{Serialize, Deserialize};
 
 use crate::{
     enums::{ActionPrompt, GameConfiguration, MapType},

@@ -2,11 +2,9 @@ use crate::enums::{
     Action as EnumAction, DevCard, GameConfiguration, MapType, Resource as EnumResource,
 };
 use crate::global_state::GlobalState;
-use crate::map_instance::{
-    Direction, EdgeRef, LandTile, MapInstance, NodeRef, PortTile, Tile,
-};
+use crate::map_instance::{Direction, EdgeRef, LandTile, MapInstance, NodeRef, PortTile, Tile};
 use crate::map_template::Coordinate as CubeCoordinate;
-use crate::state::{State, BuildingType};
+use crate::state::{BuildingType, State};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -440,7 +438,9 @@ impl Game {
             };
 
             // Update the game state to finished
-            self.game_state = GameState::Finished { winner: winner_name };
+            self.game_state = GameState::Finished {
+                winner: winner_name,
+            };
         }
 
         Ok(())
@@ -547,7 +547,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     let edge_id = format!("e{}_{}", direction, node1);
 
                     // Get road info from state
-                    // This is a placeholder. You would need to implement a way to get the 
+                    // This is a placeholder. You would need to implement a way to get the
                     // edge owner from your State object.
                     let edge_color = None; // To be implemented: state.get_edge_owner(edge_id)
 

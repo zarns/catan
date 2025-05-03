@@ -10,7 +10,9 @@ use super::State;
 // Import directly from lib scope
 #[path = "../deck_slices.rs"]
 mod deck_slices_import;
-use deck_slices_import::{freqdeck_add, freqdeck_sub, SETTLEMENT_COST, ROAD_COST, CITY_COST, DEVCARD_COST};
+use deck_slices_import::{
+    freqdeck_add, freqdeck_sub, CITY_COST, DEVCARD_COST, ROAD_COST, SETTLEMENT_COST,
+};
 
 // Other imports
 use crate::enums::{Action, DevCard};
