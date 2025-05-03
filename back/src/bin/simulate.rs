@@ -1,7 +1,7 @@
 use catan::enums::{Action, GameConfiguration, MapType};
 use catan::global_state::GlobalState;
 use catan::map_instance::MapInstance;
-use catan::players::{GreedyPlayer, MctsPlayer, Player, RandomPlayer, WeightedRandomPlayer};
+use catan::players::{AlphaBetaPlayer, GreedyPlayer, MctsPlayer, Player, RandomPlayer, WeightedRandomPlayer};
 use catan::state::State;
 use clap::{Parser, ValueEnum};
 use std::sync::Arc;
@@ -35,6 +35,7 @@ enum PlayerType {
     MCTS,
     Greedy,
     Weighted,
+    AlphaBeta,
 }
 
 fn create_player(player_type: PlayerType) -> Box<dyn Player> {
@@ -43,6 +44,7 @@ fn create_player(player_type: PlayerType) -> Box<dyn Player> {
         PlayerType::MCTS => Box::new(MctsPlayer::new()),
         PlayerType::Greedy => Box::new(GreedyPlayer::new()),
         PlayerType::Weighted => Box::new(WeightedRandomPlayer {}),
+        PlayerType::AlphaBeta => Box::new(AlphaBetaPlayer::new()),
     }
 }
 
@@ -54,6 +56,7 @@ fn parse_player_config(config: &str) -> Vec<PlayerType> {
             'M' => PlayerType::MCTS,
             'G' => PlayerType::Greedy,
             'W' => PlayerType::Weighted,
+            'A' => PlayerType::AlphaBeta,
             _ => PlayerType::Random, // Default to random for unknown types
         })
         .collect()
