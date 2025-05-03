@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use rayon::prelude::*;
 
 use super::Player;
 use crate::enums::Action;
@@ -13,18 +14,21 @@ const SIMULATIONS_PER_ACTION: usize = 3;
 /// Evaluates each action by running random playouts and choosing the one with the highest win rate
 pub struct GreedyPlayer {
     num_simulations_per_action: usize,
+    use_parallel: bool,
 }
 
 impl GreedyPlayer {
     pub fn new() -> Self {
         GreedyPlayer {
             num_simulations_per_action: SIMULATIONS_PER_ACTION,
+            use_parallel: true,
         }
     }
 
     pub fn with_simulations(num_simulations_per_action: usize) -> Self {
         GreedyPlayer {
             num_simulations_per_action,
+            use_parallel: true,
         }
     }
 
@@ -50,14 +54,9 @@ impl GreedyPlayer {
 
         state.winner()
     }
-}
-
-impl Player for GreedyPlayer {
-    fn decide(&self, state: &State, playable_actions: &[Action]) -> Action {
-        if playable_actions.len() == 1 {
-            return playable_actions[0].clone();
-        }
-
+    
+    /// Sequential (original) implementation
+    fn decide_sequential(&self, state: &State, playable_actions: &[Action]) -> Action {
         let start = Instant::now();
         let my_color = state.get_current_color();
 
@@ -104,13 +103,77 @@ impl Player for GreedyPlayer {
 
         let duration = start.elapsed();
         println!(
-            "Greedy took {:?} to make a decision among {} actions with win rate {:.2}%",
+            "Greedy took {:?} to make a decision among {} actions with win rate {:.2}% (sequential)",
             duration,
             playable_actions.len(),
             best_win_rate * 100.0
         );
 
         best_action
+    }
+    
+    /// Parallel implementation
+    fn decide_parallel(&self, state: &State, playable_actions: &[Action]) -> Action {
+        let start = Instant::now();
+        let my_color = state.get_current_color();
+        
+        // Use parallel iterator to evaluate actions
+        let results: Vec<(Action, f64)> = playable_actions
+            .par_iter()
+            .map(|action| {
+                let mut wins = 0;
+                
+                // Run simulations for this action
+                for _ in 0..self.num_simulations_per_action {
+                    let mut state_copy = state.clone();
+                    state_copy.apply_action(action.clone());
+                    
+                    if let Some(winner) = Self::playout(state_copy) {
+                        if winner == my_color {
+                            wins += 1;
+                        }
+                    }
+                }
+                
+                let win_rate = wins as f64 / self.num_simulations_per_action as f64;
+                (action.clone(), win_rate)
+            })
+            .collect();
+        
+        // Find the action with the highest win rate
+        let mut best_action = playable_actions[0].clone();
+        let mut best_win_rate = 0.0;
+        
+        for (action, win_rate) in results {
+            if win_rate > best_win_rate {
+                best_win_rate = win_rate;
+                best_action = action;
+            }
+        }
+        
+        let duration = start.elapsed();
+        println!(
+            "Greedy took {:?} to make a decision among {} actions with win rate {:.2}% (parallel)",
+            duration,
+            playable_actions.len(),
+            best_win_rate * 100.0
+        );
+        
+        best_action
+    }
+}
+
+impl Player for GreedyPlayer {
+    fn decide(&self, state: &State, playable_actions: &[Action]) -> Action {
+        if playable_actions.len() == 1 {
+            return playable_actions[0].clone();
+        }
+
+        if self.use_parallel {
+            self.decide_parallel(state, playable_actions)
+        } else {
+            self.decide_sequential(state, playable_actions)
+        }
     }
 }
 

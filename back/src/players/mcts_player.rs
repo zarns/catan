@@ -3,6 +3,8 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rand::Rng;
 use std::f64;
+use std::sync::{Arc, Mutex};
+use rayon::prelude::*;
 
 use super::Player;
 use crate::enums::Action;
@@ -61,6 +63,7 @@ impl MctsNode {
 pub struct MctsPlayer {
     num_simulations: usize,
     exploration_constant: f64,
+    use_parallel: bool,
 }
 
 impl MctsPlayer {
@@ -68,6 +71,7 @@ impl MctsPlayer {
         MctsPlayer {
             num_simulations: MCTS_SIMULATIONS,
             exploration_constant: EXPLORATION_CONSTANT,
+            use_parallel: true,
         }
     }
 
@@ -75,6 +79,7 @@ impl MctsPlayer {
         MctsPlayer {
             num_simulations,
             exploration_constant,
+            use_parallel: true,
         }
     }
 
@@ -191,8 +196,38 @@ impl MctsPlayer {
         }
     }
 
+    /// Run a single MCTS simulation
+    fn run_single_simulation(&self, nodes: &mut Vec<MctsNode>) {
+        // Selection - select a node to expand
+        let node_to_expand = self.select_node(nodes, 0);
+        
+        // Expansion - expand the selected node if possible
+        let new_node_index = if nodes[node_to_expand].is_terminal() {
+            node_to_expand
+        } else {
+            self.expand(nodes, node_to_expand)
+        };
+        
+        // Simulation - run a random playout from the new node
+        let result = self.simulate(nodes, new_node_index);
+        
+        // Backpropagation - update nodes with result
+        self.backpropagate(nodes, new_node_index, result);
+    }
+
     /// Run the MCTS algorithm and return the best action
     fn run_mcts(&self, state: &State, playable_actions: &[Action]) -> Action {
+        let start = Instant::now();
+        
+        if self.use_parallel {
+            self.run_mcts_parallel(state, playable_actions)
+        } else {
+            self.run_mcts_sequential(state, playable_actions)
+        }
+    }
+    
+    /// Run MCTS sequentially (original implementation)
+    fn run_mcts_sequential(&self, state: &State, playable_actions: &[Action]) -> Action {
         let start = Instant::now();
         
         // Create root node
@@ -201,21 +236,7 @@ impl MctsPlayer {
         
         // Run simulations
         for _ in 0..self.num_simulations {
-            // Selection - select a node to expand
-            let node_to_expand = self.select_node(&nodes, 0);
-            
-            // Expansion - expand the selected node if possible
-            let new_node_index = if nodes[node_to_expand].is_terminal() {
-                node_to_expand
-            } else {
-                self.expand(&mut nodes, node_to_expand)
-            };
-            
-            // Simulation - run a random playout from the new node
-            let result = self.simulate(&nodes, new_node_index);
-            
-            // Backpropagation - update nodes with result
-            self.backpropagate(&mut nodes, new_node_index, result);
+            self.run_single_simulation(&mut nodes);
         }
         
         // Choose the best action based on most visits
@@ -236,9 +257,64 @@ impl MctsPlayer {
         
         let duration = start.elapsed();
         println!(
-            "MCTS took {:?} to make a decision with {} simulations",
+            "MCTS took {:?} to make a decision with {} simulations (sequential)",
             duration,
             self.num_simulations
+        );
+        
+        best_action
+    }
+    
+    /// Run MCTS with parallel simulations
+    fn run_mcts_parallel(&self, state: &State, playable_actions: &[Action]) -> Action {
+        let start = Instant::now();
+        
+        // Initialize the tree with root node
+        let root_state = state.clone();
+        
+        // Phase 1: Create initial expansion for each action
+        let initial_results: Vec<(Action, usize, usize)> = playable_actions
+            .par_iter()
+            .map(|action| {
+                let mut action_state = root_state.clone();
+                action_state.apply_action(action.clone());
+                
+                // Run playouts for this action
+                let simulations_per_action = self.num_simulations / playable_actions.len();
+                let mut wins = 0;
+                let my_color = root_state.get_current_color();
+                
+                for _ in 0..simulations_per_action {
+                    let mut sim_state = action_state.clone();
+                    if let Some(winner) = Self::playout(sim_state) {
+                        if winner == my_color {
+                            wins += 1;
+                        }
+                    }
+                }
+                
+                (action.clone(), wins, simulations_per_action)
+            })
+            .collect();
+        
+        // Find the action with the highest win ratio
+        let mut best_action = playable_actions[0].clone();
+        let mut best_win_ratio = 0.0;
+        
+        for (action, wins, sims) in initial_results {
+            let win_ratio = wins as f64 / sims as f64;
+            if win_ratio > best_win_ratio {
+                best_win_ratio = win_ratio;
+                best_action = action;
+            }
+        }
+        
+        let duration = start.elapsed();
+        println!(
+            "MCTS took {:?} to make a decision with ~{} simulations (parallel), win rate: {:.2}%",
+            duration,
+            self.num_simulations,
+            best_win_ratio * 100.0
         );
         
         best_action
