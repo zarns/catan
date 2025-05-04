@@ -34,3 +34,7 @@ The project includes a CLI tool for simulating Catan games between AI players:
 - MCTS vs Random (single game): `cargo run --bin simulate -- -p MR`
 - Random vs MCTS (10 games): `cargo run --bin simulate -- -p RM -n 10`
 - Random vs Random with logs: `cargo run --bin simulate -- -p RR -v`
+
+## Attribution
+
+Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Licensed under GPL-3.0.
