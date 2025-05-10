@@ -480,6 +480,14 @@ export class GameService {
     return subject.asObservable();
   }
   
+  // Method to directly update game state (useful for watch mode)
+  updateGameState(gameState: GameState): void {
+    this.dispatch({
+      type: GameAction.SET_GAME_STATE,
+      payload: gameState
+    });
+  }
+  
   // Simplified helper methods that match the React implementation pattern
   
   // Build a road using the generic postAction format

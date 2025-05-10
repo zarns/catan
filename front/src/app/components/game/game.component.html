@@ -28,6 +28,16 @@
   <div *ngIf="!isLoading && !error && gameState" class="game-content">
     <!-- Main Game Area - Header removed as requested -->
     <div class="main-game-area">
+      <!-- Watch Mode Status Bar -->
+      <div *ngIf="isWatchOnlyMode" class="watch-mode-status-bar">
+        <mat-icon>visibility</mat-icon>
+        <span>Watch Mode: Spectating Bot Game</span>
+        <div *ngIf="isBotThinking" class="bot-thinking">
+          <mat-spinner [diameter]="20" color="accent"></mat-spinner>
+          <span>{{ lastBotAction }}</span>
+        </div>
+      </div>
+
       <!-- Board Component -->
       <app-board 
         [gameState]="gameState && gameState.game ? gameState.game.board : null" 

@@ -1,6 +1,7 @@
 # Old project directories
 /rust/
 /ui/
+/exp/
 
 # Angular frontend
 /front/node_modules/

@@ -50,6 +50,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   gameState: GameState | null = null;
   gameId: string = '';
   isBotThinking = false;
+  isWatchOnlyMode = false;
+  lastBotAction: string | null = null;
   
   // Game play state
   isBuildingRoad = false;
@@ -94,6 +96,16 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isLoading = true;
     this.checkMobileView();
     
+    // Check for watch mode from query parameters
+    this.subscription.add(
+      this.route.queryParams.subscribe(params => {
+        this.isWatchOnlyMode = params['mode'] === 'watch';
+        if (this.isWatchOnlyMode) {
+          console.log('Watch-only mode activated');
+        }
+      })
+    );
+    
     // Get the game ID from the route
     this.subscription.add(
       this.route.paramMap.subscribe(params => {
@@ -121,6 +133,33 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         if (this.gameState) {
           this.isLoading = false;
           this.updateGameState();
+        }
+      })
+    );
+    
+    // Subscribe to WebSocket messages for bot actions
+    this.subscription.add(
+      this.websocketService.messages$.subscribe(message => {
+        console.log('WebSocket message received:', message);
+        
+        if (message.type === 'bot_action') {
+          // Update bot thinking status based on bot actions
+          if (message.data.action === 'thinking') {
+            this.isBotThinking = true;
+            this.lastBotAction = 'Thinking...';
+          } else {
+            this.lastBotAction = `Bot ${message.data.action}`;
+            // For all other bot actions, we can set thinking to false after a short delay
+            // to give the user time to see what the bot did
+            setTimeout(() => {
+              this.isBotThinking = false;
+            }, 500);
+          }
+        } else if (message.type === 'game_state') {
+          // Update game state when WebSocket sends updates
+          if (this.isWatchOnlyMode) {
+            this.gameService.updateGameState(message.data);
+          }
         }
       })
     );
@@ -156,25 +195,31 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameState || !this.gameState.game) return;
     
     // Debug: Check for ports in the game state
-    if (this.gameState.game.board.ports) {
-      console.log(`Found ${this.gameState.game.board.ports.length} ports in game state:`, this.gameState.game.board.ports);
-    } else {
-      console.warn('No ports array found in game board data');
-    }
+    // if (this.gameState.game.board.ports) {
+    //   console.log(`Found ${this.gameState.game.board.ports.length} ports in game state:`, this.gameState.game.board.ports);
+    // } else {
+    //   console.warn('No ports array found in game board data');
+    // }
     
     // Update isRoll based on game state
     this.isRoll = this.shouldShowRollButton();
     
-    // Update node and edge actions based on current state
-    this.updateNodeActions();
-    this.updateEdgeActions();
-    
-    // Update available trades
-    this.updateTrades();
+    // Don't update actions in watch-only mode
+    if (!this.isWatchOnlyMode) {
+      // Update node and edge actions based on current state
+      this.updateNodeActions();
+      this.updateEdgeActions();
+      
+      // Update available trades
+      this.updateTrades();
+    }
   }
   
   shouldShowRollButton(): boolean {
     if (!this.gameState || !this.gameState.game) return true;
+    
+    // Always hide roll button in watch mode
+    if (this.isWatchOnlyMode) return false;
     
     // Check if it's time to roll dice in the game
     return this.gameState.status === 'in_progress' && 
@@ -235,7 +280,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   // Action handlers
   
   onNodeClick(nodeId: string): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     if (this.isBuildingSettlement) {
       this.gameService.buildSettlementAction(this.gameId, nodeId).subscribe({
@@ -261,7 +306,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onEdgeClick(edgeId: string): void {
-    if (!this.gameId || !this.isBuildingRoad) return;
+    if (!this.gameId || !this.isBuildingRoad || this.isWatchOnlyMode) return;
     
     this.gameService.buildRoadAction(this.gameId, edgeId).subscribe({
       next: () => {
@@ -275,7 +320,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onHexClick(coordinate: Coordinate): void {
-    if (!this.gameId || !this.isMovingRobber) return;
+    if (!this.gameId || !this.isMovingRobber || this.isWatchOnlyMode) return;
     
     // Move the robber to the selected hex
     this.gameService.moveRobberAction(this.gameId, coordinate).subscribe({
@@ -289,7 +334,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onUseCard(cardType: string): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     if (cardType === 'MONOPOLY') {
       this.resourceSelectorMode = 'monopoly';
@@ -336,7 +381,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onResourceSelected(resources: any): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     if (this.resourceSelectorMode === 'monopoly') {
       this.gameService.playMonopolyAction(this.gameId, resources).subscribe({
@@ -372,7 +417,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onBuild(buildType: string): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     if (buildType === 'ROAD') {
       this.gameService.dispatch({
@@ -401,7 +446,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onTrade(trade: any): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     // Example implementation for bank trades
     if (trade.type === 'BANK') {
@@ -417,6 +462,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onMainAction(): void {
+    if (!this.gameId || this.isWatchOnlyMode) return;
+    
     if (this.isRoll) {
       this.rollDice();
     } else if (this.gameState?.current_prompt === 'DISCARD') {
@@ -432,7 +479,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   rollDice(): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     this.gameService.rollDiceAction(this.gameId).subscribe({
       next: () => {
@@ -445,7 +492,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   endTurn(): void {
-    if (!this.gameId) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
     this.gameService.endTurnAction(this.gameId).subscribe({
       next: () => {
@@ -513,7 +560,10 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameState || !this.gameState.game) return false;
     
     const currentPlayer = this.getCurrentPlayer();
-    return currentPlayer?.is_bot || false;
+    if (!currentPlayer) return false;
+    
+    // Check if the current player is a bot
+    return this.gameState.bot_colors.includes(currentPlayer.color);
   }
   
   get isGameOver(): boolean {

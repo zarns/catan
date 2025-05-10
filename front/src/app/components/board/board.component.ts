@@ -157,21 +157,21 @@ export class BoardComponent implements OnInit, AfterViewInit {
     this.updateBoardSize();
     
     // Debug: log port data if available
-    setTimeout(() => {
-      if (this.gameState?.ports && this.gameState.ports.length > 0) {
-        console.log('Port data found:', this.gameState.ports);
-        console.log('Number of ports:', this.gameState.ports.length);
-        // Log each port separately for easier inspection
-        this.gameState.ports.forEach((port, index) => {
-          console.log(`Port ${index + 1}:`, port.coordinate, 
-                     'Resource:', port.port.resource, 
-                     'Ratio:', port.port.ratio,
-                     'Direction:', port.port.direction);
-        });
-      } else {
-        console.warn('No ports data in game board');
-      }
-    }, 2000);
+    // setTimeout(() => {
+    //   if (this.gameState?.ports && this.gameState.ports.length > 0) {
+    //     console.log('Port data found:', this.gameState.ports);
+    //     console.log('Number of ports:', this.gameState.ports.length);
+    //     // Log each port separately for easier inspection
+    //     this.gameState.ports.forEach((port, index) => {
+    //       console.log(`Port ${index + 1}:`, port.coordinate, 
+    //                  'Resource:', port.port.resource, 
+    //                  'Ratio:', port.port.ratio,
+    //                  'Direction:', port.port.direction);
+    //     });
+    //   } else {
+    //     console.warn('No ports data in game board');
+    //   }
+    // }, 2000);
   }
   
   ngAfterViewInit(): void {
