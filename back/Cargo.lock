@@ -247,6 +247,7 @@ dependencies = [
  "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
  "tower-http",

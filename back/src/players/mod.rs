@@ -1,18 +1,22 @@
-mod greedy_player;
-mod mcts_player;
-mod random_player;
-mod weighted_random_player;
-mod minimax_player;
+// Players module - Contains all player implementations
+//
+// This module organizes various player implementations
 
-use crate::{enums::Action, state::State};
-use log::{debug, warn};
+// Import the Player trait
+use crate::player::Player;
 
-pub use greedy_player::GreedyPlayer;
-pub use mcts_player::MctsPlayer;
-pub use random_player::RandomPlayer;
-pub use weighted_random_player::WeightedRandomPlayer;
-pub use minimax_player::AlphaBetaPlayer;
+// Declare the player implementation modules
+pub mod human;
+pub mod random;
+pub mod minimax;
+pub mod greedy;
+pub mod mcts;
+pub mod weighted_random;
 
-pub trait Player {
-    fn decide(&self, state: &State, playable_actions: &[Action]) -> Action;
-}
+// Re-export player implementations for ease of use
+pub use self::human::HumanPlayer;
+pub use self::random::RandomPlayer;
+pub use self::minimax::AlphaBetaPlayer as MinimaxPlayer;
+pub use self::greedy::GreedyPlayer;
+pub use self::mcts::MonteCarloPlayer as MCTSPlayer;
+pub use self::weighted_random::WeightedRandomPlayer; 
