@@ -25,8 +25,9 @@ pub trait Player {
 
 // Re-export player implementations
 pub use crate::players::HumanPlayer;
-pub use crate::players::RandomPlayer;
-pub use crate::players::MinimaxPlayer;
-pub use crate::players::GreedyPlayer;
-pub use crate::players::MCTSPlayer;
-pub use crate::players::WeightedRandomPlayer;
+// Temporarily disabled old implementations
+// pub use crate::players::RandomPlayer;
+// pub use crate::players::MinimaxPlayer;
+// pub use crate::players::GreedyPlayer;
+// pub use crate::players::MCTSPlayer;
+// pub use crate::players::WeightedRandomPlayer;

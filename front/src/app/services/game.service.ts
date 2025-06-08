@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, Subject, tap, catchError, throwError } from 'rxjs';
+import { Observable, BehaviorSubject, Subject, tap, catchError, throwError, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { WebsocketService, WsMessage } from './websocket.service';
 
@@ -143,9 +143,16 @@ export class GameService {
     // Listen for WebSocket messages to update game state
     this.websocketService.messages$.subscribe((message: WsMessage) => {
       if (message.type === 'game_state') {
+        // WebSocket sends Game object in message.data.game, but we need to wrap it as GameState
+        const gameState: GameState = {
+          id: message.data.game?.id || message.data.id || 'unknown',
+          status: 'in_progress',
+          game: message.data.game || message.data, // Handle both formats
+          bot_colors: []
+        };
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
-          payload: message.data
+          payload: gameState
         });
       }
     });
@@ -200,14 +207,27 @@ export class GameService {
 
   // API methods
   createGame(config: GameConfig): Observable<GameState> {
-    return this.http.post<GameState>(`${this.apiUrl}/games`, config).pipe(
-      tap(gameState => {
-        console.log('Game created:', gameState);
+    return this.http.post<Game>(`${this.apiUrl}/games`, config).pipe(
+      tap(game => {
+        console.log('Game created:', game);
+        // HTTP API returns Game object directly, wrap it as GameState
+        const gameState: GameState = {
+          id: game.id,
+          status: 'in_progress',
+          game: game,
+          bot_colors: []
+        };
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
           payload: gameState
         });
       }),
+      map(game => ({
+        id: game.id,
+        status: 'in_progress' as const,
+        game: game,
+        bot_colors: []
+      })),
       catchError(error => {
         console.error('Error creating game:', error);
         return throwError(() => new Error('Failed to create game'));
@@ -216,14 +236,27 @@ export class GameService {
   }
 
   getGameState(gameId: string): Observable<GameState> {
-    return this.http.get<GameState>(`${this.apiUrl}/games/${gameId}`).pipe(
-      tap(gameState => {
-        console.log('Game state retrieved:', gameState);
+    return this.http.get<Game>(`${this.apiUrl}/games/${gameId}`).pipe(
+      tap(game => {
+        console.log('Game state retrieved:', game);
+        // HTTP API returns Game object directly, wrap it as GameState
+        const gameState: GameState = {
+          id: game.id,
+          status: 'in_progress',
+          game: game,
+          bot_colors: []
+        };
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
           payload: gameState
         });
       }),
+      map(game => ({
+        id: game.id,
+        status: 'in_progress' as const,
+        game: game,
+        bot_colors: []
+      })),
       catchError(error => {
         console.error('Error retrieving game state:', error);
         return throwError(() => new Error('Failed to retrieve game state'));

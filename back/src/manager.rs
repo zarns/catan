@@ -4,8 +4,9 @@ use uuid::Uuid;
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::game::Game;
-use crate::player::{Player, RandomPlayer};
+use crate::game::{Game, GameState};
+use crate::player_system::{Player, PlayerFactory};
+use crate::actions::PlayerAction;
 use crate::enums::Action as GameAction;
 
 // Game status enum
@@ -77,7 +78,7 @@ pub struct ActionResult {
 pub struct GameManager {
     pub id: String,
     pub game: Option<Game>,
-    pub players: Vec<Box<dyn Player>>,
+    pub players: Vec<Player>,
     pub bot_colors: HashSet<String>,
     pub current_turn: usize,
     pub status: GameStatus,
@@ -102,7 +103,7 @@ impl GameManager {
         let id = Uuid::new_v4().to_string();
         
         // Set up players (all bots for now)
-        let mut players: Vec<Box<dyn Player>> = Vec::new();
+        let mut players: Vec<Player> = Vec::new();
         let mut bot_colors = HashSet::new();
         let colors = vec!["red", "blue", "white", "orange"];
         
@@ -112,14 +113,17 @@ impl GameManager {
         for i in 0..num_players as usize {
             let color = colors[i % colors.len()].to_string();
             let name = format!("Bot {}", i + 1);
+            let player_id = format!("player_{}", i);
             bot_colors.insert(color.clone());
             
-            // Create the appropriate bot type
-            match bot_type {
-                "random" => players.push(Box::new(RandomPlayer {})),
-                // Add other bot types here
-                _ => players.push(Box::new(RandomPlayer {})),
-            }
+            // Create the appropriate bot type using our new factory
+            let player = PlayerFactory::create_bot(player_id, name, color, bot_type)
+                .unwrap_or_else(|_| PlayerFactory::create_random_bot(
+                    format!("player_{}", i), 
+                    format!("Bot {}", i + 1), 
+                    colors[i % colors.len()].to_string()
+                ));
+            players.push(player);
         }
         
         // Create the actual Game instance
@@ -172,8 +176,9 @@ impl GameManager {
             None => return Err(GameError::InvalidPlayerIndex),
         };
         
-        // Convert our Action to GameAction
-        let game_action = self.convert_to_game_action(&action);
+        // Convert our Action to GameAction (do this before borrowing game mutably)
+        let current_turn = self.current_turn;
+        let game_action = Self::convert_action_to_game_action(&action, current_turn);
         
         // Delegate to the Game's process_action
         match game.process_action(&player_id, game_action) {
@@ -193,20 +198,20 @@ impl GameManager {
     }
     
     // Helper function to convert between action types
-    fn convert_to_game_action(&self, action: &Action) -> GameAction {
+    fn convert_action_to_game_action(action: &Action, current_turn: usize) -> GameAction {
         // This is a simplified conversion - you would need to implement a proper mapping
         // between your manager's Action type and the crate::enums::Action type
         match action.action_type.as_str() {
             "roll_dice" => GameAction::Roll { 
-                color: self.current_turn as u8, 
+                color: current_turn as u8, 
                 dice_opt: None 
             },
             "end_turn" => GameAction::EndTurn { 
-                color: self.current_turn as u8 
+                color: current_turn as u8 
             },
             // Add more conversions as needed
             _ => GameAction::EndTurn { 
-                color: self.current_turn as u8 
+                color: current_turn as u8 
             }, // Default fallback
         }
     }
@@ -224,8 +229,17 @@ impl GameManager {
             
             // Get the bot player
             if let Some(bot) = self.players.get(current_player_idx) {
-                // Let the bot decide what action to take
-                let action = bot.decide_action(&self.game_state);
+                // For now, just create a simple end turn action for bots
+                // TODO: Implement proper bot decision making with game state
+                let action = Action {
+                    action_type: "end_turn".to_string(),
+                    edge_id: None,
+                    node_id: None,
+                    coordinate: None,
+                    resource: None,
+                    resources: None,
+                    target_color: None,
+                };
                 
                 // Process the action using our delegated process_action method
                 match self.process_action(current_player_idx, action.clone()) {
@@ -262,21 +276,25 @@ impl GameManager {
     /// End the game, optionally specifying a winner
     pub fn end_game(&mut self, winner_color: Option<String>) {
         self.status = GameStatus::Finished { winner: winner_color.clone().map(|_| "Unknown".to_string()) };
-        self.game_state.status = self.status.clone();
-        self.game_state.winning_color = winner_color;
+        // TODO: Update game state properly when we have a proper game state structure
     }
     
     /// Get the current game state
     pub fn get_state(&self) -> GameState {
-        self.game_state.clone()
+        // Return the game state from the actual game instance
+        if let Some(game) = &self.game {
+            game.game_state.clone()
+        } else {
+            // Return a default game state if no game exists
+            crate::game::GameState::Setup
+        }
     }
     
     /// Start the game
     pub fn start_game(&mut self) {
         self.status = GameStatus::InProgress;
-        self.game_state.status = self.status.clone();
         
-        // Initialize game elements like the board, initial placements, etc.
+        // TODO: Initialize game elements like the board, initial placements, etc.
         // This would be more complex in a real implementation
     }
     

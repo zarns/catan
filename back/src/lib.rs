@@ -3,6 +3,15 @@
 // This file serves as the central organization point for the Catan game server,
 // exporting all the necessary modules and types in a clean, structured manner.
 
+// New unified architecture modules
+pub mod actions;
+pub mod errors;
+pub mod player_system;
+
+// Clean architecture layers
+pub mod application;
+pub mod websocket_service;
+
 // Core game data structures and enums
 pub mod enums;
 pub mod game;
@@ -22,43 +31,19 @@ pub mod players;
 pub mod manager;
 pub mod websocket;
 
+// Re-export new unified types
+pub use crate::actions::{PlayerAction, GameCommand, GameEvent, ActionResult, PlayerId, GameId};
+pub use crate::errors::{CatanError, GameError, PlayerError, NetworkError, CatanResult, GameResult};
+
 // Re-export common types for convenient access
-pub use crate::enums::{Action, ActionPrompt, DevCard, GameConfiguration, MapType, Resource};
+pub use crate::enums::{ActionPrompt, DevCard, GameConfiguration, MapType, Resource};
 pub use crate::game::{Game, GameState, Player};
 pub use crate::manager::{GameManager, GameStatus};
-pub use crate::player::{Player as GamePlayer, RandomPlayer, HumanPlayer};
+pub use crate::player::{Player as GamePlayer, HumanPlayer};
+pub use crate::player_system::{Player as NewPlayer, PlayerStrategy, PlayerFactory};
 pub use crate::websocket::{WebSocketManager, WsMessage};
 
-// Error type for the catan server
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum CatanError {
-    #[error("Game not found: {0}")]
-    GameNotFound(String),
-    
-    #[error("Invalid action: {0}")]
-    InvalidAction(String),
-    
-    #[error("Not player's turn")]
-    NotPlayerTurn,
-    
-    #[error("Game is not in progress")]
-    GameNotInProgress,
-    
-    #[error("WebSocket error: {0}")]
-    WebSocketError(String),
-    
-    #[error("Internal server error: {0}")]
-    InternalError(String),
-}
-
-// Result type alias for Catan operations
-pub type CatanResult<T> = Result<T, CatanError>;
-
 // Common types used throughout the application
-pub type GameId = String;
-pub type PlayerId = String;
 pub type PlayerColor = String;
 
 // Version information

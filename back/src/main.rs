@@ -1,9 +1,3 @@
-// Import from lib.rs instead of individual modules
-use catan::{
-    WebSocketManager, GameConfiguration, 
-    CatanError, CatanResult, GameState
-};
-
 use axum::http::Method;
 use axum::{
     extract::{Path, State, WebSocketUpgrade},
@@ -16,6 +10,10 @@ use log;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
+
+use catan::application::GameService;
+use catan::websocket_service::WebSocketService;
+use catan::game::Game;
 
 // Game configuration
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -32,9 +30,10 @@ struct GameConfig {
     num_players: u8,
 }
 
-// Application state
+// Clean application state - single dependency injection point
 struct AppState {
-    websocket_manager: Arc<WebSocketManager>,
+    game_service: Arc<GameService>,
+    websocket_service: Arc<WebSocketService>,
 }
 
 // API Routes
@@ -48,19 +47,26 @@ async fn hello_world() -> &'static str {
 async fn create_game(
     State(state): State<Arc<AppState>>,
     Json(config): Json<GameConfig>,
-) -> Result<Json<GameState>, StatusCode> {
+) -> Result<Json<Game>, StatusCode> {
     log::info!(
         "Creating game with mode: {:?}, players: {}",
         config.mode,
         config.num_players
     );
 
-    // Delegate game creation to WebSocketManager
-    match state.websocket_manager.create_game(config.num_players, "random").await {
+    // Determine bot type from config
+    let bot_type = match config.mode {
+        GameMode::RandomBots => "random",
+        GameMode::HumanVsCatanatron => "human", // First player human, rest bots
+        GameMode::CatanatronBots => "random", // All bots for now
+    };
+
+    // Delegate to game service (clean separation)
+    match state.game_service.create_game(config.num_players, bot_type).await {
         Ok(game_id) => {
-            // Get the game state
-            match state.websocket_manager.get_game_state(&game_id).await {
-                Ok(game_state) => Ok(Json(game_state)),
+            // Return the full game object
+            match state.game_service.get_game(&game_id).await {
+                Ok(game) => Ok(Json(game)),
                 Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
             }
         },
@@ -68,16 +74,16 @@ async fn create_game(
     }
 }
 
-// Get a game state
+// Get a game
 async fn get_game(
     State(state): State<Arc<AppState>>,
     Path(game_id): Path<String>,
-) -> Result<Json<GameState>, StatusCode> {
+) -> Result<Json<Game>, StatusCode> {
     log::info!("Getting game with ID: {}", game_id);
 
-    // Get the game from WebSocketManager
-    match state.websocket_manager.get_game_state(&game_id).await {
-        Ok(game_state) => Ok(Json(game_state)),
+    // Delegate to game service
+    match state.game_service.get_game(&game_id).await {
+        Ok(game) => Ok(Json(game)),
         Err(_) => Err(StatusCode::NOT_FOUND),
     }
 }
@@ -88,26 +94,28 @@ async fn ws_handler(
     Path(game_id): Path<String>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    // Let the WebSocketManager handle the connection
+    // Delegate to WebSocket service (clean separation)
     ws.on_upgrade(move |socket| async move {
-        state.websocket_manager.handle_connection(socket, game_id).await
+        state.websocket_service.handle_connection(socket, game_id).await
     })
 }
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
-    // Initialize logger
+    // Initialize logger (only if not already initialized by shuttle)
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
-    env_logger::init();
+    let _ = env_logger::try_init(); // Use try_init to avoid double initialization
 
-    // Create WebSocketManager
-    let websocket_manager = Arc::new(WebSocketManager::new());
+    // Create clean service layer architecture
+    let game_service = Arc::new(GameService::new());
+    let websocket_service = Arc::new(WebSocketService::new(game_service.clone()));
 
-    // Create shared application state
+    // Create shared application state with dependency injection
     let state = Arc::new(AppState {
-        websocket_manager: websocket_manager.clone(),
+        game_service,
+        websocket_service,
     });
 
     // Configure CORS
@@ -120,8 +128,8 @@ async fn main() -> shuttle_axum::ShuttleAxum {
     let app = Router::new()
         .route("/", get(hello_world))
         .route("/games", post(create_game))
-        .route("/games/:game_id", get(get_game))
-        .route("/ws/games/:game_id", get(ws_handler))
+        .route("/games/{game_id}", get(get_game))
+        .route("/ws/games/{game_id}", get(ws_handler))
         .with_state(state)
         .layer(cors);
 

@@ -8,6 +8,7 @@ use log;
 use std::collections::HashMap;
 use thiserror::Error;
 
+use crate::game::GameState;
 use crate::manager::{GameManager, Action, ActionResult};
 use crate::{CatanResult, CatanError};
 
@@ -87,7 +88,29 @@ impl WebSocketManager {
             let game_manager = game_manager.lock().await;
             Ok(game_manager.get_state())
         } else {
-            Err(CatanError::GameNotFound(game_id.to_string()))
+            Err(CatanError::Game(crate::errors::GameError::GameNotFound { 
+                game_id: game_id.to_string() 
+            }))
+        }
+    }
+    
+    // Get the full game object
+    pub async fn get_game(&self, game_id: &str) -> CatanResult<crate::game::Game> {
+        let game_managers = self.game_managers.lock().await;
+        
+        if let Some(game_manager) = game_managers.get(game_id) {
+            let game_manager = game_manager.lock().await;
+            if let Some(game) = &game_manager.game {
+                Ok(game.clone())
+            } else {
+                Err(CatanError::Game(crate::errors::GameError::GameNotFound { 
+                    game_id: game_id.to_string() 
+                }))
+            }
+        } else {
+            Err(CatanError::Game(crate::errors::GameError::GameNotFound { 
+                game_id: game_id.to_string() 
+            }))
         }
     }
 
@@ -151,10 +174,11 @@ impl WebSocketManager {
         let game_managers = self.game_managers.clone();
         
         // Task that forwards broadcasts to client
+        let game_id_for_forward = game_id.clone();
         let mut forward_task = tokio::spawn(async move {
             while let Ok((msg_game_id, msg)) = rx.recv().await {
                 // Only forward messages for this game
-                if msg_game_id == game_id {
+                if msg_game_id == game_id_for_forward {
                     match serde_json::to_string(&msg) {
                         Ok(json) => {
                             if sender.send(Message::Text(json.into())).await.is_err() {
@@ -167,7 +191,9 @@ impl WebSocketManager {
             }
         });
         
-        // Task that receives messages from client
+        // Task that receives messages from client  
+        let game_id_for_receive = game_id.clone();
+        let websocket_manager = self.clone();
         let mut receive_task = tokio::spawn(async move {
             while let Some(Ok(message)) = receiver.next().await {
                 match message {
@@ -182,13 +208,13 @@ impl WebSocketManager {
                                     // Process player action
                                     let result = {
                                         let game_managers_guard = game_managers.lock().await;
-                                        if let Some(game_manager) = game_managers_guard.get(&game_id_clone) {
+                                        if let Some(game_manager) = game_managers_guard.get(&game_id_for_receive) {
                                             let mut game_manager_lock = game_manager.lock().await;
                                             let player_idx = 0; // For now, hardcoded as the first player
                                             game_manager_lock.process_action(player_idx, action.clone())
-                                        } else {
-                                            Err(GameError::GameNotFound(game_id_clone.clone()))
-                                        }
+                                                                            } else {
+                                        Err(crate::manager::GameError::GameNotFound(game_id_for_receive.clone()))
+                                    }
                                     };
                                     
                                     // Send action result
@@ -196,27 +222,27 @@ impl WebSocketManager {
                                         Ok(action_result) => {
                                             // Send success result
                                             let _ = tx_clone.send((
-                                                game_id_clone.clone(),
+                                                game_id_for_receive.clone(),
                                                 WsMessage::ActionResult(action_result.clone()),
                                             ));
                                             
                                             // Send updated game state
                                             if action_result.success {
-                                                if let Ok(updated_state) = self.get_game_state(&game_id_clone).await {
+                                                if let Ok(updated_state) = websocket_manager.get_game_state(&game_id_for_receive).await {
                                                     let _ = tx_clone.send((
-                                                        game_id_clone.clone(),
+                                                        game_id_for_receive.clone(),
                                                         WsMessage::GameState(updated_state),
                                                     ));
                                                     
                                                     // Process bot turns if it's a bot's turn next
-                                                    self.process_bot_turns(&game_id_clone, tx_clone.clone()).await;
+                                                    websocket_manager.process_bot_turns(&game_id_for_receive, tx_clone.clone()).await;
                                                 }
                                             }
                                         },
                                         Err(e) => {
                                             // Send error message
                                             let _ = tx_clone.send((
-                                                game_id_clone.clone(),
+                                                game_id_for_receive.clone(),
                                                 WsMessage::Error(format!("Action failed: {}", e)),
                                             ));
                                         }
@@ -230,7 +256,7 @@ impl WebSocketManager {
                         } else {
                             log::warn!("Failed to parse message: {}", text);
                             let error_msg = WsMessage::Error("Invalid message format".to_string());
-                            let _ = tx_clone.send((game_id_clone.clone(), error_msg));
+                            let _ = tx_clone.send((game_id_for_receive.clone(), error_msg));
                         }
                     },
                     Message::Close(_) => break,
@@ -288,7 +314,7 @@ impl WebSocketManager {
                     let mut game_manager = game_manager.lock().await;
                     game_manager.process_bot_turn(game_id)
                 } else {
-                    Err(GameError::GameNotFound(game_id.to_string()))
+                    Err(crate::manager::GameError::GameNotFound(game_id.to_string()))
                 }
             };
             
@@ -352,12 +378,4 @@ impl Clone for WebSocketManager {
     }
 }
 
-// Add custom error for GameError borrowing from manager.rs
-#[derive(Error, Debug)]
-pub enum GameError {
-    #[error("Game not found: {0}")]
-    GameNotFound(String),
-    
-    #[error("Invalid action: {0}")]
-    InvalidAction(String),
-}
+    // Removed duplicate GameError - using the unified error system from errors.rs
