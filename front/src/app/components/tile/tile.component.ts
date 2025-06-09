@@ -1,4 +1,4 @@
-import { Component, Input, EventEmitter, Output } from '@angular/core';
+import { Component, Input, EventEmitter, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 
@@ -40,10 +40,19 @@ import { MatCardModule } from '@angular/material/card';
   `,
   styleUrls: ['./tile.component.scss']
 })
-export class TileComponent {
+export class TileComponent implements OnInit {
   @Input() coordinate: any;
   @Input() resource: string | null = '';
   @Input() number: number | null | undefined = null;
+  
+  ngOnInit() {
+    console.log('🏔️ TileComponent created:', {
+      coordinate: this.coordinate,
+      resource: this.resource,
+      number: this.number,
+      isPort: this.isPort
+    });
+  }
   @Input() size: number = 60;
   @Input() centerX: number = 0;
   @Input() centerY: number = 0;

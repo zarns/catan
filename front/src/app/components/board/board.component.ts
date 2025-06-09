@@ -87,7 +87,17 @@ import { Coordinate, GameBoard } from '../../services/game.service';
 export class BoardComponent implements OnInit, AfterViewInit {
   @ViewChild('boardContainer') boardContainerRef!: ElementRef;
   
-  @Input() gameState: GameBoard | null = null;
+  @Input() set gameState(value: GameBoard | null) {
+    console.log('🎲 BoardComponent received gameState:', value);
+    this._gameState = value;
+    if (value) {
+      console.log('📊 Board data - Tiles:', value.tiles?.length, 'Nodes:', Object.keys(value.nodes || {}).length, 'Edges:', Object.keys(value.edges || {}).length);
+    }
+  }
+  get gameState(): GameBoard | null {
+    return this._gameState;
+  }
+  private _gameState: GameBoard | null = null;
   @Input() width: number = 0;
   @Input() height: number = 0;
   @Input() isMobile: boolean = false;
@@ -109,7 +119,9 @@ export class BoardComponent implements OnInit, AfterViewInit {
   
   // Safe accessor methods
   getTiles(): any[] {
-    return this.gameState?.tiles || [];
+    const tiles = this.gameState?.tiles || [];
+    console.log('🏔️ getTiles() returning:', tiles.length, 'tiles');
+    return tiles;
   }
   
   getPorts(): any[] {
@@ -122,22 +134,43 @@ export class BoardComponent implements OnInit, AfterViewInit {
       return [];
     }
     
-    return Object.entries(this.gameState.nodes).map(([id, node]) => {
+    const nodes = Object.entries(this.gameState.nodes).map(([id, node]) => {
       return {
         ...node,
         id
       };
     });
+    
+    // Log nodes with buildings for debugging
+    const nodesWithBuildings = nodes.filter(node => node.building);
+    if (nodesWithBuildings.length > 0) {
+      console.log('🏠 Nodes with buildings:', nodesWithBuildings);
+    } else {
+      console.log('🏠 No nodes with buildings found. Total nodes:', nodes.length);
+      // Log first few nodes to see their structure
+      console.log('🏠 Sample nodes:', nodes.slice(0, 3));
+    }
+    
+    return nodes;
   }
   
   getEdges(): any[] {
     if (!this.gameState || !this.gameState.edges) {
       return [];
     }
-    return Object.entries(this.gameState.edges).map(([id, edge]) => ({
+    
+    const edges = Object.entries(this.gameState.edges).map(([id, edge]) => ({
       ...edge,
       id
     }));
+    
+    // Log edges with roads for debugging
+    const edgesWithRoads = edges.filter(edge => edge.color);
+    if (edgesWithRoads.length > 0) {
+      console.log('🛣️ Edges with roads:', edgesWithRoads);
+    }
+    
+    return edges;
   }
   
   isActionableNode(nodeId: string): boolean {

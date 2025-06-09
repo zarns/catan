@@ -1,5 +1,5 @@
 // Import the global variables
-@import '../../../variables';
+@use '../../../variables' as *;
 
 .actions-area {
   position: absolute;

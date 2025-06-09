@@ -1,5 +1,5 @@
 // Import the global variables
-@import '../../../variables';
+@use '../../../variables' as *;
 
 // Resource colors - updated to match actions-toolbar values
 $color-wood: #1a662e;

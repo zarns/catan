@@ -2,11 +2,13 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type WsMessageType = 'game_state' | 'error' | 'greeting' | 'player_action' | 'bot_action' | 'action_result';
+export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'bot_action' | 'bot_thinking' | 'action_result';
 
 export interface WsMessage {
   type: WsMessageType;
-  data: any;
+  data?: any;
+  game?: any;
+  message?: string;
 }
 
 @Injectable({
@@ -30,38 +32,40 @@ export class WebsocketService {
     this.disconnect();
 
     const wsUrl = `${environment.wsUrl}/games/${gameId}`;
-    console.log(`Connecting to WebSocket at ${wsUrl}`);
+    console.log(`Attempting WebSocket connection to: ${wsUrl}`);
+    console.log(`Environment wsUrl: ${environment.wsUrl}`);
+    console.log(`Game ID: ${gameId}`);
     
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {
-      console.log('WebSocket connection established');
+      console.log('✅ WebSocket connection established successfully');
       this.connectionStatusSubject.next(true);
     };
 
     this.socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data) as WsMessage;
-        console.log('Received WebSocket message:', message);
+        console.log('📨 Received WebSocket message:', message);
         
         // Handle greeting messages specifically
         if (message.type === 'greeting') {
-          this.lastGreeting.next(message.data);
+          this.lastGreeting.next(message.message || message.data);
         }
         
         this.messagesSubject.next(message);
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('❌ Error parsing WebSocket message:', error);
       }
     };
 
-    this.socket.onclose = () => {
-      console.log('WebSocket connection closed');
+    this.socket.onclose = (event) => {
+      console.log('🔌 WebSocket connection closed. Code:', event.code, 'Reason:', event.reason);
       this.connectionStatusSubject.next(false);
     };
 
     this.socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('🚫 WebSocket error:', error);
       this.connectionStatusSubject.next(false);
     };
 

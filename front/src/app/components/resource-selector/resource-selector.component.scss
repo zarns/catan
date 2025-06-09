@@ -1,5 +1,5 @@
 /* Import global resource colors */
-@import '../../../variables';
+@use '../../../variables' as *;
 
 .resource-selector-overlay {
   position: fixed;

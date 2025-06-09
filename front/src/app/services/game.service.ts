@@ -142,18 +142,34 @@ export class GameService {
   ) {
     // Listen for WebSocket messages to update game state
     this.websocketService.messages$.subscribe((message: WsMessage) => {
-      if (message.type === 'game_state') {
-        // WebSocket sends Game object in message.data.game, but we need to wrap it as GameState
-        const gameState: GameState = {
-          id: message.data.game?.id || message.data.id || 'unknown',
-          status: 'in_progress',
-          game: message.data.game || message.data, // Handle both formats
-          bot_colors: []
-        };
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
+      console.log('🎮 GameService processing WebSocket message:', message.type, message);
+      
+      if (message.type === 'game_state' || message.type === 'game_updated') {
+        // WebSocket sends {type: 'game_state', game: Game}, so message.game contains the Game object
+        const game = message.game;
+        console.log('🎲 Extracting game from message:', game);
+        
+        if (game) {
+          const gameState: GameState = {
+            id: game.id,
+            status: 'in_progress',
+            game: game,
+            bot_colors: []
+          };
+          
+          console.log('🔄 Dispatching SET_GAME_STATE with:', gameState);
+          this.dispatch({
+            type: GameAction.SET_GAME_STATE,
+            payload: gameState
+          });
+          
+          console.log('✅ Game state updated via WebSocket');
+        } else {
+          console.warn('⚠️ No game object found in WebSocket message');
+        }
+      } else if (message.type === 'bot_thinking') {
+        console.log('🤖 Bot is thinking:', message);
+        // Could add bot thinking state management here if needed
       }
     });
   }

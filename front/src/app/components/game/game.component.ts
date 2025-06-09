@@ -122,6 +122,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     // Subscribe to game state updates
     this.subscription.add(
       this.gameService.gameUIState$.subscribe(uiState => {
+        console.log('🎮 GameComponent received UI state update:', uiState);
+        
         this.gameState = uiState.gameState;
         this.isBuildingRoad = uiState.isBuildingRoad;
         this.isBuildingSettlement = uiState.isBuildingSettlement;
@@ -131,6 +133,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isMovingRobber = uiState.isMovingRobber;
         
         if (this.gameState) {
+          console.log('🎲 GameComponent updating with new game state:', this.gameState);
           this.isLoading = false;
           this.updateGameState();
         }

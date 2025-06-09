@@ -60,7 +60,7 @@ impl WebSocketService {
 
     /// Handle a new WebSocket connection
     pub async fn handle_connection(&self, socket: WebSocket, game_id: String) {
-        log::info!("New WebSocket connection for game {}", game_id);
+        log::info!("🔌 New WebSocket connection established for game {}", game_id);
 
         // Split socket for concurrent read/write
         let (mut sender, mut receiver) = socket.split();
@@ -70,10 +70,12 @@ impl WebSocketService {
             message: "Connected to Catan game".to_string(),
         };
         
+        log::info!("📤 Sending greeting to client for game {}", game_id);
         if let Err(e) = self.send_message(&mut sender, &greeting).await {
-            log::error!("Failed to send greeting: {}", e);
+            log::error!("❌ Failed to send greeting: {}", e);
             return;
         }
+        log::info!("✅ Greeting sent successfully for game {}", game_id);
 
         // Check if game exists and send initial state
         if !self.game_service.game_exists(&game_id).await {
@@ -85,29 +87,44 @@ impl WebSocketService {
         }
 
         // Send initial game state
+        log::info!("📤 Sending initial game state for game {}", game_id);
         match self.game_service.get_game(&game_id).await {
             Ok(game) => {
                 let state_msg = WsMessage::GameState { game };
                 if let Err(e) = self.send_message(&mut sender, &state_msg).await {
-                    log::error!("Failed to send initial game state: {}", e);
+                    log::error!("❌ Failed to send initial game state: {}", e);
                     return;
                 }
+                log::info!("✅ Initial game state sent successfully for game {}", game_id);
             },
             Err(e) => {
-                log::error!("Failed to get initial game state: {}", e);
+                log::error!("❌ Failed to get initial game state: {}", e);
                 return;
             }
         }
 
-        // Subscribe to game updates
+        // Subscribe to game updates FIRST
         let mut game_updates = self.broadcaster.subscribe();
+        
+        // Then start bot gameplay so messages are properly broadcasted
+        let game_service = self.game_service.clone();
+        let broadcaster = self.broadcaster.clone();
+        let game_id_for_bots = game_id.clone();
+        tokio::spawn(async move {
+                    // Small delay to ensure WebSocket subscription is fully established
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        
+        // Start bot turns
+        Self::process_bot_turns(&game_service, &broadcaster, &game_id_for_bots).await;
+        });
 
         // Task to forward game updates to this client
         let game_id_for_updates = game_id.clone();
         let mut update_task = tokio::spawn(async move {
             while let Ok((update_game_id, message)) = game_updates.recv().await {
                 if update_game_id == game_id_for_updates {
-                    if let Err(_) = Self::send_message_static(&mut sender, &message).await {
+                    if let Err(e) = Self::send_message_static(&mut sender, &message).await {
+                        log::error!("Failed to send message to client: {:?}", e);
                         break; // Client disconnected
                     }
                 }
@@ -217,9 +234,9 @@ impl WebSocketService {
         game_service: &GameService,
         broadcaster: &broadcast::Sender<(GameId, WsMessage)>,
         game_id: &str,
-    ) {
+    ) {        
         // Keep processing bot turns until it's a human's turn or game ends
-        while let Ok(Some(_events)) = game_service.process_bot_turn(game_id).await {
+        while let Ok(Some(_events)) = game_service.process_bot_turn(game_id).await {            
             // Send bot thinking indicator
             let thinking_msg = WsMessage::BotThinking {
                 player_id: "current_bot".to_string(), // Simplified
@@ -232,7 +249,9 @@ impl WebSocketService {
             // Send updated game state after bot move
             if let Ok(updated_game) = game_service.get_game(game_id).await {
                 let update_msg = WsMessage::GameUpdated { game: updated_game };
-                let _ = broadcaster.send((game_id.to_string(), update_msg));
+                if let Err(e) = broadcaster.send((game_id.to_string(), update_msg)) {
+                    log::error!("Failed to broadcast game update for game {}: {:?}", game_id, e);
+                }
             }
         }
     }

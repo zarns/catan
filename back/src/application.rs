@@ -163,30 +163,41 @@ impl GameService {
         let game = self.get_game(game_id).await?;
         let players = self.get_players(game_id).await?;
         
+        log::info!("Processing bot turn for game {}: current_player_index={}, total_players={}", 
+                  game_id, game.current_player_index, players.len());
+        
         if game.current_player_index >= players.len() {
+            log::warn!("Invalid current_player_index {} >= {}", game.current_player_index, players.len());
             return Ok(None);
         }
         
         let current_player = &players[game.current_player_index];
+        log::info!("Current player: {} ({}), is_bot: {}", 
+                  current_player.info.name, current_player.info.id, current_player.info.is_bot);
         
         // Check if current player is a bot by examining their strategy type
         if current_player.info.is_bot {
+            log::info!("Processing bot action for player {}", current_player.info.name);
+            
             // Let the bot decide what action to take
             let available_actions = vec![PlayerAction::EndTurn]; // Simplified for now
             
             match current_player.decide_action(&game.game_state, &available_actions).await {
                 Ok(action) => {
+                    log::info!("Bot {} decided to take action: {:?}", current_player.info.name, action);
                     // Process the bot's action
                     self.process_action(game_id, &current_player.info.id, action).await
                         .map(Some)
                 },
-                Err(_) => {
+                Err(e) => {
+                    log::warn!("Bot {} failed to decide action: {:?}, ending turn", current_player.info.name, e);
                     // If bot fails to decide, just end turn
                     self.process_action(game_id, &current_player.info.id, PlayerAction::EndTurn).await
                         .map(Some)
                 }
             }
         } else {
+            log::info!("Current player {} is not a bot, stopping bot processing", current_player.info.name);
             Ok(None) // Not a bot's turn
         }
     }
