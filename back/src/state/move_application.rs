@@ -1,4 +1,4 @@
-use log::debug;
+
 use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
@@ -141,7 +141,6 @@ impl State {
         let next_index =
             ((self.get_current_tick_seat() as i8 + step_size + num_players) % num_players) as u8;
 
-        self.vector[CURRENT_TURN_SEAT_INDEX] = next_index;
         self.vector[CURRENT_TICK_SEAT_INDEX] = next_index;
     }
 
@@ -160,6 +159,12 @@ impl State {
         }
 
         self.add_victory_points(placing_color, 1);
+
+        // Update board_buildable_ids cache - remove the settlement node and its neighbors
+        self.board_buildable_ids.remove(&node_id);
+        for neighbor_id in self.map_instance.get_neighbor_nodes(node_id) {
+            self.board_buildable_ids.remove(&neighbor_id);
+        }
 
         let mut road_lengths: HashMap<u8, u8> = HashMap::new();
 
@@ -201,9 +206,13 @@ impl State {
                 .entry(placing_color)
                 .or_default()
                 .push(component);
+            
+            // During initial build phase, preserve existing longest road state
+            return (self.longest_road_color, self.longest_road_length);
         } else {
             // Mantain connected_components
             // Mantain longest_road_color and longest_road_length
+
             let mut plowed_edges_by_color: HashMap<u8, Vec<EdgeId>> = HashMap::new();
             for edge in self.map_instance.get_neighbor_edges(node_id) {
                 if let Some(&road_color) = self.roads.get(&edge) {
@@ -262,31 +271,83 @@ impl State {
                 }
             }
 
-            // Recalculate all road lengths
-            for (color, components) in &self.connected_components {
-                for component in components {
-                    let length = self.longest_acyclic_path(component, *color).len() as u8;
-                    if length > *road_lengths.get(color).unwrap_or(&0) {
-                        road_lengths.insert(*color, length);
+            // Recalculate all road lengths (sort colors for deterministic order)
+            let mut colors: Vec<_> = self.connected_components.keys().cloned().collect();
+            colors.sort();
+            for color in colors {
+                if let Some(components) = self.connected_components.get(&color) {
+                    for component in components {
+                        let length = self.longest_acyclic_path(component, color).len() as u8;
+                        if length > *road_lengths.get(&color).unwrap_or(&0) {
+                            road_lengths.insert(color, length);
+                        }
                     }
                 }
             }
         }
 
         // Return longest road information
-        let prev_longest_road_color = self.longest_road_color;
         let new_longest_road_length = road_lengths.values().max().unwrap_or(&0);
-        let new_longest_road_color = if *new_longest_road_length >= 5 {
-            road_lengths
+        
+
+        
+        // Determine new longest road owner based on this implementation's rules:
+        // 1. Need >= 5 roads to initially claim longest road
+        // 2. Once you have it, you keep it unless someone else builds a longer road OR your road becomes < 5
+        // 3. If no one currently has it, need >= 5 to claim it
+        let new_longest_road_color = if let Some(current_holder) = self.longest_road_color {
+            // Someone currently holds longest road
+            let current_holder_length = road_lengths.get(&current_holder).unwrap_or(&0);
+            
+            // Current holder loses it if their road becomes < 5
+            if *current_holder_length < 5 {
+                // Check if anyone else has >= 5 to claim it
+                if *new_longest_road_length >= 5 {
+                    // Sort for deterministic iteration
+                    let mut candidates: Vec<_> = road_lengths
+                        .iter()
+                        .filter(|(_, &length)| length == *new_longest_road_length)
+                        .collect();
+                    candidates.sort_by_key(|(&color, _)| color);
+                    candidates.first().map(|(&color, _)| color)
+                } else {
+                    None
+                }
+            } else {
+                // Current holder has >= 5, check if anyone else has longer
+                let someone_has_longer = road_lengths
+                    .iter()
+                    .any(|(&color, &length)| color != current_holder && length > *current_holder_length);
+                
+                if someone_has_longer {
+                    // Find who has the longest road now (deterministic)
+                    let max_length = road_lengths.values().max().unwrap_or(&0);
+                    let mut candidates: Vec<_> = road_lengths
+                        .iter()
+                        .filter(|(_, &length)| length == *max_length)
+                        .collect();
+                    candidates.sort_by_key(|(&color, _)| color);
+                    candidates.first().map(|(&color, _)| color)
+                } else {
+                    // Current holder keeps it
+                    Some(current_holder)
+                }
+            }
+        } else if *new_longest_road_length >= 5 {
+            // No one currently has longest road, but someone has >= 5 (deterministic)
+            let mut candidates: Vec<_> = road_lengths
                 .iter()
-                .find(|(_, &length)| length == *new_longest_road_length)
-                .map(|(&color, _)| color)
+                .filter(|(_, &length)| length == *new_longest_road_length)
+                .collect();
+            candidates.sort_by_key(|(&color, _)| color);
+            candidates.first().map(|(&color, _)| color)
         } else {
+            // No one has longest road and no one has >= 5
             None
         };
 
         (
-            new_longest_road_color.or(prev_longest_road_color),
+            new_longest_road_color,
             *new_longest_road_length,
         )
     }
@@ -397,6 +458,7 @@ impl State {
             self.update_connected_components(placing_color, a, b, a_index, b_index);
 
         let prev_road_color = self.longest_road_color;
+        let prev_road_length = self.longest_road_length;
 
         // Calculate length for affected component
         let path_length = self
@@ -404,10 +466,10 @@ impl State {
             .len() as u8;
 
         let (new_road_color, new_road_length) =
-            if path_length >= 5 && path_length > self.longest_road_length {
+            if path_length >= 5 && path_length > prev_road_length {
                 (Some(placing_color), path_length)
             } else {
-                (prev_road_color, self.longest_road_length)
+                (prev_road_color, prev_road_length)
             };
         (new_road_color, new_road_length)
     }
@@ -580,32 +642,13 @@ impl State {
 
         let should_enter_discard_phase = discarders.iter().any(|&x| x);
         if should_enter_discard_phase {
-            if let Some(first_discarder_color) = discarders.iter().position(|&x| x) {
-                // CRITICAL BUGFIX: We need to find the seating order INDEX of this player color
-                // not set CURRENT_TICK_SEAT_INDEX to the player color directly
-                let seating_order = self.get_seating_order();
-                if let Some(seating_index) = seating_order
-                    .iter()
-                    .position(|&c| c == first_discarder_color as u8)
-                {
-                    self.vector[CURRENT_TICK_SEAT_INDEX] = seating_index as u8;
-                    self.vector[IS_DISCARDING_INDEX] = 1;
-                    log::info!(
-                        "🎲 Rolling 7: Player {} (seating index {}) needs to discard",
-                        first_discarder_color,
-                        seating_index
-                    );
-                } else {
-                    log::error!(
-                        "❌ Could not find player color {} in seating order {:?}",
-                        first_discarder_color,
-                        seating_order
-                    );
-                }
-            }
+            self.vector[IS_DISCARDING_INDEX] = 1;
+            self.vector[CURRENT_TICK_SEAT_INDEX] = color;
+            log::info!("🎲 Rolling 7: Entering discard phase, original roller: {}", color);
         } else {
             self.vector[IS_MOVING_ROBBER_INDEX] = 1;
             self.vector[CURRENT_TICK_SEAT_INDEX] = color;
+            log::info!("🎲 Rolling 7: No discards needed, moving to robber");
         }
     }
 

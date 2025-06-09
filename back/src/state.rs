@@ -415,10 +415,7 @@ impl State {
         }
     }
 
-    fn edge_contains(&self, edge: EdgeId, a: u8) -> bool {
-        let (node1, node2) = edge;
-        node1 == a || node2 == a
-    }
+
 
     fn dfs_longest_path(
         &self,

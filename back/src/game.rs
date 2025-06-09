@@ -514,14 +514,18 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     let mut edges = HashMap::new();
     let mut robber_coordinate = None;
 
-    // Track processed nodes to avoid duplicates
-    let mut processed_nodes = std::collections::HashSet::new();
+    // Collect all node information in a deterministic way
+    let mut node_info: std::collections::BTreeMap<u8, (Coordinate, String)> = std::collections::BTreeMap::new();
 
     // Get robber position from state
     let robber_tile_id = state.get_robber_tile();
 
-    // Process all tiles
-    for (&coordinate, tile) in &map_instance.tiles {
+    // BUGFIX: Sort tiles by coordinate for deterministic iteration
+    let mut sorted_tiles: Vec<_> = map_instance.tiles.iter().collect();
+    sorted_tiles.sort_by_key(|(coord, _)| (coord.0, coord.1, coord.2));
+
+    // Process all tiles in deterministic order
+    for (&coordinate, tile) in sorted_tiles {
         match tile {
             Tile::Land(land_tile) => {
                 // Convert land tile to frontend format
@@ -532,53 +536,21 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     robber_coordinate = Some(convert_coordinate(coordinate));
                 }
 
-                // Generate nodes for this tile - but avoid duplicates
+                // Collect node information (store the first occurrence for deterministic positioning)
                 for (&node_ref, &node_id) in &land_tile.hexagon.nodes {
-                    // Skip if we've already processed this node
-                    if processed_nodes.contains(&node_id) {
-                        continue;
+                    // Only store if not already stored (ensures deterministic positioning)
+                    if !node_info.contains_key(&node_id) {
+                        let direction = match node_ref {
+                            NodeRef::North => "N",
+                            NodeRef::NorthEast => "NE",
+                            NodeRef::SouthEast => "SE",
+                            NodeRef::South => "S",
+                            NodeRef::SouthWest => "SW",
+                            NodeRef::NorthWest => "NW",
+                        };
+
+                        node_info.insert(node_id, (convert_coordinate(coordinate), direction.to_string()));
                     }
-                    processed_nodes.insert(node_id);
-
-                    let direction = match node_ref {
-                        NodeRef::North => "N",
-                        NodeRef::NorthEast => "NE",
-                        NodeRef::SouthEast => "SE",
-                        NodeRef::South => "S",
-                        NodeRef::SouthWest => "SW",
-                        NodeRef::NorthWest => "NW",
-                    };
-
-                    // Use just the node ID as the key to ensure uniqueness
-                    let node_id_str = format!("n{}", node_id);
-
-                    // Get building info using public state methods
-                    let building_type_opt = state.get_building_type(node_id);
-                    let building_color_idx_opt = state.get_node_color(node_id);
-
-                    let building_type = match building_type_opt {
-                        Some(BuildingType::Settlement) => Some("settlement".to_string()),
-                        Some(BuildingType::City) => Some("city".to_string()),
-                        None => None,
-                    };
-
-                    let building_color = building_color_idx_opt.map(|color_idx| match color_idx {
-                        0 => "red".to_string(),
-                        1 => "blue".to_string(),
-                        2 => "white".to_string(),
-                        3 => "orange".to_string(),
-                        _ => "unknown".to_string(), // Handle unexpected color index
-                    });
-
-                    nodes.insert(
-                        node_id_str,
-                        Node {
-                            building: building_type,
-                            color: building_color,
-                            tile_coordinate: convert_coordinate(coordinate),
-                            direction: direction.to_string(),
-                        },
-                    );
                 }
 
                 // Generate edges for this tile
@@ -624,6 +596,40 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                 // Skip water tiles - we don't need to send them to the frontend
             }
         }
+    }
+
+    // Now process nodes in deterministic order (sorted by node_id)
+    for (node_id, (tile_coordinate, direction)) in node_info {
+        // Use just the node ID as the key to ensure uniqueness
+        let node_id_str = format!("n{}", node_id);
+
+        // Get building info using public state methods
+        let building_type_opt = state.get_building_type(node_id);
+        let building_color_idx_opt = state.get_node_color(node_id);
+
+        let building_type = match building_type_opt {
+            Some(BuildingType::Settlement) => Some("settlement".to_string()),
+            Some(BuildingType::City) => Some("city".to_string()),
+            None => None,
+        };
+
+        let building_color = building_color_idx_opt.map(|color_idx| match color_idx {
+            0 => "red".to_string(),
+            1 => "blue".to_string(),
+            2 => "white".to_string(),
+            3 => "orange".to_string(),
+            _ => "unknown".to_string(), // Handle unexpected color index
+        });
+
+        nodes.insert(
+            node_id_str,
+            Node {
+                building: building_type,
+                color: building_color,
+                tile_coordinate,
+                direction,
+            },
+        );
     }
 
     GameBoard {

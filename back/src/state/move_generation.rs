@@ -31,24 +31,9 @@ impl State {
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
         if is_initial_build_phase {
-            // CRITICAL BUGFIX: Filter out occupied nodes and their neighbors for initial build phase
+            // Use the maintained board_buildable_ids cache for initial build phase
             self.board_buildable_ids
                 .iter()
-                .filter(|&node_id| {
-                    // Check if node is occupied
-                    if self.buildings.contains_key(node_id) {
-                        return false;
-                    }
-
-                    // Check if any neighbor is occupied (distance rule)
-                    for neighbor_id in self.map_instance.get_neighbor_nodes(*node_id) {
-                        if self.buildings.contains_key(&neighbor_id) {
-                            return false;
-                        }
-                    }
-
-                    true
-                })
                 .map(|node_id| Action::BuildSettlement {
                     color,
                     node_id: *node_id,
@@ -60,35 +45,15 @@ impl State {
             let has_settlements_available = settlements_used < 5;
 
             if has_resources && has_settlements_available {
-                // CRITICAL BUGFIX: Apply same filtering for non-initial phase + ROAD CONNECTIVITY
+                // For non-initial phase, check road connectivity
                 self.buildable_node_ids(color)
                     .into_iter()
                     .filter(|&node_id| {
-                        // Check if node is occupied
-                        if self.buildings.contains_key(&node_id) {
-                            return false;
-                        }
-
-                        // Check if any neighbor is occupied (distance rule)
-                        for neighbor_id in self.map_instance.get_neighbor_nodes(node_id) {
-                            if self.buildings.contains_key(&neighbor_id) {
-                                return false;
-                            }
-                        }
-
-                        // CRITICAL: Check road connectivity (non-initial build phase only)
                         // Must be adjacent to at least one road owned by this player
-                        let has_adjacent_road = self
-                            .map_instance
+                        self.map_instance
                             .get_neighbor_edges(node_id)
                             .iter()
-                            .any(|&edge_id| self.roads.get(&edge_id) == Some(&color));
-
-                        if !has_adjacent_road {
-                            return false;
-                        }
-
-                        true
+                            .any(|&edge_id| self.roads.get(&edge_id) == Some(&color))
                     })
                     .map(|node_id| Action::BuildSettlement { color, node_id })
                     .collect()
@@ -118,13 +83,13 @@ impl State {
             }
         };
 
-        self.board_buildable_edges(color)
-            .iter()
-            .filter(|edge_id| self.edge_contains(**edge_id, last_node_id))
-            .map(|edge_id| Action::BuildRoad {
-                color,
-                edge_id: *edge_id,
-            })
+        // BUGFIX: Don't rely on board_buildable_edges which uses connected_components cache
+        // For initial build phase, just get edges adjacent to the last settlement
+        self.map_instance
+            .get_neighbor_edges(last_node_id)
+            .into_iter()
+            .filter(|edge_id| !self.roads.contains_key(edge_id))
+            .map(|edge_id| Action::BuildRoad { color, edge_id })
             .collect()
     }
 
@@ -135,12 +100,43 @@ impl State {
         }
 
         if is_free || freqdeck_contains(self.get_player_hand(color), &ROAD_COST) {
-            self.board_buildable_edges(color)
-                .iter()
-                .map(|edge_id| Action::BuildRoad {
-                    color,
-                    edge_id: *edge_id,
-                })
+            // COMPLETE BUGFIX: Build connectivity from scratch without relying on connected_components
+            let mut buildable_edges = HashSet::new();
+            
+            // Get all nodes that are "connection points" for this player
+            let mut connection_nodes = HashSet::new();
+            
+            // 1. Add all settlement/city nodes as connection points
+            if let Some(player_buildings) = self.buildings_by_color.get(&color) {
+                for building in player_buildings {
+                    let node_id = match building {
+                        Building::Settlement(_, id) | Building::City(_, id) => *id,
+                    };
+                    connection_nodes.insert(node_id);
+                }
+            }
+            
+            // 2. Add all nodes connected by existing roads as connection points
+            for (edge_id, &road_color) in &self.roads {
+                if road_color == color {
+                    connection_nodes.insert(edge_id.0);
+                    connection_nodes.insert(edge_id.1);
+                }
+            }
+            
+            // 3. Find all edges adjacent to any connection node that aren't already built
+            for &node_id in &connection_nodes {
+                for edge_id in self.map_instance.get_neighbor_edges(node_id) {
+                    if !self.roads.contains_key(&edge_id) {
+                        let sorted_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
+                        buildable_edges.insert(sorted_edge);
+                    }
+                }
+            }
+            
+            buildable_edges
+                .into_iter()
+                .map(|edge_id| Action::BuildRoad { color, edge_id })
                 .collect()
         } else {
             vec![]
@@ -799,5 +795,73 @@ mod tests {
             )),
             "Should be able to use 3:1 port for brick"
         );
+    }
+
+    #[test]
+    fn test_road_connectivity_enforcement() {
+        let mut state = State::new_base();
+        let color = 0;
+
+        // Give player resources for road building
+        let hand = state.get_mut_player_hand(color);
+        for resource in hand.iter_mut() {
+            *resource = 5;
+        }
+
+        // Initially, player has no settlements or roads, so no roads should be buildable
+        let actions = state.road_possibilities(color, false);
+        assert_eq!(actions.len(), 0, "No roads should be buildable without settlements");
+
+        // Build a settlement at node 0
+        state.apply_action(Action::BuildSettlement { color, node_id: 0 });
+
+        // Now roads adjacent to the settlement should be buildable
+        let actions = state.road_possibilities(color, false);
+        assert!(actions.len() > 0, "Roads adjacent to settlement should be buildable");
+
+        // Verify all buildable roads are actually adjacent to node 0
+        let node_0_edges = state.map_instance.get_neighbor_edges(0);
+        // Normalize edge ordering for comparison (since edges can be stored as (a,b) or (b,a))
+        let normalized_node_0_edges: std::collections::HashSet<_> = node_0_edges
+            .iter()
+            .map(|&edge| (edge.0.min(edge.1), edge.0.max(edge.1)))
+            .collect();
+        
+        for action in &actions {
+            if let Action::BuildRoad { edge_id, .. } = action {
+                let normalized_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
+                assert!(
+                    normalized_node_0_edges.contains(&normalized_edge),
+                    "Road {:?} should be adjacent to settlement at node 0",
+                    edge_id
+                );
+            }
+        }
+
+        // Build the first road
+        let first_road = actions[0];
+        if let Action::BuildRoad { edge_id: first_edge, .. } = first_road {
+            state.apply_action(first_road);
+
+            // Now roads should be buildable adjacent to existing roads OR settlements
+            let new_actions = state.road_possibilities(color, false);
+            assert!(new_actions.len() >= actions.len(), "Should have at least as many options after building first road");
+
+            // Verify that each new road is adjacent to either the settlement or the existing road
+            for action in &new_actions {
+                if let Action::BuildRoad { edge_id, .. } = action {
+                    let is_adjacent_to_settlement = node_0_edges.contains(edge_id);
+                    let is_adjacent_to_first_road = edge_id.0 == first_edge.0 || edge_id.0 == first_edge.1 || 
+                                                    edge_id.1 == first_edge.0 || edge_id.1 == first_edge.1;
+                    
+                    assert!(
+                        is_adjacent_to_settlement || is_adjacent_to_first_road,
+                        "Road {:?} should be adjacent to either settlement at node 0 or first road {:?}",
+                        edge_id,
+                        first_edge
+                    );
+                }
+            }
+        }
     }
 }
