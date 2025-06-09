@@ -1,7 +1,7 @@
-use std::fmt;
+use super::Player;
 use crate::enums::Action;
 use crate::game::GameState;
-use super::Player;
+use std::fmt;
 
 /// Human player implementation
 pub struct HumanPlayer {
@@ -21,19 +21,19 @@ impl Player for HumanPlayer {
     fn id(&self) -> &str {
         &self.id
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn color(&self) -> &str {
         &self.color
     }
-    
+
     fn is_bot(&self) -> bool {
         false
     }
-    
+
     fn decide_action(&self, _game_state: &GameState) -> Action {
         // Human players don't automatically decide actions,
         // they receive them from client input
@@ -49,4 +49,4 @@ impl fmt::Debug for HumanPlayer {
             .field("color", &self.color)
             .finish()
     }
-} 
+}

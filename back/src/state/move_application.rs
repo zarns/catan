@@ -8,9 +8,7 @@ use super::Building;
 use super::State;
 
 // Import directly from lib scope
-#[path = "../deck_slices.rs"]
-mod deck_slices_import;
-use deck_slices_import::{
+use crate::deck_slices::{
     freqdeck_add, freqdeck_sub, CITY_COST, DEVCARD_COST, ROAD_COST, SETTLEMENT_COST,
 };
 
@@ -21,38 +19,26 @@ use crate::state_vector::*;
 
 impl State {
     pub fn apply_action(&mut self, action: Action) {
-        debug!("Applying action: {:?}", action);
-        debug!("Current state: current_color={}, action_prompt={:?}, is_initial_build_phase={}, buildings={}, roads={}", 
-            self.get_current_color(),
-            self.get_action_prompt(),
-            self.is_initial_build_phase(),
-            self.buildings.len(),
-            self.roads.len() / 2
-        );
+        let before_initial = self.is_initial_build_phase();
+        let before_settlements = self
+            .buildings_by_color
+            .values()
+            .map(|buildings| {
+                buildings
+                    .iter()
+                    .filter(|b| matches!(b, Building::Settlement(_, _)))
+                    .count()
+            })
+            .sum::<usize>();
+        let before_roads = self.roads.len() / 2;
 
         match action {
             Action::BuildSettlement { color, node_id } => {
-                debug!(
-                    "Building settlement for player {} at node {}",
-                    color, node_id
-                );
                 let (new_owner, new_length) = self.build_settlement(color, node_id);
-                debug!(
-                    "Settlement built. New longest road: owner={:?}, length={}",
-                    new_owner, new_length
-                );
                 self.maintain_longest_road(new_owner, new_length);
             }
             Action::BuildRoad { color, edge_id } => {
-                debug!(
-                    "Building road for player {} at edge ({}, {})",
-                    color, edge_id.0, edge_id.1
-                );
                 let (new_owner, new_length) = self.build_road(color, edge_id);
-                debug!(
-                    "Road built. New longest road: owner={:?}, length={}",
-                    new_owner, new_length
-                );
                 self.maintain_longest_road(new_owner, new_length);
             }
             Action::BuildCity { color, node_id } => {
@@ -103,24 +89,50 @@ impl State {
             }
         }
 
-        debug!("Finished applying action: {:?}", action);
-        debug!("Updated state: current_color={}, action_prompt={:?}, is_initial_build_phase={}, buildings={}, roads={}", 
-            self.get_current_color(),
-            self.get_action_prompt(),
-            self.is_initial_build_phase(),
-            self.buildings.len(),
-            self.roads.len() / 2
-        );
+        // Log important state changes
+        let after_initial = self.is_initial_build_phase();
+        let after_settlements = self
+            .buildings_by_color
+            .values()
+            .map(|buildings| {
+                buildings
+                    .iter()
+                    .filter(|b| matches!(b, Building::Settlement(_, _)))
+                    .count()
+            })
+            .sum::<usize>();
+        let after_roads = self.roads.len() / 2;
+
+        // Log phase transitions and significant state changes
+        if before_initial != after_initial {
+            log::info!(
+                "🎯 PHASE TRANSITION: Initial build phase = {} → {}",
+                before_initial,
+                after_initial
+            );
+        }
+
+        if before_settlements != after_settlements || before_roads != after_roads {
+            log::info!(
+                "🏗️  Build progress: Settlements: {} → {}, Roads: {} → {}",
+                before_settlements,
+                after_settlements,
+                before_roads,
+                after_roads
+            );
+        }
     }
 
     pub fn add_victory_points(&mut self, color: u8, points: u8) {
         let n = self.get_num_players();
         self.vector[actual_victory_points_index(n, color)] += points;
+        self.check_for_victory(); // Check for win condition whenever VPs change
     }
 
     pub fn sub_victory_points(&mut self, color: u8, points: u8) {
         let n = self.get_num_players();
         self.vector[actual_victory_points_index(n, color)] -= points;
+        self.check_for_victory(); // Check for win condition whenever VPs change
     }
 
     pub fn advance_turn(&mut self, step_size: i8) {
@@ -174,6 +186,12 @@ impl State {
 
                     let hand = self.get_mut_player_hand(placing_color);
                     freqdeck_add(hand, total_resources);
+
+                    log::info!(
+                        "🎁 Player {} received resources from second settlement: {:?}",
+                        placing_color,
+                        total_resources
+                    );
                 }
             }
             // Maintain caches and longest road =====
@@ -209,55 +227,96 @@ impl State {
                         .map(|&edge| if edge.0 == node_id { edge.1 } else { edge.0 })
                         .collect();
 
-                    // First remove the bisected component
-                    let road_components = self.connected_components.get_mut(&plowed_color).unwrap();
-                    road_components.remove(plowed_component_idx);
-
-                    let mut new_components = Vec::new();
-                    for outer_node in outer_nodes {
-                        let new_component = self.dfs_walk(outer_node, plowed_color);
-                        if !new_component.is_empty() {
-                            new_components.push(new_component);
-                        }
+                    if outer_nodes.len() != 2 {
+                        continue; // Can't bisect
                     }
 
-                    let road_components = self.connected_components.get_mut(&plowed_color).unwrap();
-                    road_components.extend(new_components);
-                }
+                    // The component will be split
+                    let original_component =
+                        self.connected_components[&plowed_color][plowed_component_idx].clone();
+                    self.connected_components
+                        .get_mut(&plowed_color)
+                        .unwrap()
+                        .remove(plowed_component_idx);
 
-                // Insert the longest road length for all colors if a road was plowed
-                for (&color, components) in &self.connected_components {
-                    let max_length = components
-                        .iter()
-                        .map(|component| self.longest_acyclic_path(component, color).len())
-                        .max()
-                        .unwrap_or(0);
-                    road_lengths.insert(color, max_length as u8);
+                    // DFS to create new components
+                    let component_a = self.dfs_walk(outer_nodes[0], plowed_color);
+                    let mut remaining_nodes = original_component;
+                    for node in &component_a {
+                        remaining_nodes.remove(node);
+                    }
+                    remaining_nodes.remove(&node_id); // Remove settlement node
+
+                    if !component_a.is_empty() {
+                        self.connected_components
+                            .get_mut(&plowed_color)
+                            .unwrap()
+                            .push(component_a);
+                    }
+                    if !remaining_nodes.is_empty() {
+                        self.connected_components
+                            .get_mut(&plowed_color)
+                            .unwrap()
+                            .push(remaining_nodes);
+                    }
+                }
+            }
+
+            // Recalculate all road lengths
+            for (color, components) in &self.connected_components {
+                for component in components {
+                    let length = self.longest_acyclic_path(component, *color).len() as u8;
+                    if length > *road_lengths.get(color).unwrap_or(&0) {
+                        road_lengths.insert(*color, length);
+                    }
                 }
             }
         }
-        // - board_buildable_ids
-        self.board_buildable_ids.remove(&node_id);
-        for neighbor_id in self.map_instance.get_neighbor_nodes(node_id) {
-            self.board_buildable_ids.remove(&neighbor_id);
-        }
 
-        // Determine new longest road holder
-        let (new_road_color, new_road_length) = if road_lengths.is_empty() {
-            // If no road lengths affected, just return the previous longest road
-            (self.longest_road_color, self.longest_road_length)
-        } else {
-            let max_entry = road_lengths
+        // Return longest road information
+        let prev_longest_road_color = self.longest_road_color;
+        let new_longest_road_length = road_lengths.values().max().unwrap_or(&0);
+        let new_longest_road_color = if *new_longest_road_length >= 5 {
+            road_lengths
                 .iter()
-                .filter(|(_, &len)| len >= 5)
-                .max_by_key(|(_, &len)| len);
-
-            match max_entry {
-                Some((&color, &length)) => (Some(color), length),
-                None => (None, 0), // No player has >= 5 roads
-            }
+                .find(|(_, &length)| length == *new_longest_road_length)
+                .map(|(&color, _)| color)
+        } else {
+            None
         };
-        (new_road_color, new_road_length)
+
+        (
+            new_longest_road_color.or(prev_longest_road_color),
+            *new_longest_road_length,
+        )
+    }
+
+    /// Helper method to get the current state of initial placement phase
+    /// Returns (total_settlements, total_roads, is_phase_1_complete, is_phase_2_complete)
+    pub fn get_initial_placement_progress(&self) -> (usize, usize, bool, bool) {
+        let total_settlements = self
+            .buildings_by_color
+            .values()
+            .map(|buildings| {
+                buildings
+                    .iter()
+                    .filter(|b| matches!(b, Building::Settlement(_, _)))
+                    .count()
+            })
+            .sum::<usize>();
+        let total_roads = self.roads.len() / 2; // Each road stored twice
+        let num_players = self.config.num_players as usize;
+
+        let phase_1_complete = total_settlements >= num_players && total_roads >= num_players;
+        let phase_2_complete =
+            total_settlements >= 2 * num_players && total_roads >= 2 * num_players;
+
+        (
+            total_settlements,
+            total_roads,
+            phase_1_complete,
+            phase_2_complete,
+        )
     }
 
     fn build_road(&mut self, placing_color: u8, edge_id: EdgeId) -> (Option<u8>, u8) {
@@ -274,20 +333,53 @@ impl State {
         }
 
         if is_initial_build_phase {
-            let num_settlements = self.buildings.len();
+            // BUGFIX: Count only settlements, not all buildings
+            let num_settlements = self
+                .buildings_by_color
+                .values()
+                .map(|buildings| {
+                    buildings
+                        .iter()
+                        .filter(|b| matches!(b, Building::Settlement(_, _)))
+                        .count()
+                })
+                .sum::<usize>();
+            let num_roads = self.roads.len() / 2; // Each road is stored twice (a,b) and (b,a)
             let num_players = self.config.num_players as usize;
-            let going_forward = num_settlements < num_players;
-            let at_midpoint = num_settlements == num_players;
 
-            if going_forward {
-                self.advance_turn(1);
-            } else if at_midpoint {
-                // do nothing, generate prompt should take care
-            } else if num_settlements == 2 * num_players {
-                // just change prompt without advancing turn (since last to place is first to roll)
+            log::info!(
+                "🏗️  Initial build: {} settlements, {} roads ({} players)",
+                num_settlements,
+                num_roads,
+                num_players
+            );
+
+            // Catan initial placement rules:
+            // Phase 1: Each player places 1 settlement + 1 road (forward order: 0,1,2,3)
+            // Phase 2: Each player places 1 settlement + 1 road (reverse order: 3,2,1,0)
+
+            let going_forward = num_settlements <= num_players;
+            let at_phase_transition = num_settlements == num_players && num_roads == num_players;
+            let initial_phase_complete =
+                num_settlements == 2 * num_players && num_roads == 2 * num_players;
+
+            if initial_phase_complete {
+                // All initial placements done - start normal gameplay
                 self.vector[IS_INITIAL_BUILD_PHASE_INDEX] = 0;
+                log::info!("🎯 Initial build phase COMPLETE → Normal gameplay");
+            } else if at_phase_transition {
+                // Transition from forward to reverse order - don't advance turn
+                // The last player to place in forward order places first in reverse order
+                log::info!("🔄 Phase transition: forward → reverse order");
+                // No turn advancement - current player continues
+            } else if going_forward {
+                // Phase 1: advance turn forward (0->1->2->3)
+                self.advance_turn(1);
+                log::info!("➡️  Phase 1: turn advanced forward");
             } else {
+                // Phase 2: advance turn backward (3->2->1->0)
                 self.advance_turn(-1);
+                log::info!("⬅️  Phase 2: turn advanced backward");
             }
         }
 
@@ -397,9 +489,14 @@ impl State {
     }
 
     fn build_city(&mut self, color: u8, node_id: u8) {
+        // Update the main buildings HashMap
         self.buildings
             .insert(node_id, Building::City(color, node_id));
+
+        // Update the buildings_by_color tracking
         let buildings = self.buildings_by_color.entry(color).or_default();
+
+        // Remove the settlement from buildings_by_color
         if let Some(pos) = buildings.iter().position(|b| {
             if let Building::Settlement(_, n) = b {
                 *n == node_id
@@ -409,6 +506,10 @@ impl State {
         }) {
             buildings.remove(pos);
         }
+
+        // BUGFIX: Add the new city to buildings_by_color
+        buildings.push(Building::City(color, node_id));
+
         freqdeck_sub(self.get_mut_player_hand(color), CITY_COST);
         freqdeck_add(&mut self.vector[BANK_RESOURCE_SLICE], CITY_COST);
         self.add_victory_points(color, 1);
@@ -455,9 +556,13 @@ impl State {
         });
         let total = die1 + die2;
 
+        log::info!("🎲 Player {} rolled {} + {} = {}", color, die1, die2, total);
+
         if total == 7 {
+            log::info!("🎲 Rolling 7 → Discard/Robber phase");
             self.handle_roll_seven(color);
         } else {
+            log::info!("🎲 Rolling {} → Resource distribution", total);
             self.distribute_roll_yields(total);
             self.vector[CURRENT_TICK_SEAT_INDEX] = color;
         }
@@ -475,9 +580,28 @@ impl State {
 
         let should_enter_discard_phase = discarders.iter().any(|&x| x);
         if should_enter_discard_phase {
-            if let Some(first_discarder) = discarders.iter().position(|&x| x) {
-                self.vector[CURRENT_TICK_SEAT_INDEX] = first_discarder as u8;
-                self.vector[IS_DISCARDING_INDEX] = 1;
+            if let Some(first_discarder_color) = discarders.iter().position(|&x| x) {
+                // CRITICAL BUGFIX: We need to find the seating order INDEX of this player color
+                // not set CURRENT_TICK_SEAT_INDEX to the player color directly
+                let seating_order = self.get_seating_order();
+                if let Some(seating_index) = seating_order
+                    .iter()
+                    .position(|&c| c == first_discarder_color as u8)
+                {
+                    self.vector[CURRENT_TICK_SEAT_INDEX] = seating_index as u8;
+                    self.vector[IS_DISCARDING_INDEX] = 1;
+                    log::info!(
+                        "🎲 Rolling 7: Player {} (seating index {}) needs to discard",
+                        first_discarder_color,
+                        seating_index
+                    );
+                } else {
+                    log::error!(
+                        "❌ Could not find player color {} in seating order {:?}",
+                        first_discarder_color,
+                        seating_order
+                    );
+                }
             }
         } else {
             self.vector[IS_MOVING_ROBBER_INDEX] = 1;
@@ -519,10 +643,11 @@ impl State {
     fn distribute_roll_yields(&mut self, roll: u8) {
         let yields = self.collect_roll_yields(roll);
         if yields.is_empty() {
+            log::info!("🎲 Roll {} yields NO resources", roll);
             return;
         }
 
-        debug!("Roll {} yields: {:?}", roll, yields);
+        log::info!("🎲 Roll {} yields: {:?}", roll, yields);
 
         // Calculate total needed by resource type
         let mut resource_needs = [0u8; 5];
@@ -532,11 +657,15 @@ impl State {
 
         // Check what can be allocated from bank
         let bank = &self.vector[BANK_RESOURCE_SLICE];
-        debug!(
-            "Current bank: [{}, {}, {}, {}, {}]",
-            bank[0], bank[1], bank[2], bank[3], bank[4]
+        log::info!(
+            "🏦 Current bank: [Wood:{}, Brick:{}, Sheep:{}, Wheat:{}, Ore:{}]",
+            bank[0],
+            bank[1],
+            bank[2],
+            bank[3],
+            bank[4]
         );
-        debug!("Total resource needs: {:?}", resource_needs);
+        log::info!("📦 Total resource needs: {:?}", resource_needs);
 
         // For each resource type, determine if multiple players need it
         let mut resource_recipients = [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
@@ -553,14 +682,14 @@ impl State {
                 // Resource is insufficient
                 if resource_recipients[i].len() > 1 {
                     // Multiple players need this resource - no one gets it
-                    debug!(
-                        "Resource {}: insufficient for multiple recipients ({}), no one gets it",
+                    log::info!(
+                        "❌ Resource {}: insufficient for multiple recipients ({}), no one gets it",
                         i,
                         resource_recipients[i].len()
                     );
                     can_distribute[i] = false;
                 } else {
-                    debug!("Resource {}: insufficient for single recipient, will distribute what's available", i);
+                    log::info!("⚠️  Resource {}: insufficient for single recipient, will distribute what's available", i);
                     // Single player - they get what's available (handled during distribution)
                 }
             }
@@ -587,16 +716,22 @@ impl State {
                 self.vector[BANK_RESOURCE_SLICE][resource_idx] -= available;
                 self.get_mut_player_hand(owner_color)[resource_idx] += available;
 
-                debug!(
-                    "Distributed {} of resource {} to player {}",
-                    available, resource_idx, owner_color
+                log::info!(
+                    "✅ Distributed {} of resource {} to player {}",
+                    available,
+                    resource_idx,
+                    owner_color
                 );
             }
         }
 
-        debug!(
-            "Bank after distribution: {:?}",
-            &self.vector[BANK_RESOURCE_SLICE]
+        log::info!(
+            "🏦 Bank after distribution: [Wood:{}, Brick:{}, Sheep:{}, Wheat:{}, Ore:{}]",
+            &self.vector[BANK_RESOURCE_SLICE][0],
+            &self.vector[BANK_RESOURCE_SLICE][1],
+            &self.vector[BANK_RESOURCE_SLICE][2],
+            &self.vector[BANK_RESOURCE_SLICE][3],
+            &self.vector[BANK_RESOURCE_SLICE][4]
         );
     }
 
@@ -628,8 +763,90 @@ impl State {
 
         freqdeck_sub(self.get_mut_player_hand(color), discarded);
         freqdeck_add(&mut self.vector[BANK_RESOURCE_SLICE], discarded);
+
+        log::info!(
+            "🗑️  Player {} discarded {} cards: {:?}",
+            color,
+            discarded.iter().sum::<u8>(),
+            discarded
+        );
+
+        // BUGFIX: Handle proper discard turn advancement and state transitions
+        self.advance_discard_turn();
+    }
+
+    fn advance_discard_turn(&mut self) {
+        // CRITICAL BUGFIX: Fix the discard advancement logic to handle seating order properly
+
+        let current_tick_seat_index = self.vector[CURRENT_TICK_SEAT_INDEX] as usize;
+        let seating_order = self.get_seating_order();
+        let current_discarder_color = seating_order[current_tick_seat_index];
+        let num_players = self.get_num_players();
+
+        log::info!(
+            "🔍 Checking for remaining discarders (current: {} at index {}, limit: {})",
+            current_discarder_color,
+            current_tick_seat_index,
+            self.config.discard_limit
+        );
+
+        // BUGFIX: Check if the CURRENT discarder still needs to discard FIRST
+        let current_hand = self.get_player_hand(current_discarder_color);
+        let current_total: u8 = current_hand.iter().sum();
+        log::info!(
+            "🔍 Current discarder {} has {} cards",
+            current_discarder_color,
+            current_total
+        );
+
+        if current_total > self.config.discard_limit {
+            log::info!(
+                "➡️  Current discarder still needs to discard: Player {} ({} cards > {})",
+                current_discarder_color,
+                current_total,
+                self.config.discard_limit
+            );
+            return; // Stay with current discarder - they still need to discard
+        }
+
+        // Current discarder is done, check remaining players by going through seating order
+        for i in 1..num_players {
+            let next_seating_index = (current_tick_seat_index + i as usize) % num_players as usize;
+            let next_player_color = seating_order[next_seating_index];
+            let player_hand = self.get_player_hand(next_player_color);
+            let total_cards: u8 = player_hand.iter().sum();
+
+            log::info!(
+                "🔍 Player {} (index {}) has {} cards (limit: {})",
+                next_player_color,
+                next_seating_index,
+                total_cards,
+                self.config.discard_limit
+            );
+
+            if total_cards > self.config.discard_limit {
+                // Found next discarder
+                self.vector[CURRENT_TICK_SEAT_INDEX] = next_seating_index as u8;
+                log::info!(
+                    "➡️  Next discarder: Player {} at index {} ({} cards > {})",
+                    next_player_color,
+                    next_seating_index,
+                    total_cards,
+                    self.config.discard_limit
+                );
+                return;
+            }
+        }
+
+        // No more discarders found - transition to robber movement
         self.vector[IS_DISCARDING_INDEX] = 0;
-        // TODO: Advance turn; handle discarders left and pass turn to original roller
+        self.vector[IS_MOVING_ROBBER_INDEX] = 1;
+        // Return to the player who originally rolled the 7
+        self.vector[CURRENT_TICK_SEAT_INDEX] = self.vector[CURRENT_TURN_SEAT_INDEX];
+        log::info!(
+            "🎯 All discards complete → Moving robber (Player {})",
+            self.vector[CURRENT_TURN_SEAT_INDEX]
+        );
     }
 
     fn move_robber(&mut self, color: u8, coordinate: (i8, i8, i8), victim_opt: Option<u8>) {
@@ -804,10 +1021,16 @@ impl State {
     }
 
     fn end_turn(&mut self, _color: u8) {
-        self.vector[HAS_PLAYED_DEV_CARD] = 0;
-        self.vector[HAS_ROLLED_INDEX] = 0;
-
-        self.advance_turn(1);
+        // BUGFIX: Handle discard phase properly
+        if self.is_discarding() {
+            // During discard phase, EndTurn should advance discard turn, not regular turn
+            self.advance_discard_turn();
+        } else {
+            // Normal turn advancement
+            self.vector[HAS_PLAYED_DEV_CARD] = 0;
+            self.vector[HAS_ROLLED_INDEX] = 0;
+            self.advance_turn(1);
+        }
     }
 }
 

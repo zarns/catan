@@ -1,159 +1,217 @@
-// Temporary stub - simulate.rs disabled until AI players are refactored
-// This file is temporarily simplified to allow the main backend to compile
+use catan::enums::Action;
+use catan::game::*;
 
-use catan::{
-    actions::{PlayerAction, GameCommand, GameEvent, ActionResult},
-    errors::{CatanError, GameError},
-    game::{Game, GameState},
-    player_system::{Player, PlayerStrategy, PlayerFactory},
-    enums::Action as EnumAction,
-};
-use std::sync::Arc;
-use tokio;
+fn main() {
+    env_logger::init();
 
-// Simple random strategy for simulation
-#[derive(Debug, Clone)]
-pub struct RandomStrategy {
-    pub id: String,
-    pub name: String,
-    pub color: String,
-}
+    println!("🎮 Catan Game Simulation");
+    println!("=======================");
 
-#[async_trait::async_trait]
-impl PlayerStrategy for RandomStrategy {
-    fn get_info(&self) -> catan::player_system::PlayerInfo {
-        catan::player_system::PlayerInfo {
-            id: self.id.clone(),
-            name: self.name.clone(),
-            color: self.color.clone(),
-            is_bot: true,
-        }
-    }
+    // Create a real game with actual game logic
+    let mut game = simulate_bot_game(4); // 4 players for full Catan experience
+    println!(
+        "✅ Created game with real State and {} players",
+        game.players.len()
+    );
 
-    async fn decide_action(
-        &self,
-        _game_state: &catan::game::GameState,
-        _available_actions: &[PlayerAction],
-    ) -> Result<PlayerAction, catan::errors::PlayerError> {
-        // For now, just return an end turn action
-        // In a full implementation, this would randomly select from available actions
-        Ok(PlayerAction::EndTurn)
-    }
-}
-
-async fn simulate_game() -> Result<(), CatanError> {
-    println!("Starting Catan simulation...");
-    
-    // Create a game with 4 bot players
-    let player_names = vec![
-        "RandomBot1".to_string(),
-        "RandomBot2".to_string(), 
-        "RandomBot3".to_string(),
-        "RandomBot4".to_string(),
-    ];
-    
-    let game_id = format!("sim_{}", uuid::Uuid::new_v4());
-    let mut game = Game::new(game_id.clone(), player_names.clone());
-    
-    println!("Created game: {}", game_id);
-    println!("Players: {:?}", player_names);
-    
-    // Create bot players using the new player system
-    let mut bot_players = Vec::new();
-    let colors = vec!["red", "blue", "white", "orange"];
-    for (i, name) in player_names.iter().enumerate() {
-        let strategy = Arc::new(RandomStrategy {
-            id: format!("player_{}", i),
-            name: name.clone(),
-            color: colors[i % colors.len()].to_string(),
-        });
-        let player = catan::player_system::Player::new(
-            format!("player_{}", i),
-            name.clone(),
-            colors[i % colors.len()].to_string(),
-            strategy,
+    // Print initial state
+    if let Some(ref state) = game.state {
+        println!("🏁 Initial state:");
+        println!(
+            "   - Is initial build phase: {}",
+            state.is_initial_build_phase()
         );
-        bot_players.push(player);
+        println!("   - Current player: {}", state.get_current_color());
+        println!(
+            "   - Players: {:?}",
+            game.players.iter().map(|p| &p.name).collect::<Vec<_>>()
+        );
+        state.log_victory_points();
     }
-    
-    println!("Created {} bot players", bot_players.len());
-    
-    // Simulation loop
+
+    // Simulate turns with real actions
     let mut turn_count = 0;
-    const MAX_TURNS: u32 = 100;
-    
+    const MAX_TURNS: u32 = 500; // Higher limit for real games - increased for thorough testing
+    let mut last_vp_log = 0;
+
     while turn_count < MAX_TURNS {
-        match game.game_state {
-            GameState::Finished { ref winner } => {
-                println!("Game finished! Winner: {}", winner);
+        // Check for winner
+        if let Some(ref state) = game.state {
+            if let Some(winner) = state.winner() {
+                println!("🎉 GAME WON! Player {} is the winner!", winner);
+                println!("📊 Final Victory Points:");
+                state.log_victory_points();
                 break;
             }
-            GameState::Active => {
-                println!("Turn {}: Player {}'s turn", 
-                    turn_count + 1, 
-                    game.players[game.current_player_index].name
-                );
-                
-                // Get current player
-                let current_player = &bot_players[game.current_player_index];
-                
-                // For simulation purposes, let's just process an end turn action
-                // In a real implementation, the bot would analyze the game state
-                // and make strategic decisions
-                let action = PlayerAction::EndTurn;
-                
-                // Convert to game command and process
-                let command = GameCommand::PlayerAction {
-                    player_id: current_player.info.id.clone(),
-                    action: action.clone(),
-                };
-                
-                println!("  Bot {} performs action: {:?}", current_player.info.name, action);
-                
-                // For now, just advance the turn manually since we don't have
-                // full game logic integration yet
-                game.current_player_index = (game.current_player_index + 1) % game.players.len();
-                turn_count += 1;
-                
-                // Simulate some game progression
-                if turn_count > 20 {
-                    // Simulate game ending after some turns
-                    game.game_state = GameState::Finished {
-                        winner: game.players[0].name.clone(),
-                    };
-                }
-            }
-            GameState::Setup => {
-                println!("Game in setup phase - transitioning to active");
-                game.game_state = GameState::Active;
-            }
         }
-        
-        // Small delay to make simulation readable
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Get available actions and current player info
+        let (available_actions, current_player) = if let Some(ref state) = game.state {
+            let actions = state.generate_playable_actions();
+            let player = state.get_current_color();
+            (actions, player)
+        } else {
+            println!("❌ No game state available!");
+            break;
+        };
+
+        println!(
+            "\n🎯 Turn {}: Player {} has {} actions",
+            turn_count + 1,
+            current_player,
+            available_actions.len()
+        );
+
+        if available_actions.is_empty() {
+            println!("❌ No actions available! This is a bug.");
+            if let Some(ref state) = game.state {
+                println!("🔍 Debug info:");
+                println!("   - Phase: {:?}", state.get_action_prompt());
+                println!("   - Is initial: {}", state.is_initial_build_phase());
+                println!("   - Is discarding: {}", state.is_discarding());
+                println!("   - Is moving robber: {}", state.is_moving_robber());
+                state.log_victory_points();
+            }
+            break;
+        }
+
+        // Show first few available actions for debugging
+        if available_actions.len() <= 5 {
+            println!("   Available actions: {:?}", available_actions);
+        } else {
+            println!("   First 3 actions: {:?}", &available_actions[..3]);
+            println!("   ... and {} more", available_actions.len() - 3);
+        }
+
+        // Show current player's detailed status for building/VP analysis
+        if let Some(ref state) = game.state {
+            let vp = state.get_actual_victory_points(current_player);
+            let settlements = state.get_settlements(current_player).len();
+            let cities = state.get_cities(current_player).len();
+            let roads = state.get_roads_by_color()[current_player as usize];
+            println!(
+                "   📊 Player {} status: {} VP (settlements: {}, cities: {}, roads: {})",
+                current_player, vp, settlements, cities, roads
+            );
+        }
+
+        // Choose action: prioritize building actions over EndTurn for more interesting gameplay
+        let action = choose_best_action(&available_actions);
+        println!("🤖 Player {} action: {:?}", current_player, action);
+
+        // Apply the action using real game logic
+        if let Some(ref mut state) = game.state {
+            state.apply_action(action);
+        }
+
+        // Log victory points every 10 turns or when something interesting happens
+        let should_log_vp = turn_count % 10 == 0
+            || matches!(
+                action,
+                Action::BuildSettlement { .. } | Action::BuildCity { .. }
+            );
+
+        if should_log_vp && turn_count != last_vp_log {
+            println!("📊 Victory Points Status:");
+            if let Some(ref state) = game.state {
+                state.log_victory_points();
+            }
+            last_vp_log = turn_count;
+        }
+
+        turn_count += 1;
+
+        // Small delay for readability
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    
+
     if turn_count >= MAX_TURNS {
-        println!("Simulation ended after {} turns (max reached)", MAX_TURNS);
+        println!(
+            "⏰ Simulation ended after {} turns (max reached)",
+            MAX_TURNS
+        );
+        if let Some(ref state) = game.state {
+            println!("📊 Final Victory Points:");
+            state.log_victory_points();
+        }
     } else {
-        println!("Simulation completed successfully in {} turns", turn_count);
+        println!("✅ Simulation completed in {} turns", turn_count);
     }
-    
-    Ok(())
 }
 
-#[tokio::main]
-async fn main() {
-    println!("Catan Game Simulation");
-    println!("====================");
-    
-    match simulate_game().await {
-        Ok(()) => {
-            println!("Simulation completed successfully!");
-        }
-        Err(e) => {
-            eprintln!("Simulation failed: {:?}", e);
-            std::process::exit(1);
-        }
+/// Choose the most interesting action from available options
+/// Prioritizes building actions over basic actions like EndTurn
+fn choose_best_action(actions: &[Action]) -> Action {
+    // Priority order: Settlement > City > Road > Development > Trade > Robber > Other > EndTurn
+
+    // Check for building actions first (most important)
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::BuildSettlement { .. }))
+    {
+        return action.clone();
     }
+
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::BuildCity { .. }))
+    {
+        return action.clone();
+    }
+
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::BuildRoad { .. }))
+    {
+        return action.clone();
+    }
+
+    // Check for development card actions
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::BuyDevelopmentCard { .. }))
+    {
+        return action.clone();
+    }
+
+    if let Some(action) = actions.iter().find(|a| {
+        matches!(
+            a,
+            Action::PlayKnight { .. }
+                | Action::PlayYearOfPlenty { .. }
+                | Action::PlayMonopoly { .. }
+                | Action::PlayRoadBuilding { .. }
+        )
+    }) {
+        return action.clone();
+    }
+
+    // Check for trade actions
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::MaritimeTrade { .. }))
+    {
+        return action.clone();
+    }
+
+    // Check for robber actions
+    if let Some(action) = actions
+        .iter()
+        .find(|a| matches!(a, Action::MoveRobber { .. }))
+    {
+        return action.clone();
+    }
+
+    // Check for discard actions
+    if let Some(action) = actions.iter().find(|a| matches!(a, Action::Discard { .. })) {
+        return action.clone();
+    }
+
+    // Check for roll action
+    if let Some(action) = actions.iter().find(|a| matches!(a, Action::Roll { .. })) {
+        return action.clone();
+    }
+
+    // Fall back to first action (likely EndTurn)
+    actions[0].clone()
 }

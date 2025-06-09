@@ -53,6 +53,9 @@ pub struct State {
     longest_road_length: u8,
     largest_army_color: Option<u8>,
     largest_army_count: u8,
+
+    // Cached winner to avoid recalculating every time
+    cached_winner: Option<u8>,
 }
 
 impl State {
@@ -97,6 +100,7 @@ impl State {
             longest_road_length,
             largest_army_color,
             largest_army_count,
+            cached_winner: None,
         }
     }
 
@@ -117,7 +121,7 @@ impl State {
         State::new(Arc::new(config), Arc::new(map_instance))
     }
 
-    fn get_num_players(&self) -> u8 {
+    pub fn get_num_players(&self) -> u8 {
         self.config.num_players
     }
 
@@ -196,9 +200,29 @@ impl State {
     pub fn get_action_prompt(&self) -> ActionPrompt {
         if self.is_initial_build_phase() {
             let num_things_built = self.buildings.len() + self.roads.len() / 2;
-            if num_things_built == 4 * self.config.num_players as usize {
+            let num_players = self.config.num_players as usize;
+
+            if num_things_built == 4 * num_players {
                 return ActionPrompt::PlayTurn;
-            } else if num_things_built % 2 == 0 {
+            }
+
+            // BUGFIX: Check the current player's state specifically
+            let current_color = self.get_current_color();
+            let current_player_settlements = self
+                .buildings_by_color
+                .get(&current_color)
+                .map(|buildings| {
+                    buildings
+                        .iter()
+                        .filter(|b| matches!(b, Building::Settlement(_, _)))
+                        .count()
+                })
+                .unwrap_or(0);
+            let current_player_roads = self.roads_by_color[current_color as usize];
+
+            // If player has equal settlements and roads, they need to build a settlement
+            // If player has more settlements than roads, they need to build a road
+            if current_player_settlements == current_player_roads as usize {
                 return ActionPrompt::BuildInitialSettlement;
             } else {
                 return ActionPrompt::BuildInitialRoad;
@@ -229,17 +253,73 @@ impl State {
     }
 
     pub fn winner(&self) -> Option<u8> {
-        let current_color = self.get_current_color();
-
-        let actual_victory_points = self.get_actual_victory_points(current_color);
-        if actual_victory_points >= self.config.vps_to_win {
-            return Some(current_color);
+        // Return cached result if available
+        if let Some(winner) = self.cached_winner {
+            return Some(winner);
         }
+
+        // Check ALL players for victory, not just the current player
+        for color in 0..self.get_num_players() {
+            let actual_victory_points = self.get_actual_victory_points(color);
+            if actual_victory_points >= self.config.vps_to_win {
+                log::info!(
+                    "🎉 GAME WON! Player {} has {} victory points (>= {})",
+                    color,
+                    actual_victory_points,
+                    self.config.vps_to_win
+                );
+                return Some(color);
+            }
+        }
+
         None
+    }
+
+    /// Check for victory and update cached winner
+    /// Should be called whenever victory points change
+    pub fn check_for_victory(&mut self) {
+        if self.cached_winner.is_some() {
+            return; // Already won
+        }
+
+        for color in 0..self.get_num_players() {
+            let actual_victory_points = self.get_actual_victory_points(color);
+            if actual_victory_points >= self.config.vps_to_win {
+                log::info!(
+                    "🎉 VICTORY! Player {} has {} victory points (>= {})",
+                    color,
+                    actual_victory_points,
+                    self.config.vps_to_win
+                );
+                self.cached_winner = Some(color);
+                return;
+            }
+        }
     }
 
     pub fn get_actual_victory_points(&self, color: u8) -> u8 {
         self.vector[actual_victory_points_index(self.config.num_players, color)]
+    }
+
+    pub fn get_roads_by_color(&self) -> &[u8] {
+        &self.roads_by_color
+    }
+
+    /// Debug method to log current victory points for all players
+    /// Call this occasionally to track VP progression
+    pub fn log_victory_points(&self) {
+        for color in 0..self.get_num_players() {
+            let vp = self.get_actual_victory_points(color);
+            let settlements = self.get_settlements(color).len();
+            let cities = self.get_cities(color).len();
+            log::info!(
+                "🏆 Player {} VP: {} (settlements: {}, cities: {})",
+                color,
+                vp,
+                settlements,
+                cities
+            );
+        }
     }
 
     // ===== Board Getters =====
@@ -490,6 +570,12 @@ impl State {
         self.vector[ROBBER_TILE_INDEX] = tile_id;
     }
 
+    /// Get the owner of a specific edge (road)
+    /// Returns Some(color) if a road exists on this edge, None otherwise
+    pub fn get_edge_owner(&self, edge_id: EdgeId) -> Option<u8> {
+        self.roads.get(&edge_id).copied()
+    }
+
     pub fn get_bank_resources(&self) -> &[u8] {
         &self.vector[BANK_RESOURCE_SLICE]
     }
@@ -563,6 +649,7 @@ impl Clone for State {
             longest_road_length: self.longest_road_length,
             largest_army_color: self.largest_army_color,
             largest_army_count: self.largest_army_count,
+            cached_winner: self.cached_winner,
         }
     }
 }

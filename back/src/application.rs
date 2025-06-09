@@ -3,13 +3,21 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::actions::{PlayerAction, GameCommand, GameEvent, GameId, PlayerId};
-use crate::errors::{CatanResult, CatanError, GameError};
+use crate::actions::{GameEvent, GameId, PlayerAction};
+use crate::errors::{CatanError, CatanResult, GameError, PlayerError};
 use crate::game::{Game, GameState};
 use crate::player_system::{Player, PlayerFactory};
 
 /// Core application service for game management
 /// This is the main orchestration layer that coordinates between domain and infrastructure
+///
+/// TODO: Known issues and improvements needed:
+/// 1. Human player strategy needs external action injection mechanism  
+/// 2. Bot decision-making could be enhanced with difficulty levels
+/// 3. Game cleanup and resource management needs improvement
+/// 4. Error recovery for network disconnections not implemented
+/// 5. Action validation could be more granular
+/// 6. Game state synchronization between players needs optimization
 #[derive(Clone)]
 pub struct GameService {
     games: Arc<RwLock<HashMap<GameId, Arc<RwLock<Game>>>>>,
@@ -27,56 +35,56 @@ impl GameService {
     /// Create a new game with the specified configuration
     pub async fn create_game(&self, num_players: u8, bot_type: &str) -> CatanResult<GameId> {
         let game_id = Uuid::new_v4().to_string();
-        
+
         // Create player names
         let player_names: Vec<String> = (0..num_players)
             .map(|i| format!("Player {}", i + 1))
             .collect();
-        
+
         // Create the game instance
         let game = Game::new(game_id.clone(), player_names.clone());
-        
+
         // Create player instances using the new player system
         let mut players = Vec::new();
-        let colors = vec!["red", "blue", "white", "orange"];
-        
+        let colors = ["red", "blue", "white", "orange"];
+
         for (i, name) in player_names.iter().enumerate() {
             let player_id = format!("player_{}", i);
             let color = colors[i % colors.len()].to_string();
-            
+
             let player = match bot_type {
                 "random" => PlayerFactory::create_random_bot(player_id, name.clone(), color),
                 "human" => PlayerFactory::create_human(player_id, name.clone(), color),
                 _ => PlayerFactory::create_random_bot(player_id, name.clone(), color),
             };
-            
+
             players.push(player);
         }
-        
+
         // Store the game and players
         {
             let mut games = self.games.write().await;
             games.insert(game_id.clone(), Arc::new(RwLock::new(game)));
         }
-        
+
         {
             let mut game_players = self.players.write().await;
             game_players.insert(game_id.clone(), players);
         }
-        
+
         Ok(game_id)
     }
 
     /// Get a game by ID
     pub async fn get_game(&self, game_id: &str) -> CatanResult<Game> {
         let games = self.games.read().await;
-        
+
         if let Some(game_arc) = games.get(game_id) {
             let game = game_arc.read().await;
             Ok(game.clone())
         } else {
-            Err(CatanError::Game(GameError::GameNotFound { 
-                game_id: game_id.to_string() 
+            Err(CatanError::Game(GameError::GameNotFound {
+                game_id: game_id.to_string(),
             }))
         }
     }
@@ -89,52 +97,95 @@ impl GameService {
 
     /// Process a player action
     pub async fn process_action(
-        &self, 
-        game_id: &str, 
-        player_id: &str, 
-        action: PlayerAction
+        &self,
+        game_id: &str,
+        player_id: &str,
+        action: PlayerAction,
     ) -> CatanResult<Vec<GameEvent>> {
         let games = self.games.read().await;
-        
-        let game_arc = games.get(game_id)
-            .ok_or_else(|| CatanError::Game(GameError::GameNotFound { 
-                game_id: game_id.to_string() 
-            }))?;
-            
+
+        let game_arc = games.get(game_id).ok_or_else(|| {
+            CatanError::Game(GameError::GameNotFound {
+                game_id: game_id.to_string(),
+            })
+        })?;
+
         let mut game = game_arc.write().await;
-        
-        // Convert PlayerAction to the internal Action type
-        let internal_action = action.clone().into();
-        
+
+        // Find the player's color index for proper action conversion
+        let player_color_index = game
+            .players
+            .iter()
+            .position(|p| p.id == player_id)
+            .ok_or_else(|| {
+                CatanError::Player(PlayerError::PlayerNotInGame {
+                    player_id: player_id.to_string(),
+                    game_id: game_id.to_string(),
+                })
+            })? as u8;
+
+        // Convert PlayerAction to the internal Action type with correct color
+        let internal_action =
+            Self::convert_player_action_to_internal(action.clone(), player_color_index);
+
         // Process the action
         match game.process_action(player_id, internal_action) {
             Ok(()) => {
                 // Generate events based on the action
-                let events = vec![
-                    GameEvent::ActionExecuted {
-                        game_id: game_id.to_string(),
-                        player_id: player_id.to_string(),
-                        action,
-                        success: true,
-                        message: "Action processed successfully".to_string(),
-                    }
-                ];
-                
-                Ok(events)
-            },
-            Err(error) => {
-                let events = vec![
-                    GameEvent::ActionExecuted {
-                        game_id: game_id.to_string(),
-                        player_id: player_id.to_string(),
-                        action,
-                        success: false,
-                        message: error,
-                    }
-                ];
-                
+                let events = vec![GameEvent::ActionExecuted {
+                    game_id: game_id.to_string(),
+                    player_id: player_id.to_string(),
+                    action,
+                    success: true,
+                    message: "Action processed successfully".to_string(),
+                }];
+
                 Ok(events)
             }
+            Err(error) => {
+                let events = vec![GameEvent::ActionExecuted {
+                    game_id: game_id.to_string(),
+                    player_id: player_id.to_string(),
+                    action,
+                    success: false,
+                    message: error,
+                }];
+
+                Ok(events)
+            }
+        }
+    }
+
+    /// Convert PlayerAction to internal Action with correct color
+    fn convert_player_action_to_internal(action: PlayerAction, color: u8) -> crate::enums::Action {
+        use crate::enums::Action as EnumAction;
+
+        match action {
+            PlayerAction::Roll => EnumAction::Roll {
+                color,
+                dice_opt: None,
+            },
+            PlayerAction::BuildRoad { edge_id } => EnumAction::BuildRoad { color, edge_id },
+            PlayerAction::BuildSettlement { node_id } => {
+                EnumAction::BuildSettlement { color, node_id }
+            }
+            PlayerAction::BuildCity { node_id } => EnumAction::BuildCity { color, node_id },
+            PlayerAction::BuyDevelopmentCard => EnumAction::BuyDevelopmentCard { color },
+            PlayerAction::PlayKnight => EnumAction::PlayKnight { color },
+            PlayerAction::EndTurn => EnumAction::EndTurn { color },
+            PlayerAction::MoveRobber { coordinate, victim } => {
+                let victim_opt = victim.and_then(|v| {
+                    // Extract color index from "player_X" format
+                    v.strip_prefix("player_").and_then(|s| s.parse::<u8>().ok())
+                });
+                EnumAction::MoveRobber {
+                    color,
+                    coordinate,
+                    victim_opt,
+                }
+            }
+            PlayerAction::Discard { .. } => EnumAction::Discard { color },
+            _ => EnumAction::EndTurn { color }, // Default for unhandled actions
         }
     }
 
@@ -147,58 +198,162 @@ impl GameService {
     /// Get players for a game
     pub async fn get_players(&self, game_id: &str) -> CatanResult<Vec<Player>> {
         let players = self.players.read().await;
-        
+
         if let Some(game_players) = players.get(game_id) {
             Ok(game_players.clone())
         } else {
-            Err(CatanError::Game(GameError::GameNotFound { 
-                game_id: game_id.to_string() 
+            Err(CatanError::Game(GameError::GameNotFound {
+                game_id: game_id.to_string(),
             }))
         }
     }
 
     /// Process bot turn if it's a bot's turn
+    ///
+    /// TODO: Current limitations and improvements needed:
+    /// 1. Bot decision-making is purely random - needs strategy implementation
+    /// 2. Error handling could be more granular (distinguish different failure types)
+    /// 3. Action validation happens after bot decides - should validate available actions first
+    /// 4. No timeout mechanism for bot decisions (could hang indefinitely)
+    /// 5. Bot difficulty levels not supported
+    /// 6. No bot state persistence between turns
+    /// 7. Game state consistency checks missing before bot processing
     pub async fn process_bot_turn(&self, game_id: &str) -> CatanResult<Option<Vec<GameEvent>>> {
         // Get the game to check current player
         let game = self.get_game(game_id).await?;
         let players = self.get_players(game_id).await?;
-        
-        log::info!("Processing bot turn for game {}: current_player_index={}, total_players={}", 
-                  game_id, game.current_player_index, players.len());
-        
-        if game.current_player_index >= players.len() {
-            log::warn!("Invalid current_player_index {} >= {}", game.current_player_index, players.len());
+
+        // BUGFIX: Validate game state before processing
+        if !matches!(game.game_state, GameState::Active | GameState::Setup) {
             return Ok(None);
         }
-        
+
+        if game.current_player_index >= players.len() {
+            log::warn!(
+                "Invalid current_player_index {} >= {} for game {}",
+                game.current_player_index,
+                players.len(),
+                game_id
+            );
+            return Ok(None);
+        }
+
         let current_player = &players[game.current_player_index];
-        log::info!("Current player: {} ({}), is_bot: {}", 
-                  current_player.info.name, current_player.info.id, current_player.info.is_bot);
-        
-        // Check if current player is a bot by examining their strategy type
-        if current_player.info.is_bot {
-            log::info!("Processing bot action for player {}", current_player.info.name);
-            
-            // Let the bot decide what action to take
-            let available_actions = vec![PlayerAction::EndTurn]; // Simplified for now
-            
-            match current_player.decide_action(&game.game_state, &available_actions).await {
-                Ok(action) => {
-                    log::info!("Bot {} decided to take action: {:?}", current_player.info.name, action);
-                    // Process the bot's action
-                    self.process_action(game_id, &current_player.info.id, action).await
+
+        // Check if current player is a bot
+        if !current_player.info.is_bot {
+            return Ok(None);
+        }
+
+        // BUGFIX: Get available actions with proper validation and error handling
+        let available_actions = if let Some(ref state) = game.state {
+            // Get actions from the game state and convert them
+            let state_actions = state.generate_playable_actions();
+            let converted_actions: Vec<PlayerAction> = state_actions
+                .into_iter()
+                .map(|action| action.into())
+                .collect();
+
+            if converted_actions.is_empty() {
+                vec![PlayerAction::EndTurn]
+            } else {
+                converted_actions
+            }
+        } else {
+            log::error!(
+                "No game state available for bot {} in game {}",
+                current_player.info.name,
+                game_id
+            );
+            vec![PlayerAction::EndTurn]
+        };
+
+        // BUGFIX: Add specific logging for initial build phase state tracking
+        if let Some(ref state) = game.state {
+            let action_prompt = state.get_action_prompt();
+            let is_initial_phase = state.is_initial_build_phase();
+            let current_color = state.get_current_color();
+
+            // Get CURRENT PLAYER's building counts, not total
+            let player_settlements = state.get_settlements(current_color).len();
+            let player_roads = state.get_roads_by_color()[current_color as usize];
+            let player_vp = state.get_actual_victory_points(current_color);
+            let cities = state.get_cities(current_color).len();
+
+            log::info!("🎮 Bot {} turn | Phase: {:?} | Initial: {} | VP: {} | Settlements: {} | Cities: {} | Roads: {} | Actions: {}", 
+                      current_player.info.name, action_prompt, is_initial_phase, player_vp, player_settlements, cities, player_roads, available_actions.len());
+
+            // Log ALL PLAYERS' building counts for debugging UI vs backend mismatch
+            log::info!("🏗️  Building Summary:");
+            let num_players = if let Some(ref state) = game.state {
+                state.get_num_players()
+            } else {
+                game.players.len() as u8
+            };
+
+            for player_color in 0..num_players {
+                let settlements = state.get_settlements(player_color).len();
+                let cities = state.get_cities(player_color).len();
+                let vp = state.get_actual_victory_points(player_color);
+                let player_name = format!("Player {}", player_color + 1);
+                log::info!(
+                    "   {} (color {}): {} settlements, {} cities, {} VP",
+                    player_name,
+                    player_color,
+                    settlements,
+                    cities,
+                    vp
+                );
+            }
+        }
+
+        // Let the bot decide what action to take with timeout protection
+        let decision_result = tokio::time::timeout(
+            tokio::time::Duration::from_secs(5), // 5 second timeout for bot decisions
+            current_player.decide_action(&game.game_state, &available_actions),
+        )
+        .await;
+
+        match decision_result {
+            Ok(Ok(action)) => {
+                log::info!("🤖 {} action: {:?}", current_player.info.name, action);
+
+                // BUGFIX: Validate the action is actually in available actions
+                if !available_actions.contains(&action) {
+                    log::warn!(
+                        "Bot {} chose invalid action {:?}. Using EndTurn instead.",
+                        current_player.info.name,
+                        action
+                    );
+                    self.process_action(game_id, &current_player.info.id, PlayerAction::EndTurn)
+                        .await
                         .map(Some)
-                },
-                Err(e) => {
-                    log::warn!("Bot {} failed to decide action: {:?}, ending turn", current_player.info.name, e);
-                    // If bot fails to decide, just end turn
-                    self.process_action(game_id, &current_player.info.id, PlayerAction::EndTurn).await
+                } else {
+                    // Process the bot's action
+                    self.process_action(game_id, &current_player.info.id, action)
+                        .await
                         .map(Some)
                 }
             }
-        } else {
-            log::info!("Current player {} is not a bot, stopping bot processing", current_player.info.name);
-            Ok(None) // Not a bot's turn
+            Ok(Err(e)) => {
+                log::warn!(
+                    "Bot {} decision failed: {:?}, ending turn",
+                    current_player.info.name,
+                    e
+                );
+                self.process_action(game_id, &current_player.info.id, PlayerAction::EndTurn)
+                    .await
+                    .map(Some)
+            }
+            Err(_timeout) => {
+                log::error!(
+                    "Bot {} decision timeout, ending turn",
+                    current_player.info.name
+                );
+                self.process_action(game_id, &current_player.info.id, PlayerAction::EndTurn)
+                    .await
+                    .map(Some)
+            }
         }
     }
 
@@ -208,12 +363,12 @@ impl GameService {
             let mut games = self.games.write().await;
             games.remove(game_id);
         }
-        
+
         {
             let mut players = self.players.write().await;
             players.remove(game_id);
         }
-        
+
         Ok(())
     }
 
@@ -228,4 +383,4 @@ impl Default for GameService {
     fn default() -> Self {
         Self::new()
     }
-} 
+}

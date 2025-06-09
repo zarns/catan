@@ -1,6 +1,4 @@
-#[path = "../deck_slices.rs"]
-mod deck_slices_import;
-use deck_slices_import::{freqdeck_contains, CITY_COST, ROAD_COST, SETTLEMENT_COST};
+use crate::deck_slices::{freqdeck_contains, CITY_COST, ROAD_COST, SETTLEMENT_COST};
 
 use super::Building;
 use super::State;
@@ -33,8 +31,24 @@ impl State {
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
         if is_initial_build_phase {
+            // CRITICAL BUGFIX: Filter out occupied nodes and their neighbors for initial build phase
             self.board_buildable_ids
                 .iter()
+                .filter(|&node_id| {
+                    // Check if node is occupied
+                    if self.buildings.contains_key(node_id) {
+                        return false;
+                    }
+
+                    // Check if any neighbor is occupied (distance rule)
+                    for neighbor_id in self.map_instance.get_neighbor_nodes(*node_id) {
+                        if self.buildings.contains_key(&neighbor_id) {
+                            return false;
+                        }
+                    }
+
+                    true
+                })
                 .map(|node_id| Action::BuildSettlement {
                     color,
                     node_id: *node_id,
@@ -46,8 +60,36 @@ impl State {
             let has_settlements_available = settlements_used < 5;
 
             if has_resources && has_settlements_available {
+                // CRITICAL BUGFIX: Apply same filtering for non-initial phase + ROAD CONNECTIVITY
                 self.buildable_node_ids(color)
                     .into_iter()
+                    .filter(|&node_id| {
+                        // Check if node is occupied
+                        if self.buildings.contains_key(&node_id) {
+                            return false;
+                        }
+
+                        // Check if any neighbor is occupied (distance rule)
+                        for neighbor_id in self.map_instance.get_neighbor_nodes(node_id) {
+                            if self.buildings.contains_key(&neighbor_id) {
+                                return false;
+                            }
+                        }
+
+                        // CRITICAL: Check road connectivity (non-initial build phase only)
+                        // Must be adjacent to at least one road owned by this player
+                        let has_adjacent_road = self
+                            .map_instance
+                            .get_neighbor_edges(node_id)
+                            .iter()
+                            .any(|&edge_id| self.roads.get(&edge_id) == Some(&color));
+
+                        if !has_adjacent_road {
+                            return false;
+                        }
+
+                        true
+                    })
                     .map(|node_id| Action::BuildSettlement { color, node_id })
                     .collect()
             } else {
@@ -57,10 +99,23 @@ impl State {
     }
 
     pub fn initial_road_possibilities(&self, color: u8) -> Vec<Action> {
-        let last_settlement_building = self.buildings_by_color[&color].last().unwrap();
+        // Get the last settlement built by this player
+        let last_settlement_building = self
+            .buildings_by_color
+            .get(&color)
+            .and_then(|buildings| buildings.last());
+
         let last_node_id = match last_settlement_building {
-            Building::Settlement(_, node_id) => *node_id,
-            _ => panic!("Invalid building type"),
+            Some(Building::Settlement(_, node_id)) => *node_id,
+            Some(Building::City(_, node_id)) => *node_id,
+            None => {
+                // No buildings yet, return empty - shouldn't happen in proper initial build sequence
+                log::warn!(
+                    "initial_road_possibilities called for color {} with no buildings",
+                    color
+                );
+                return vec![];
+            }
         };
 
         self.board_buildable_edges(color)
@@ -315,13 +370,21 @@ impl State {
         let hand = self.get_player_hand(color);
         let total_cards: u8 = hand.iter().sum();
 
-        // If player has 7 or fewer cards, they can just end their turn
-        if total_cards <= 7 {
+        // BUGFIX: If player has fewer cards than the discard limit, they shouldn't be in discard phase
+        // But if they ARE in discard phase, they must discard (this can happen if they had >7 cards
+        // when 7 was rolled, but then other players discarded and affected their hand somehow)
+        if total_cards <= self.config.discard_limit {
+            // This shouldn't normally happen, but if it does, treat as no discard needed
+            log::warn!(
+                "Player {} in discard phase but only has {} cards (limit: {})",
+                color,
+                total_cards,
+                self.config.discard_limit
+            );
             return vec![Action::EndTurn { color }];
         }
 
-        // For now, just generate a single discard action
-        // This is to prevent state space explosion
+        // Player must discard - return only discard action
         vec![Action::Discard { color }]
     }
 }

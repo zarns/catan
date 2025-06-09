@@ -6,6 +6,12 @@ pub struct OrderedHashMap<K, V> {
     keys: Vec<K>,
 }
 
+impl<K: std::hash::Hash + Eq + Clone, V> Default for OrderedHashMap<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K: std::hash::Hash + Eq + Clone, V> OrderedHashMap<K, V> {
     pub fn new() -> Self {
         OrderedHashMap {

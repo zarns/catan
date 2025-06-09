@@ -9,16 +9,16 @@ use crate::game::GameState;
 pub trait Player {
     /// Returns the player's unique identifier
     fn id(&self) -> &str;
-    
+
     /// Returns the player's name
     fn name(&self) -> &str;
-    
+
     /// Returns the player's color
     fn color(&self) -> &str;
-    
+
     /// Returns true if the player is a bot
     fn is_bot(&self) -> bool;
-    
+
     /// Decides the next action for the player
     fn decide_action(&self, state: &GameState) -> Action;
 }

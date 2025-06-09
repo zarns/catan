@@ -119,9 +119,7 @@ export class BoardComponent implements OnInit, AfterViewInit {
   
   // Safe accessor methods
   getTiles(): any[] {
-    const tiles = this.gameState?.tiles || [];
-    console.log('🏔️ getTiles() returning:', tiles.length, 'tiles');
-    return tiles;
+    return this.gameState?.tiles || [];
   }
   
   getPorts(): any[] {

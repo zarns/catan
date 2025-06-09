@@ -32,15 +32,17 @@ pub mod manager;
 pub mod websocket;
 
 // Re-export new unified types
-pub use crate::actions::{PlayerAction, GameCommand, GameEvent, ActionResult, PlayerId, GameId};
-pub use crate::errors::{CatanError, GameError, PlayerError, NetworkError, CatanResult, GameResult};
+pub use crate::actions::{ActionResult, GameCommand, GameEvent, GameId, PlayerAction, PlayerId};
+pub use crate::errors::{
+    CatanError, CatanResult, GameError, GameResult, NetworkError, PlayerError,
+};
 
 // Re-export common types for convenient access
 pub use crate::enums::{ActionPrompt, DevCard, GameConfiguration, MapType, Resource};
 pub use crate::game::{Game, GameState, Player};
 pub use crate::manager::{GameManager, GameStatus};
-pub use crate::player::{Player as GamePlayer, HumanPlayer};
-pub use crate::player_system::{Player as NewPlayer, PlayerStrategy, PlayerFactory};
+pub use crate::player::{HumanPlayer, Player as GamePlayer};
+pub use crate::player_system::{Player as NewPlayer, PlayerFactory, PlayerStrategy};
 pub use crate::websocket::{WebSocketManager, WsMessage};
 
 // Common types used throughout the application
@@ -51,6 +53,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Create a new game instance with the given configuration
 pub fn create_game(config: GameConfiguration) -> CatanResult<Game> {
-    Ok(Game::new(uuid::Uuid::new_v4().to_string(), 
-                vec!["Player".to_string(); config.num_players as usize]))
+    Ok(Game::new(
+        uuid::Uuid::new_v4().to_string(),
+        vec!["Player".to_string(); config.num_players as usize],
+    ))
 }

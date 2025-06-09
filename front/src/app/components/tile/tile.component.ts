@@ -46,12 +46,7 @@ export class TileComponent implements OnInit {
   @Input() number: number | null | undefined = null;
   
   ngOnInit() {
-    console.log('🏔️ TileComponent created:', {
-      coordinate: this.coordinate,
-      resource: this.resource,
-      number: this.number,
-      isPort: this.isPort
-    });
+    // TileComponent initialization
   }
   @Input() size: number = 60;
   @Input() centerX: number = 0;

@@ -38,7 +38,7 @@ export class NodeComponent {
   readonly SQRT3 = 1.732;
   
   get buildingClass(): string {
-    return this.building === 'City' ? 'city' : 'settlement';
+    return this.building === 'city' ? 'city' : 'settlement';
   }
   
   get nodeStyle() {

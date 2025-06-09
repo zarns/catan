@@ -32,9 +32,7 @@ export class WebsocketService {
     this.disconnect();
 
     const wsUrl = `${environment.wsUrl}/games/${gameId}`;
-    console.log(`Attempting WebSocket connection to: ${wsUrl}`);
-    console.log(`Environment wsUrl: ${environment.wsUrl}`);
-    console.log(`Game ID: ${gameId}`);
+
     
     this.socket = new WebSocket(wsUrl);
 

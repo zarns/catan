@@ -21,4 +21,4 @@ pub use self::human::HumanPlayer;
 // pub use self::minimax::AlphaBetaPlayer as MinimaxPlayer;
 // pub use self::greedy::GreedyPlayer;
 // pub use self::mcts::MonteCarloPlayer as MCTSPlayer;
-// pub use self::weighted_random::WeightedRandomPlayer; 
+// pub use self::weighted_random::WeightedRandomPlayer;

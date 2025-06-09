@@ -6,14 +6,13 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use log;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 
 use catan::application::GameService;
-use catan::websocket_service::WebSocketService;
 use catan::game::Game;
+use catan::websocket_service::WebSocketService;
 
 // Game configuration
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -58,18 +57,22 @@ async fn create_game(
     let bot_type = match config.mode {
         GameMode::RandomBots => "random",
         GameMode::HumanVsCatanatron => "human", // First player human, rest bots
-        GameMode::CatanatronBots => "random", // All bots for now
+        GameMode::CatanatronBots => "random",   // All bots for now
     };
 
     // Delegate to game service (clean separation)
-    match state.game_service.create_game(config.num_players, bot_type).await {
+    match state
+        .game_service
+        .create_game(config.num_players, bot_type)
+        .await
+    {
         Ok(game_id) => {
             // Return the full game object
             match state.game_service.get_game(&game_id).await {
                 Ok(game) => Ok(Json(game)),
                 Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
             }
-        },
+        }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -96,7 +99,10 @@ async fn ws_handler(
 ) -> impl IntoResponse {
     // Delegate to WebSocket service (clean separation)
     ws.on_upgrade(move |socket| async move {
-        state.websocket_service.handle_connection(socket, game_id).await
+        state
+            .websocket_service
+            .handle_connection(socket, game_id)
+            .await
     })
 }
 

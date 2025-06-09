@@ -13,7 +13,7 @@ use std::sync::Arc;
 pub type GameAction = EnumAction;
 
 // Game state enum to track the current state of the game
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum GameState {
     Setup,
     Active,
@@ -281,7 +281,7 @@ pub fn create_player(id: String, name: String, color: String) -> Player {
 
 // Create a new Game with default settings
 pub fn create_game(id: String, player_names: Vec<String>) -> Game {
-    let colors = vec!["red", "blue", "white", "orange"];
+    let colors = ["red", "blue", "white", "orange"];
 
     let players = player_names
         .iter()
@@ -348,7 +348,7 @@ pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
 
 impl Game {
     pub fn new(id: String, player_names: Vec<String>) -> Self {
-        let colors = vec!["red", "blue", "white", "orange"];
+        let colors = ["red", "blue", "white", "orange"];
 
         let players = player_names
             .iter()
@@ -384,7 +384,7 @@ impl Game {
         Game {
             id,
             players,
-            game_state: GameState::Active,
+            game_state: GameState::Setup,
             board: generate_board_from_template(&map_instance),
             current_player_index: 0,
             dice_rolled: false,
@@ -396,20 +396,13 @@ impl Game {
 
     // Process an action on the game
     pub fn process_action(&mut self, player_id: &str, action: GameAction) -> Result<(), String> {
-        // Check if the game is in an active state
+        // Check if the game is in a valid state for actions
         match self.game_state {
-            GameState::Setup => return Err("Game is in setup phase".into()),
             GameState::Finished { .. } => return Err("Game already finished".into()),
-            GameState::Active => {}
+            GameState::Setup | GameState::Active => {} // Allow actions in both Setup and Active phases
         }
 
-        // Ensure we have a valid state
-        let state = match &mut self.state {
-            Some(state) => state,
-            None => return Err("Game state is missing".into()),
-        };
-
-        // Find the player's color index
+        // Find the player's color index first
         let player_index = self.players.iter().position(|p| p.id == player_id);
 
         if player_index.is_none() {
@@ -419,18 +412,48 @@ impl Game {
         let player_index = player_index.unwrap();
         let _color_idx = player_index as u8; // Prefix with underscore to indicate it's unused
 
-        // Apply the action directly since GameAction is now an alias for EnumAction
-        state.apply_action(action);
+        // Apply the action and get updated state info
+        let (new_current_player, new_dice_rolled) = {
+            // Scope the mutable borrow of state
+            let state = match &mut self.state {
+                Some(state) => state,
+                None => return Err("Game state is missing".into()),
+            };
 
-        // Update frontend players from the state
-        update_players_from_state(&mut self.players, state);
+            // Apply the action directly since GameAction is now an alias for EnumAction
+            state.apply_action(action);
 
-        // Update current player and dice rolled status
-        self.current_player_index = state.get_current_color() as usize;
-        self.dice_rolled = state.current_player_rolled();
+            // Update frontend players from the state
+            update_players_from_state(&mut self.players, state);
+
+            // Get current player and dice rolled status
+            (
+                state.get_current_color() as usize,
+                state.current_player_rolled(),
+            )
+        };
+
+        // Now we can safely update other fields
+        self.current_player_index = new_current_player;
+        self.dice_rolled = new_dice_rolled;
+
+        // Update the board representation to reflect the new state
+        self.update_board();
+
+        // BUGFIX - Sync frontend game_state with internal state phase transitions
+        // Check if we should transition from Setup to Active phase
+        if self.game_state == GameState::Setup {
+            if let Some(ref state) = self.state {
+                if !state.is_initial_build_phase() {
+                    println!("🎮 Game {}: Transitioning from Setup to Active phase - initial build phase completed", self.id);
+                    self.game_state = GameState::Active;
+                }
+            }
+        }
 
         // Check if the game is finished
-        if let Some(winner_color) = state.winner() {
+        let winner_color = self.state.as_ref().and_then(|s| s.winner());
+        if let Some(winner_color) = winner_color {
             let winner_name = if (winner_color as usize) < self.players.len() {
                 self.players[winner_color as usize].name.clone()
             } else {
@@ -461,6 +484,26 @@ impl Game {
             self.board = generate_board_from_state(state, &map_instance);
         }
     }
+
+    /// Get whether the game is in the initial build phase from the internal state
+    pub fn is_initial_build_phase(&self) -> bool {
+        self.state
+            .as_ref()
+            .map(|s| s.is_initial_build_phase())
+            .unwrap_or(true) // Default to true if no state available
+    }
+
+    /// Helper method to verify frontend and backend state consistency
+    pub fn verify_state_consistency(&self) -> bool {
+        match (&self.game_state, self.state.as_ref()) {
+            (GameState::Setup, Some(state)) => state.is_initial_build_phase(),
+            (GameState::Active, Some(state)) => {
+                !state.is_initial_build_phase() && state.winner().is_none()
+            }
+            (GameState::Finished { .. }, Some(state)) => state.winner().is_some(),
+            _ => false, // Inconsistent if no internal state
+        }
+    }
 }
 
 // Generate a serializable game board from the State and MapInstance
@@ -470,6 +513,9 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     let mut nodes = HashMap::new();
     let mut edges = HashMap::new();
     let mut robber_coordinate = None;
+
+    // Track processed nodes to avoid duplicates
+    let mut processed_nodes = std::collections::HashSet::new();
 
     // Get robber position from state
     let robber_tile_id = state.get_robber_tile();
@@ -486,8 +532,14 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     robber_coordinate = Some(convert_coordinate(coordinate));
                 }
 
-                // Generate nodes for this tile
+                // Generate nodes for this tile - but avoid duplicates
                 for (&node_ref, &node_id) in &land_tile.hexagon.nodes {
+                    // Skip if we've already processed this node
+                    if processed_nodes.contains(&node_id) {
+                        continue;
+                    }
+                    processed_nodes.insert(node_id);
+
                     let direction = match node_ref {
                         NodeRef::North => "N",
                         NodeRef::NorthEast => "NE",
@@ -497,8 +549,8 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                         NodeRef::NorthWest => "NW",
                     };
 
-                    // Use a more compact node ID format: n{id}_{direction}
-                    let node_id_str = format!("n{}_{}", node_id, direction);
+                    // Use just the node ID as the key to ensure uniqueness
+                    let node_id_str = format!("n{}", node_id);
 
                     // Get building info using public state methods
                     let building_type_opt = state.get_building_type(node_id);
@@ -510,16 +562,13 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                         None => None,
                     };
 
-                    let building_color = match building_color_idx_opt {
-                        Some(color_idx) => Some(match color_idx {
-                            0 => "red".to_string(),
-                            1 => "blue".to_string(),
-                            2 => "white".to_string(),
-                            3 => "orange".to_string(),
-                            _ => "unknown".to_string(), // Handle unexpected color index
-                        }),
-                        None => None,
-                    };
+                    let building_color = building_color_idx_opt.map(|color_idx| match color_idx {
+                        0 => "red".to_string(),
+                        1 => "blue".to_string(),
+                        2 => "white".to_string(),
+                        3 => "orange".to_string(),
+                        _ => "unknown".to_string(), // Handle unexpected color index
+                    });
 
                     nodes.insert(
                         node_id_str,
@@ -533,7 +582,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                 }
 
                 // Generate edges for this tile
-                for (&edge_ref, &(node1, _node2)) in &land_tile.hexagon.edges {
+                for (&edge_ref, &(node1, node2)) in &land_tile.hexagon.edges {
                     let direction = match edge_ref {
                         EdgeRef::East => "E",
                         EdgeRef::SouthEast => "SE",
@@ -544,15 +593,21 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     };
 
                     // Use a more compact edge ID format: e{direction}_{node1}
-                    let edge_id = format!("e{}_{}", direction, node1);
+                    let edge_id_str = format!("e{}_{}", direction, node1);
 
-                    // Get road info from state
-                    // This is a placeholder. You would need to implement a way to get the
-                    // edge owner from your State object.
-                    let edge_color = None; // To be implemented: state.get_edge_owner(edge_id)
+                    // BUGFIX: Get road info from state using the actual EdgeId tuple
+                    let edge_id_tuple = (node1, node2);
+                    let edge_color_idx = state.get_edge_owner(edge_id_tuple);
+                    let edge_color = edge_color_idx.map(|color_idx| match color_idx {
+                        0 => "red".to_string(),
+                        1 => "blue".to_string(),
+                        2 => "white".to_string(),
+                        3 => "orange".to_string(),
+                        _ => "unknown".to_string(),
+                    });
 
                     edges.insert(
-                        edge_id,
+                        edge_id_str,
                         Edge {
                             color: edge_color,
                             tile_coordinate: convert_coordinate(coordinate),
@@ -581,7 +636,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
 }
 
 // Update frontend players from the State
-fn update_players_from_state(players: &mut Vec<Player>, state: &State) {
+fn update_players_from_state(players: &mut [Player], state: &State) {
     for (i, player) in players.iter_mut().enumerate() {
         let color_idx = i as u8;
 
