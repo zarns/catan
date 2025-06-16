@@ -7,6 +7,12 @@ interface NodeCoordinate {
   z: number;
 }
 
+interface NodeAbsoluteCoordinate {
+  x: number;
+  y: number;
+  z: number;
+}
+
 @Component({
   selector: 'app-node',
   standalone: true,
@@ -15,16 +21,30 @@ interface NodeCoordinate {
     <div class="node" 
          [ngClass]="direction"
          [ngStyle]="nodeStyle"
+         [attr.data-node-id]="id"
+         [attr.data-node-coord]="getCoordinateString()"
+         [attr.data-node-direction]="direction"
+         [attr.data-node-building]="building"
+         [attr.data-node-color]="color"
+         [attr.title]="getDebugTitle()"
          (click)="onClick.emit(id)">
       <div *ngIf="color" [ngClass]="[color.toLowerCase(), buildingClass]" class="building"></div>
       <div *ngIf="flashing" class="pulse"></div>
+      
+      <!-- Debug overlay for development -->
+      <div class="debug-overlay" *ngIf="showDebugInfo">
+        <div class="debug-id">{{ id }}</div>
+        <div class="debug-direction">{{ direction }}</div>
+        <div class="debug-building" *ngIf="building">{{ building }}</div>
+      </div>
     </div>
   `,
   styleUrls: ['./node.component.scss']
 })
 export class NodeComponent {
   @Input() id: string = '';
-  @Input() coordinate!: NodeCoordinate;
+  @Input() coordinate!: NodeCoordinate; // DEPRECATED: For backward compatibility
+  @Input() absoluteCoordinate?: NodeAbsoluteCoordinate; // NEW: Absolute positioning
   @Input() direction: string = '';
   @Input() building: string | null = null;
   @Input() color: string | null = null;
@@ -32,6 +52,7 @@ export class NodeComponent {
   @Input() size: number = 60;
   @Input() centerX: number = 0;
   @Input() centerY: number = 0;
+  @Input() showDebugInfo: boolean = false;
   @Output() onClick = new EventEmitter<string>();
   
   // Constants
@@ -42,12 +63,18 @@ export class NodeComponent {
   }
   
   get nodeStyle() {
-    const [tileX, tileY] = this.tilePixelVector();
-    const [deltaX, deltaY] = this.getNodeDelta();
+    let x: number, y: number;
     
-    // Calculate the final position with the delta
-    const x = tileX + deltaX;
-    const y = tileY + deltaY;
+    // Use absolute coordinates if available, otherwise fall back to tile-relative positioning
+    if (this.absoluteCoordinate) {
+      [x, y] = this.absolutePixelVector();
+    } else {
+      // Legacy positioning for backward compatibility
+      const [tileX, tileY] = this.tilePixelVector();
+      const [deltaX, deltaY] = this.getNodeDelta();
+      x = tileX + deltaX;
+      y = tileY + deltaY;
+    }
     
     return {
       width: `${this.size * 0.21}px`,
@@ -73,6 +100,22 @@ export class NodeComponent {
     // Convert cube coordinates to pixel coordinates
     const pixelX = this.centerX + width * (x + y/2);
     const pixelY = this.centerY + height * (3/4) * y;
+    
+    return [pixelX, pixelY];
+  }
+
+  // Convert absolute coordinates to pixel coordinates
+  absolutePixelVector(): [number, number] {
+    if (!this.absoluteCoordinate) {
+      return [0, 0];
+    }
+    
+    const { x, y } = this.absoluteCoordinate;
+    const size = this.size;
+    
+    // Scale and center the normalized coordinates
+    const pixelX = this.centerX + (x * size);
+    const pixelY = this.centerY + (y * size);
     
     return [pixelX, pixelY];
   }
@@ -113,5 +156,19 @@ export class NodeComponent {
         console.warn(`Node ${this.id} has invalid direction: "${this.direction}"`);
         return [0, 0];
     }
+  }
+  
+  getCoordinateString(): string {
+    if (!this.coordinate) {
+      return '';
+    }
+    return `${this.coordinate.x},${this.coordinate.y},${this.coordinate.z}`;
+  }
+  
+  getDebugTitle(): string {
+    if (!this.building) {
+      return '';
+    }
+    return `Node ${this.id} - Building: ${this.building}`;
   }
 } 

@@ -1,4 +1,3 @@
-
 use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
@@ -382,9 +381,36 @@ impl State {
 
     fn build_road(&mut self, placing_color: u8, edge_id: EdgeId) -> (Option<u8>, u8) {
         let inverted_edge = (edge_id.1, edge_id.0);
+        
+        // DEBUG: Log road building details
+        log::debug!(
+            "🛣️  Building road for player {} on edge ({}, {}) and inverted ({}, {})",
+            placing_color,
+            edge_id.0,
+            edge_id.1,
+            inverted_edge.0,
+            inverted_edge.1
+        );
+        
+        // DEBUG: Log existing roads before insertion
+        let existing_roads_count = self.roads.len() / 2; // Each road stored twice
+        log::debug!(
+            "📊 Before insertion: {} roads in storage, inserting for player {}",
+            existing_roads_count,
+            placing_color
+        );
+        
         self.roads.insert(edge_id, placing_color);
         self.roads.insert(inverted_edge, placing_color);
         self.roads_by_color[placing_color as usize] += 1;
+        
+        // DEBUG: Log after insertion
+        log::debug!(
+            "📊 After insertion: {} roads in storage, player {} now has {} roads",
+            self.roads.len() / 2,
+            placing_color,
+            self.roads_by_color[placing_color as usize]
+        );
 
         let is_initial_build_phase = self.is_initial_build_phase();
         let is_free = is_initial_build_phase || self.is_road_building();

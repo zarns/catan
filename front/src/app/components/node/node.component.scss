@@ -169,3 +169,35 @@
   &.SOUTHWEST::after { background-color: blue; }
   &.NORTHWEST::after { background-color: purple; }
 } 
+
+// Debug overlay styles
+.debug-overlay {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-family: monospace;
+  z-index: 30;
+  pointer-events: none;
+  white-space: nowrap;
+  margin-top: 2px;
+  
+  .debug-id {
+    color: #ffeb3b;
+    font-weight: bold;
+  }
+  
+  .debug-direction {
+    color: #2196f3;
+  }
+  
+  .debug-building {
+    color: #4caf50;
+    font-weight: bold;
+  }
+} 

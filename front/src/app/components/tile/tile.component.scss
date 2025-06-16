@@ -226,4 +226,34 @@ $color-ore: #777777;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+// Debug overlay styles
+.debug-overlay {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  z-index: 20;
+  pointer-events: none;
+  line-height: 1.2;
+  
+  .debug-coord {
+    font-weight: bold;
+    color: #ffeb3b;
+  }
+  
+  .debug-resource {
+    color: #4caf50;
+  }
+  
+  .debug-number {
+    color: #ff9800;
+    font-weight: bold;
+  }
 } 

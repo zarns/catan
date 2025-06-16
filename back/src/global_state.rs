@@ -105,15 +105,15 @@ impl GlobalState {
         topology.insert((0, -3, 3), TileSlot::Water);
         topology.insert((-1, -2, 3), TileSlot::SEPort);
         topology.insert((-2, -1, 3), TileSlot::Water);
-        topology.insert((-3, 0, 3), TileSlot::EPort);
+        topology.insert((-3, 0, 3), TileSlot::NPort);
         topology.insert((-3, 1, 2), TileSlot::Water);
-        topology.insert((-3, 2, 1), TileSlot::EPort);
+        topology.insert((-3, 2, 1), TileSlot::NPort);
         topology.insert((-3, 3, 0), TileSlot::Water);
         topology.insert((-2, 3, -1), TileSlot::NEPort);
         topology.insert((-1, 3, -2), TileSlot::Water);
         topology.insert((0, 3, -3), TileSlot::NWPort);
         topology.insert((1, 2, -3), TileSlot::Water);
-        topology.insert((2, 1, -3), TileSlot::WPort);
+        topology.insert((2, 1, -3), TileSlot::SPort);
         topology.insert((3, 0, -3), TileSlot::Water);
         topology.insert((3, -1, -2), TileSlot::SWPort);
         topology.insert((3, -2, -1), TileSlot::Water);

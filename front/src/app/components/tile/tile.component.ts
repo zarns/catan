@@ -14,7 +14,11 @@ import { MatCardModule } from '@angular/material/card';
          [attr.data-hex-y]="coordinate?.y"
          [attr.data-hex-z]="coordinate?.z"
          [attr.data-hex-coord]="getCoordinateString()"
+         [attr.data-resource]="resource"
+         [attr.data-number]="number"
+         [attr.data-tile-id]="getTileId()"
          [attr.data-direction]="isPort ? portDirection : ''"
+         [attr.title]="getDebugTitle()"
          (click)="onClick.emit(coordinate)">
       
       <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
@@ -23,6 +27,13 @@ import { MatCardModule } from '@angular/material/card';
       <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
         <div class="number">{{ number }}</div>
         <div class="pips">{{ numberToPips(number) }}</div>
+      </div>
+      
+      <!-- Debug overlay for development (only visible when debug mode is enabled) -->
+      <div class="debug-overlay" *ngIf="showDebugInfo">
+        <div class="debug-coord">{{ getCoordinateString() }}</div>
+        <div class="debug-resource" *ngIf="resource">{{ resource }}</div>
+        <div class="debug-number" *ngIf="number">{{ number }}</div>
       </div>
       
       <!-- Port indicator for harbors - move this with the same transform as the port tile -->
@@ -61,6 +72,9 @@ export class TileComponent implements OnInit {
   
   @Output() onClick = new EventEmitter<any>();
   
+  // Debug mode flag - can be controlled via input or environment
+  @Input() showDebugInfo: boolean = false;
+  
   // Constants
   readonly SQRT3 = 1.732;
   
@@ -68,6 +82,25 @@ export class TileComponent implements OnInit {
   getCoordinateString(): string {
     if (!this.coordinate) return '';
     return `(${this.coordinate.x},${this.coordinate.y},${this.coordinate.z})`;
+  }
+  
+  // Get a unique tile ID for debugging
+  getTileId(): string {
+    if (!this.coordinate) return 'unknown';
+    return `tile_${this.coordinate.x}_${this.coordinate.y}_${this.coordinate.z}`;
+  }
+  
+  // Get debug title for hover tooltip
+  getDebugTitle(): string {
+    const parts = [];
+    parts.push(`Coordinate: ${this.getCoordinateString()}`);
+    if (this.resource) parts.push(`Resource: ${this.resource}`);
+    if (this.number) parts.push(`Number: ${this.number}`);
+    if (this.isPort) {
+      parts.push(`Port: ${this.portRatio}:1`);
+      if (this.portResource) parts.push(`Port Resource: ${this.portResource}`);
+    }
+    return parts.join(' | ');
   }
   
   get tileStyle() {

@@ -28,6 +28,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
                   [centerX]="centerX"
                   [centerY]="centerY"
                   [flashing]="isMovingRobber"
+                  [showDebugInfo]="debugMode"
                   (onClick)="onTileClick(tile.coordinate)">
         </app-tile>
         
@@ -42,6 +43,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
                   [size]="size"
                   [centerX]="centerX"
                   [centerY]="centerY"
+                  [showDebugInfo]="debugMode"
                   (onClick)="onTileClick(port.coordinate)">
         </app-tile>
         
@@ -49,12 +51,15 @@ import { Coordinate, GameBoard } from '../../services/game.service';
         <app-edge *ngFor="let edge of getEdges()"
                   [id]="edge.id"
                   [coordinate]="edge.tile_coordinate"
+                  [node1AbsoluteCoordinate]="edge.node1_absolute_coordinate"
+                  [node2AbsoluteCoordinate]="edge.node2_absolute_coordinate"
                   [direction]="edge.direction"
                   [color]="edge.color"
                   [flashing]="isActionableEdge(edge.id)"
                   [size]="size"
                   [centerX]="centerX"
                   [centerY]="centerY"
+                  [showDebugInfo]="debugMode"
                   (onClick)="onEdgeClick(edge.id)">
         </app-edge>
         
@@ -62,6 +67,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
         <app-node *ngFor="let node of getNodes()"
                   [id]="node.id"
                   [coordinate]="node.tile_coordinate"
+                  [absoluteCoordinate]="node.absolute_coordinate"
                   [direction]="node.direction"
                   [building]="node.building"
                   [color]="node.color"
@@ -69,6 +75,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
                   [size]="size"
                   [centerX]="centerX"
                   [centerY]="centerY"
+                  [showDebugInfo]="debugMode"
                   (onClick)="onNodeClick(node.id)">
         </app-node>
         
@@ -106,6 +113,9 @@ export class BoardComponent implements OnInit, AfterViewInit {
   @Input() nodeActions: {[key: string]: any} = {};
   @Input() edgeActions: {[key: string]: any} = {};
   
+  // Debug mode flag - can be controlled from parent component
+  @Input() debugMode: boolean = false;
+  
   // Board properties
   size: number = 60;
   centerX: number = 0;
@@ -113,9 +123,6 @@ export class BoardComponent implements OnInit, AfterViewInit {
   
   // Constants
   readonly SQRT3 = 1.732;
-  
-  // Debug flag - set to true to make nodes visible for testing
-  debugMode: boolean = true;
   
   // Safe accessor methods
   getTiles(): any[] {

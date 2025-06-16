@@ -30,38 +30,38 @@ const NODE_REFS: [NodeRef; 6] = [
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum EdgeRef {
-    East,
+    North,
     SouthEast,
     SouthWest,
-    West,
+    South,
     NorthWest,
     NorthEast,
 }
 
 const EDGE_REFS: [EdgeRef; 6] = [
-    EdgeRef::East,
+    EdgeRef::North,
     EdgeRef::SouthEast,
     EdgeRef::SouthWest,
-    EdgeRef::West,
+    EdgeRef::South,
     EdgeRef::NorthWest,
     EdgeRef::NorthEast,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
-    East,
+    North,
     SouthEast,
     SouthWest,
-    West,
+    South,
     NorthWest,
     NorthEast,
 }
 
 const DIRECTIONS: [Direction; 6] = [
-    Direction::East,
+    Direction::North,
     Direction::SouthEast,
     Direction::SouthWest,
-    Direction::West,
+    Direction::South,
     Direction::NorthWest,
     Direction::NorthEast,
 ];
@@ -72,8 +72,8 @@ fn get_unit_vector(direction: Direction) -> (i8, i8, i8) {
         Direction::SouthWest => (-1, 0, 1),
         Direction::NorthWest => (0, 1, -1),
         Direction::SouthEast => (0, -1, 1),
-        Direction::East => (1, -1, 0),
-        Direction::West => (-1, 1, 0),
+        Direction::North => (1, -1, 0),
+        Direction::South => (-1, 1, 0),
     }
 }
 
@@ -250,10 +250,10 @@ impl MapInstance {
                 let direction = match tile_slot {
                     TileSlot::NWPort => Direction::NorthWest,
                     TileSlot::NEPort => Direction::NorthEast,
-                    TileSlot::EPort => Direction::East,
+                    TileSlot::NPort => Direction::North,
                     TileSlot::SEPort => Direction::SouthEast,
                     TileSlot::SWPort => Direction::SouthWest,
-                    TileSlot::WPort => Direction::West,
+                    TileSlot::SPort => Direction::South,
                     _ => panic!("Invalid port tile slot"),
                 };
                 let resource = shuffled_ports.pop().unwrap();
@@ -353,10 +353,10 @@ impl MapInstance {
 
 fn get_noderefs_from_port_direction(direction: Direction) -> (NodeRef, NodeRef) {
     match direction {
-        Direction::East => (NodeRef::NorthEast, NodeRef::SouthEast),
+        Direction::North => (NodeRef::NorthEast, NodeRef::SouthEast),
         Direction::SouthEast => (NodeRef::SouthEast, NodeRef::South),
         Direction::SouthWest => (NodeRef::South, NodeRef::SouthWest),
-        Direction::West => (NodeRef::SouthWest, NodeRef::NorthWest),
+        Direction::South => (NodeRef::SouthWest, NodeRef::NorthWest),
         Direction::NorthWest => (NodeRef::NorthWest, NodeRef::North),
         Direction::NorthEast => (NodeRef::North, NodeRef::NorthEast),
     }
@@ -382,7 +382,7 @@ fn get_nodes_edges(
         if hexagons.contains_key(&neighbor_coordinate) {
             let neighbor_hexagon = hexagons.get(&neighbor_coordinate).unwrap();
 
-            if neighbor_direction == Direction::East {
+            if neighbor_direction == Direction::North {
                 nodes.insert(
                     NodeRef::NorthEast,
                     *neighbor_hexagon.nodes.get(&NodeRef::NorthWest).unwrap(),
@@ -392,8 +392,8 @@ fn get_nodes_edges(
                     *neighbor_hexagon.nodes.get(&NodeRef::SouthWest).unwrap(),
                 );
                 edges.insert(
-                    EdgeRef::East,
-                    *neighbor_hexagon.edges.get(&EdgeRef::West).unwrap(),
+                    EdgeRef::North,
+                    *neighbor_hexagon.edges.get(&EdgeRef::South).unwrap(),
                 );
             } else if neighbor_direction == Direction::SouthEast {
                 nodes.insert(
@@ -421,7 +421,7 @@ fn get_nodes_edges(
                     EdgeRef::SouthWest,
                     *neighbor_hexagon.edges.get(&EdgeRef::NorthEast).unwrap(),
                 );
-            } else if neighbor_direction == Direction::West {
+            } else if neighbor_direction == Direction::South {
                 nodes.insert(
                     NodeRef::NorthWest,
                     *neighbor_hexagon.nodes.get(&NodeRef::NorthEast).unwrap(),
@@ -431,8 +431,8 @@ fn get_nodes_edges(
                     *neighbor_hexagon.nodes.get(&NodeRef::SouthEast).unwrap(),
                 );
                 edges.insert(
-                    EdgeRef::West,
-                    *neighbor_hexagon.edges.get(&EdgeRef::East).unwrap(),
+                    EdgeRef::South,
+                    *neighbor_hexagon.edges.get(&EdgeRef::North).unwrap(),
                 );
             } else if neighbor_direction == Direction::NorthWest {
                 nodes.insert(
@@ -489,12 +489,12 @@ fn get_nodes_edges(
 
 fn get_noderefs(edgeref: EdgeRef) -> (NodeRef, NodeRef) {
     match edgeref {
-        EdgeRef::East => (NodeRef::NorthEast, NodeRef::SouthEast),
+        EdgeRef::NorthEast => (NodeRef::North, NodeRef::NorthEast),
+        EdgeRef::North => (NodeRef::NorthEast, NodeRef::SouthEast),
         EdgeRef::SouthEast => (NodeRef::SouthEast, NodeRef::South),
         EdgeRef::SouthWest => (NodeRef::South, NodeRef::SouthWest),
-        EdgeRef::West => (NodeRef::SouthWest, NodeRef::NorthWest),
+        EdgeRef::South => (NodeRef::SouthWest, NodeRef::NorthWest),
         EdgeRef::NorthWest => (NodeRef::NorthWest, NodeRef::North),
-        EdgeRef::NorthEast => (NodeRef::North, NodeRef::NorthEast),
     }
 }
 
@@ -514,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_nodes_and_edges_for_east_attachment() {
+    fn test_get_nodes_and_edges_for_north_attachment() {
         let mut tiles = HashMap::new();
         let autoinc = 0;
         let (nodes1, edges1, autoinc1) = get_nodes_edges(&tiles, (0, 0, 0), autoinc);
@@ -531,7 +531,7 @@ mod tests {
         assert_eq!(nodes2.get(&NodeRef::SouthEast), Some(&8));
         assert_eq!(nodes2.values().max(), Some(&9));
         assert_eq!(edges2.len(), 6);
-        assert_eq!(edges2.get(&EdgeRef::East), Some(&(7, 8)));
+        assert_eq!(edges2.get(&EdgeRef::North), Some(&(7, 8)));
         assert_eq!(autoinc2, 10);
     }
 
@@ -650,10 +650,10 @@ mod tests {
                         (NodeRef::NorthWest, 5)
                     ]),
                     edges: HashMap::from([
-                        (EdgeRef::East, (1, 2)),
+                        (EdgeRef::North, (1, 2)),
                         (EdgeRef::SouthEast, (2, 3)),
                         (EdgeRef::SouthWest, (3, 4)),
-                        (EdgeRef::West, (4, 5)),
+                        (EdgeRef::South, (4, 5)),
                         (EdgeRef::NorthWest, (5, 0)),
                         (EdgeRef::NorthEast, (0, 1))
                     ])
@@ -676,10 +676,10 @@ mod tests {
                         (NodeRef::NorthWest, 1)
                     ]),
                     edges: HashMap::from([
-                        (EdgeRef::East, (7, 8)),
+                        (EdgeRef::North, (7, 8)),
                         (EdgeRef::SouthEast, (8, 9)),
                         (EdgeRef::SouthWest, (9, 2)),
-                        (EdgeRef::West, (1, 2)),
+                        (EdgeRef::South, (1, 2)),
                         (EdgeRef::NorthWest, (1, 6)),
                         (EdgeRef::NorthEast, (6, 7))
                     ])

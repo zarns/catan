@@ -44,10 +44,17 @@
         [nodeActions]="nodeActions"
         [edgeActions]="edgeActions"
         [isMovingRobber]="isMovingRobber"
+        [debugMode]="debugMode"
         (nodeClick)="onNodeClick($event)"
         (edgeClick)="onEdgeClick($event)"
         (hexClick)="onHexClick($event)">
       </app-board>
+      
+      <!-- Debug Mode Indicator -->
+      <div *ngIf="debugMode" class="debug-indicator">
+        <mat-icon>bug_report</mat-icon>
+        <span>Debug Mode Active (Press 'D' to toggle)</span>
+      </div>
 
       <!-- Actions Toolbar Component -->
       <app-actions-toolbar

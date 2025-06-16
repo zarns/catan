@@ -79,9 +79,21 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   nodeActions: {[key: string]: any} = {};
   edgeActions: {[key: string]: any} = {};
   
+  // Debug mode - can be toggled with 'D' key
+  debugMode: boolean = false;
+  
   @HostListener('window:resize', ['$event'])
   onResize() {
     this.checkMobileView();
+  }
+  
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    // Toggle debug mode with 'D' key
+    if (event.key === 'D' || event.key === 'd') {
+      this.debugMode = !this.debugMode;
+      console.log(`🔧 Debug mode ${this.debugMode ? 'enabled' : 'disabled'}`);
+    }
   }
   
   private subscription = new Subscription();

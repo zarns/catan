@@ -89,3 +89,29 @@
     transform: scale(0.8);
   }
 } 
+
+// Debug overlay styles
+.debug-overlay {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-family: monospace;
+  z-index: 30;
+  pointer-events: none;
+  white-space: nowrap;
+  
+  .debug-id {
+    color: #ffeb3b;
+    font-weight: bold;
+  }
+  
+  .debug-direction {
+    color: #2196f3;
+  }
+} 

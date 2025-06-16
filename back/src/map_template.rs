@@ -14,10 +14,10 @@ pub enum TileSlot {
     Water,
     NWPort,
     NEPort,
-    EPort,
+    NPort,
     SEPort,
     SWPort,
-    WPort,
+    SPort,
 }
 
 #[derive(Debug)]

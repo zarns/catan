@@ -85,10 +85,23 @@ impl State {
 
         // BUGFIX: Don't rely on board_buildable_edges which uses connected_components cache
         // For initial build phase, just get edges adjacent to the last settlement
-        self.map_instance
+        let buildable_edges: Vec<_> = self.map_instance
             .get_neighbor_edges(last_node_id)
             .into_iter()
             .filter(|edge_id| !self.roads.contains_key(edge_id))
+            .collect();
+            
+        // DEBUG: Log what's being allowed for initial road building
+        log::debug!(
+            "🏗️  Initial road possibilities for player {}: last settlement at node {}, {} buildable edges: {:?}",
+            color,
+            last_node_id,
+            buildable_edges.len(),
+            buildable_edges
+        );
+            
+        buildable_edges
+            .into_iter()
             .map(|edge_id| Action::BuildRoad { color, edge_id })
             .collect()
     }
@@ -100,43 +113,13 @@ impl State {
         }
 
         if is_free || freqdeck_contains(self.get_player_hand(color), &ROAD_COST) {
-            // COMPLETE BUGFIX: Build connectivity from scratch without relying on connected_components
-            let mut buildable_edges = HashSet::new();
-            
-            // Get all nodes that are "connection points" for this player
-            let mut connection_nodes = HashSet::new();
-            
-            // 1. Add all settlement/city nodes as connection points
-            if let Some(player_buildings) = self.buildings_by_color.get(&color) {
-                for building in player_buildings {
-                    let node_id = match building {
-                        Building::Settlement(_, id) | Building::City(_, id) => *id,
-                    };
-                    connection_nodes.insert(node_id);
-                }
-            }
-            
-            // 2. Add all nodes connected by existing roads as connection points
-            for (edge_id, &road_color) in &self.roads {
-                if road_color == color {
-                    connection_nodes.insert(edge_id.0);
-                    connection_nodes.insert(edge_id.1);
-                }
-            }
-            
-            // 3. Find all edges adjacent to any connection node that aren't already built
-            for &node_id in &connection_nodes {
-                for edge_id in self.map_instance.get_neighbor_edges(node_id) {
-                    if !self.roads.contains_key(&edge_id) {
-                        let sorted_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
-                        buildable_edges.insert(sorted_edge);
-                    }
-                }
-            }
-            
-            buildable_edges
-                .into_iter()
-                .map(|edge_id| Action::BuildRoad { color, edge_id })
+            // FIXED: Use the proven board_buildable_edges method from legacy implementation
+            self.board_buildable_edges(color)
+                .iter()
+                .map(|edge_id| Action::BuildRoad {
+                    color,
+                    edge_id: *edge_id,
+                })
                 .collect()
         } else {
             vec![]
