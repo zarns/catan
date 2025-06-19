@@ -1,3 +1,5 @@
+@use '../../../variables' as vars;
+
 .edge {
   position: absolute;
   display: flex;
@@ -38,19 +40,19 @@
   
   // Player colors with minimal styling
   &.red {
-    background-color: #f44336;
+    background-color: vars.$player-red;
   }
   
   &.blue {
-    background-color: #2196f3;
+    background-color: vars.$player-blue;
   }
   
   &.white {
-    background-color: #ffffff;
+    background-color: vars.$player-white;
   }
   
   &.orange {
-    background-color: #ff9800;
+    background-color: vars.$player-orange;
   }
 }
 
@@ -112,6 +114,6 @@
   }
   
   .debug-direction {
-    color: #2196f3;
+    color: vars.$player-blue;
   }
 } 

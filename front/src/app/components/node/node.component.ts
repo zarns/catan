@@ -28,7 +28,13 @@ interface NodeAbsoluteCoordinate {
          [attr.data-node-color]="color"
          [attr.title]="getDebugTitle()"
          (click)="onClick.emit(id)">
-      <div *ngIf="color" [ngClass]="[color.toLowerCase(), buildingClass]" class="building"></div>
+      
+      <!-- Settlement/City shape - always visible -->
+      <div class="settlement-shape" 
+           [ngClass]="getSettlementClasses()"
+           [attr.title]="getNodeTitle()">
+      </div>
+      
       <div *ngIf="flashing" class="pulse"></div>
       
       <!-- Debug overlay for development -->
@@ -60,6 +66,34 @@ export class NodeComponent {
   
   get buildingClass(): string {
     return this.building === 'city' ? 'city' : 'settlement';
+  }
+  
+  getSettlementClasses(): string {
+    const classes = ['settlement-base'];
+    
+    if (this.building && this.color) {
+      // Has a building - show solid color
+      classes.push('occupied');
+      classes.push(this.color.toLowerCase());
+      if (this.building === 'city') {
+        classes.push('city');
+      } else {
+        classes.push('settlement');
+      }
+    } else {
+      // Empty node - show transparent indicator
+      classes.push('empty');
+    }
+    
+    return classes.join(' ');
+  }
+  
+  getNodeTitle(): string {
+    if (this.building) {
+      return `${this.building} (Player: ${this.color})`;
+    } else {
+      return `Node ${this.id}`;
+    }
   }
   
   get nodeStyle() {

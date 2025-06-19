@@ -1,6 +1,8 @@
+@use '../../../variables' as vars;
+
 .node {
   position: absolute;
-  background-color: rgba(255, 255, 255, 0.2); /* Temporary background for visibility */
+  background-color: transparent; // Remove old node indicator background
   border: none;
   display: flex;
   justify-content: center;
@@ -13,8 +15,7 @@
   &:hover {
     z-index: 15;
     /* Temporary: make nodes more visible on hover */
-    background-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 5px white;
+    background-color: rgba(255, 255, 255, 0.2);
   }
   
   // Debug styles
@@ -33,59 +34,88 @@
   }
 }
 
-.building {
-  width: 80%;
-  height: 80%;
+// New settlement-shaped system
+.settlement-shape {
+  width: 100%;
+  height: 100%;
   border-radius: 4px;
-  border: 2px solid #333;
-  z-index: 12;
+  transition: all 0.2s ease;
+  position: relative;
   
-  &.settlement {
-    width: 80%;
-    height: 80%;
+  // Base settlement shape (always visible)
+  &.settlement-base {
+    border: 2px solid transparent;
   }
   
-  &.city {
-    width: 100%;
-    height: 100%;
-    border-width: 4px;
-    background: #333;
-  }
-  
-  // Player colors 
-  &.red {
-    background-color: #f44336;
-    border-color: #f44336;
+  // Empty node state - much more subtle
+  &.empty {
+    background-color: rgba(255, 255, 255, 0.05); // Much more subtle
+    border-color: rgba(255, 255, 255, 0.1); // Very faint border
+    border-width: 1px; // Thinner border
     
-    &.city {
-      background-color: #333;
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.15); // Still subtle on hover
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 3px rgba(255, 255, 255, 0.4); // Softer glow
     }
   }
   
-  &.blue {
-    background-color: #2196f3;
-    border-color: #2196f3;
+  // Occupied node state - more prominent
+  &.occupied {
+    border-color: #333;
+    z-index: 12;
     
-    &.city {
-      background-color: #333;
+    // Settlement size (larger and more prominent)
+    &.settlement {
+      width: 95%; // Increased from 80% to 95%
+      height: 95%; // Much more prominent
+      border-width: 3px; // Thicker border for better visibility
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.2); // Add subtle shadow and border
     }
-  }
-  
-  &.white {
-    background-color: #ffffff;
-    border-color: #ffffff;
     
+    // City size (keep large with grey center)
     &.city {
-      background-color: #333;
+      width: 100%;
+      height: 100%;
+      border-width: 4px;
+      background-color: #333; // Grey center for cities
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.3); // Stronger shadow and border
     }
-  }
-  
-  &.orange {
-    background-color: #ff9800;
-    border-color: #ff9800;
     
-    &.city {
-      background-color: #333;
+    // Player colors for settlements (solid) and cities (grey center with colored border)
+    &.red {
+      border-color: vars.$player-red;
+      
+      &.settlement {
+        background-color: vars.$player-red; // Solid red for settlements
+      }
+      // Cities keep grey center, only border is colored
+    }
+    
+    &.blue {
+      border-color: vars.$player-blue;
+      
+      &.settlement {
+        background-color: vars.$player-blue; // Solid blue for settlements
+      }
+    }
+    
+    &.white {
+      border-color: vars.$player-white;
+      
+      &.settlement {
+        background-color: vars.$player-white; // Solid white for settlements
+        // White settlements need a darker border for visibility
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.4);
+      }
+    }
+    
+    &.orange {
+      border-color: vars.$player-orange;
+      
+      &.settlement {
+        background-color: vars.$player-orange; // Solid orange for settlements
+      }
     }
   }
 }
@@ -193,11 +223,10 @@
   }
   
   .debug-direction {
-    color: #2196f3;
+    color: vars.$player-blue;
   }
   
   .debug-building {
-    color: #4caf50;
-    font-weight: bold;
+    color: vars.$player-orange;
   }
 } 

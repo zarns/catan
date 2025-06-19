@@ -1,3 +1,5 @@
+@use '../../../variables' as vars;
+
 .left-drawer {
   position: fixed;
   top: 0;
@@ -28,7 +30,7 @@
       
       &.current-player {
         background-color: rgba(255, 152, 0, 0.2);
-        border-left-color: #ff9800;
+        border-left-color: vars.$player-orange;
       }
     }
   }
@@ -48,28 +50,20 @@
       color: white;
       
       &.red {
-        background-color: #d32f2f;
+        background-color: vars.$player-red;
       }
       
       &.blue {
-        background-color: #2196f3;
+        background-color: vars.$player-blue;
       }
       
-      &.green {
-        background-color: #4caf50;
-      }
-      
-      &.yellow {
-        background-color: #ffc107;
-        color: #212121;
+      &.white {
+        background-color: vars.$player-white;
+        color: #212121; // Dark text for white background
       }
       
       &.orange {
-        background-color: #ff9800;
-      }
-      
-      &.purple {
-        background-color: #9c27b0;
+        background-color: vars.$player-orange;
       }
     }
   }

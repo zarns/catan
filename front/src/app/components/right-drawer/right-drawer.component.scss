@@ -1,3 +1,5 @@
+@use '../../../variables' as vars;
+
 .right-drawer {
   position: fixed;
   right: 0;
@@ -78,22 +80,19 @@
   
   &.red .player-color,
   &.red .probability-value {
-    color: #f44336;
+    color: vars.$player-red;
   }
   
   &.blue .player-color,
   &.blue .probability-value {
-    color: #2196f3;
+    color: vars.$player-blue;
   }
   
-  &.green .player-color,
-  &.green .probability-value {
-    color: #4caf50;
-  }
+
   
   &.orange .player-color,
   &.orange .probability-value {
-    color: #ff9800;
+    color: vars.$player-orange;
   }
 }
 
@@ -115,19 +114,17 @@
     border-radius: 10px;
     
     .red & {
-      background-color: #f44336;
+      background-color: vars.$player-red;
     }
     
     .blue & {
-      background-color: #2196f3;
+      background-color: vars.$player-blue;
     }
     
-    .green & {
-      background-color: #4caf50;
-    }
+
     
     .orange & {
-      background-color: #ff9800;
+      background-color: vars.$player-orange;
     }
   }
 }

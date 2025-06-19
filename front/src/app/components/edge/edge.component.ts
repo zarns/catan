@@ -78,8 +78,8 @@ export class EdgeComponent {
     const fullLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
     
-    // Make roads shorter - use 75% of the full distance between nodes
-    const roadLength = fullLength * 0.75;
+    // Make roads shorter - use 70% of the full distance between nodes
+    const roadLength = fullLength * 0.7;
     
     // Safety check: if coordinates are invalid or length is unreasonable, fall back to tile-relative
     if (isNaN(fullLength) || isNaN(centerX) || isNaN(centerY) || fullLength === 0 || fullLength > this.size * 4) {
@@ -113,7 +113,7 @@ export class EdgeComponent {
     const transform = this.getEdgeTransform();
     
     // Make roads shorter for tile-relative positioning too
-    const roadLength = this.size * 0.75 * 0.75; // 75% of the original 75% size
+    const roadLength = this.size * 0.75 * 0.7; // 70% of the original 75% size
     
     // Uniform transparent white for all edges
     const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, 0.2)';
