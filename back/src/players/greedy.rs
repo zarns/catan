@@ -4,29 +4,39 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
 
-use super::Player;
 use crate::enums::Action;
 use crate::state::State;
 
 const SIMULATIONS_PER_ACTION: usize = 3;
 
+use super::BotPlayer;
+
 /// Greedy Monte Carlo Player
 /// Evaluates each action by running random playouts and choosing the one with the highest win rate
 pub struct GreedyPlayer {
+    pub id: String,
+    pub name: String,
+    pub color: String,
     num_simulations_per_action: usize,
     use_parallel: bool,
 }
 
 impl GreedyPlayer {
-    pub fn new() -> Self {
+    pub fn new(id: String, name: String, color: String) -> Self {
         GreedyPlayer {
+            id,
+            name,
+            color,
             num_simulations_per_action: SIMULATIONS_PER_ACTION,
             use_parallel: true,
         }
     }
 
-    pub fn with_simulations(num_simulations_per_action: usize) -> Self {
+    pub fn with_simulations(id: String, name: String, color: String, num_simulations_per_action: usize) -> Self {
         GreedyPlayer {
+            id,
+            name,
+            color,
             num_simulations_per_action,
             use_parallel: true,
         }
@@ -163,7 +173,7 @@ impl GreedyPlayer {
     }
 }
 
-impl Player for GreedyPlayer {
+impl BotPlayer for GreedyPlayer {
     fn decide(&self, state: &State, playable_actions: &[Action]) -> Action {
         if playable_actions.len() == 1 {
             return playable_actions[0].clone();
@@ -179,6 +189,6 @@ impl Player for GreedyPlayer {
 
 impl Default for GreedyPlayer {
     fn default() -> Self {
-        Self::new()
+        Self::new("default".to_string(), "Greedy Player".to_string(), "red".to_string())
     }
 }

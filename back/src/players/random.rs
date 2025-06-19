@@ -1,12 +1,23 @@
 use rand::prelude::*;
 
-use super::Player;
 use crate::enums::Action;
 use crate::state::State;
 
-pub struct RandomPlayer {}
+pub struct RandomPlayer {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+}
 
-impl Player for RandomPlayer {
+impl RandomPlayer {
+    pub fn new(id: String, name: String, color: String) -> Self {
+        RandomPlayer { id, name, color }
+    }
+}
+
+use super::BotPlayer;
+
+impl BotPlayer for RandomPlayer {
     fn decide(&self, _state: &State, playable_actions: &[Action]) -> Action {
         let mut rng = rand::thread_rng();
         *playable_actions

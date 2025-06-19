@@ -1,4 +1,4 @@
-use super::Player;
+use crate::player::Player;
 use crate::enums::Action;
 use crate::game::GameState;
 use std::fmt;

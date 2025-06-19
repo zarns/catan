@@ -1,9 +1,10 @@
-use rand::Rng;
+use rand::prelude::*;
 use std::collections::HashMap;
 
-use super::Player;
-use crate::enums::{Action, ActionPrompt};
+use crate::enums::Action;
 use crate::state::State;
+
+use super::BotPlayer;
 
 /// Player that decides randomly but gives preference to certain actions.
 /// This player assigns higher weights to actions that are generally valuable:
@@ -11,20 +12,29 @@ use crate::state::State;
 /// - Building settlements
 /// - Buying development cards
 /// Other actions have a default weight of 1.
-pub struct WeightedRandomPlayer {}
+pub struct WeightedRandomPlayer {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+}
 
 impl WeightedRandomPlayer {
+    pub fn new(id: String, name: String, color: String) -> Self {
+        WeightedRandomPlayer { id, name, color }
+    }
+
     /// Creates action weight map similar to Python version
-    fn get_action_weights() -> HashMap<&'static str, usize> {
+    fn get_action_weights() -> HashMap<&'static str, u32> {
         let mut weights = HashMap::new();
-        weights.insert("BuildCity", 10000);
-        weights.insert("BuildSettlement", 1000);
-        weights.insert("BuyDevelopmentCard", 100);
+        weights.insert("BuildCity", 10);       // High priority for victory points
+        weights.insert("BuildSettlement", 8);  // High priority for victory points
+        weights.insert("BuyDevelopmentCard", 5); // Medium priority
+        weights.insert("Other", 1);            // Low priority for other actions
         weights
     }
 }
 
-impl Player for WeightedRandomPlayer {
+impl BotPlayer for WeightedRandomPlayer {
     fn decide(&self, _state: &State, playable_actions: &[Action]) -> Action {
         if playable_actions.len() == 1 {
             return playable_actions[0].clone();
@@ -67,6 +77,6 @@ impl Player for WeightedRandomPlayer {
 
 impl Default for WeightedRandomPlayer {
     fn default() -> Self {
-        Self {}
+        Self::new("default".to_string(), "Weighted Random Player".to_string(), "red".to_string())
     }
 }
