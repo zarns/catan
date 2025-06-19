@@ -217,9 +217,11 @@ fn convert_port_tile(coord: CubeCoordinate, port_tile: &PortTile) -> PortPositio
     let direction = match port_tile.direction {
         Direction::NorthWest => "NW",
         Direction::NorthEast => "NE",
-        Direction::North => "N",
+        Direction::East => "E",
         Direction::SouthEast => "SE",
         Direction::SouthWest => "SW",
+        Direction::West => "W",
+        Direction::North => "N",
         Direction::South => "S",
     };
 

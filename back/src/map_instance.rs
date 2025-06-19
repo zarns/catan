@@ -49,6 +49,8 @@ const EDGE_REFS: [EdgeRef; 6] = [
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
+    East,
+    West,
     North,
     SouthEast,
     SouthWest,
@@ -58,20 +60,22 @@ pub enum Direction {
 }
 
 const DIRECTIONS: [Direction; 6] = [
-    Direction::North,
+    Direction::NorthEast,
     Direction::SouthEast,
     Direction::SouthWest,
-    Direction::South,
     Direction::NorthWest,
-    Direction::NorthEast,
+    Direction::North,
+    Direction::South,
 ];
 
 fn get_unit_vector(direction: Direction) -> (i8, i8, i8) {
     match direction {
         Direction::NorthEast => (1, 0, -1),
-        Direction::SouthWest => (-1, 0, 1),
-        Direction::NorthWest => (0, 1, -1),
+        Direction::East => (1, -1, 0),
         Direction::SouthEast => (0, -1, 1),
+        Direction::SouthWest => (-1, 0, 1),
+        Direction::West => (-1, 1, 0),
+        Direction::NorthWest => (0, 1, -1),
         Direction::North => (1, -1, 0),
         Direction::South => (-1, 1, 0),
     }
@@ -250,10 +254,10 @@ impl MapInstance {
                 let direction = match tile_slot {
                     TileSlot::NWPort => Direction::NorthWest,
                     TileSlot::NEPort => Direction::NorthEast,
-                    TileSlot::NPort => Direction::North,
+                    TileSlot::WPort => Direction::West,
                     TileSlot::SEPort => Direction::SouthEast,
                     TileSlot::SWPort => Direction::SouthWest,
-                    TileSlot::SPort => Direction::South,
+                    TileSlot::EPort => Direction::East,
                     _ => panic!("Invalid port tile slot"),
                 };
                 let resource = shuffled_ports.pop().unwrap();
@@ -353,12 +357,14 @@ impl MapInstance {
 
 fn get_noderefs_from_port_direction(direction: Direction) -> (NodeRef, NodeRef) {
     match direction {
-        Direction::North => (NodeRef::NorthEast, NodeRef::SouthEast),
+        Direction::NorthEast => (NodeRef::North, NodeRef::NorthEast),
+        Direction::East => (NodeRef::NorthEast, NodeRef::SouthEast),
         Direction::SouthEast => (NodeRef::SouthEast, NodeRef::South),
         Direction::SouthWest => (NodeRef::South, NodeRef::SouthWest),
-        Direction::South => (NodeRef::SouthWest, NodeRef::NorthWest),
+        Direction::West => (NodeRef::SouthWest, NodeRef::NorthWest),
         Direction::NorthWest => (NodeRef::NorthWest, NodeRef::North),
-        Direction::NorthEast => (NodeRef::North, NodeRef::NorthEast),
+        Direction::North => (NodeRef::NorthEast, NodeRef::SouthEast),
+        Direction::South => (NodeRef::SouthWest, NodeRef::NorthWest),
     }
 }
 
