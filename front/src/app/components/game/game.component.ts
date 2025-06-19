@@ -109,7 +109,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     // Check for watch mode from query parameters
     this.subscription.add(
-      this.route.queryParams.subscribe(params => {
+      this.route.queryParams.subscribe((params: any) => {
         this.isWatchOnlyMode = params['mode'] === 'watch';
         if (this.isWatchOnlyMode) {
           console.log('Watch-only mode activated');
@@ -119,7 +119,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     // Get the game ID from the route
     this.subscription.add(
-      this.route.paramMap.subscribe(params => {
+      this.route.paramMap.subscribe((params: any) => {
         this.gameId = params.get('id') || '';
         if (this.gameId) {
           this.loadGameState();
@@ -585,12 +585,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   checkMobileView(): void {
-    this.isMobileView = window.innerWidth < 992;
+    this.isMobileView = window.innerWidth < 1200;
     
-    // Close drawers when switching to desktop view
+    // On large screens, always show left drawer; on smaller screens, control it via toggle
     if (!this.isMobileView) {
-      this.isLeftDrawerOpen = false;
-      this.isRightDrawerOpen = false;
+      this.isLeftDrawerOpen = true; // Always open on desktop
+      this.isRightDrawerOpen = false; // Right drawer controlled separately
     }
   }
 } 

@@ -1,8 +1,5 @@
-import { Component, Input, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatCardModule } from '@angular/material/card';
 import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.component';
 
 @Component({
@@ -10,12 +7,9 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
   standalone: true,
   imports: [
     CommonModule,
-    MatSidenavModule,
-    MatDividerModule,
-    MatCardModule,
     PlayerStateBoxComponent
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   template: `
     <div class="left-drawer" [class.mobile]="isMobile" [class.open]="isOpen">
       <div class="drawer-content">
@@ -28,9 +22,11 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
               <app-player-state-box
                 [playerState]="gameState"
                 [playerKey]="player.color.toLowerCase()"
-                [color]="player.color">
+                [color]="player.color"
+                [isCurrentPlayer]="i === gameState.game.current_player_index"
+                [isBot]="isPlayerBot(player.color)">
               </app-player-state-box>
-              <mat-divider></mat-divider>
+              <div class="divider"></div>
             </div>
           }
         }
@@ -60,6 +56,13 @@ export class LeftDrawerComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
+  }
+
+  isPlayerBot(playerColor: string): boolean {
+    if (!this.gameState || !this.gameState.bot_colors) {
+      return false;
+    }
+    return this.gameState.bot_colors.includes(playerColor);
   }
 
   getReversedActions(): any[] {

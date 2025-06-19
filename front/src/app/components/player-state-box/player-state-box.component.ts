@@ -1,24 +1,28 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatDividerModule } from '@angular/material/divider';
 
 @Component({
   selector: 'app-player-state-box',
   standalone: true,
   imports: [
-    CommonModule,
-    MatCardModule,
-    MatDividerModule
+    CommonModule
   ],
   template: `
     <div class="player-state-box foreground" [ngClass]="color.toLowerCase()">
+      <!-- Player header with name and indicators -->
+      <div class="player-header">
+        <div class="player-name">{{ getPlayerDisplayName() }}</div>
+        <div class="player-indicator" 
+             [ngClass]="{ 'current': isCurrentPlayer, 'bot': isBot }">
+          {{ getPlayerIndicator() }}
+        </div>
+      </div>
+      
       <div class="resource-cards" title="Resource Cards">
         @for (card of resourceTypes; track card) {
           @if (getAmount(card) !== 0) {
-            <div
-              class="{{card.toLowerCase()}}-cards center-text card">
-              <mat-card>{{ getAmount(card) }}</mat-card>
+            <div class="{{card.toLowerCase()}}-cards center-text card">
+              <div>{{ getAmount(card) }}</div>
             </div>
           }
         }
@@ -30,10 +34,10 @@ import { MatDividerModule } from '@angular/material/divider';
             <div
               class="dev-cards center-text card"
               [attr.title]="getAmount(card) + ' ' + getCardTitle(card)">
-              <mat-card>
+              <div>
                 <span>{{ getAmount(card) }}</span>
                 <span>{{ getCardShortName(card) }}</span>
-              </mat-card>
+              </div>
             </div>
           }
         }
@@ -69,6 +73,8 @@ export class PlayerStateBoxComponent {
   @Input() playerState: any;
   @Input() playerKey: string = '';
   @Input() color: string = '';
+  @Input() isCurrentPlayer: boolean = false;
+  @Input() isBot: boolean = false;
 
   resourceTypes = ['WOOD', 'BRICK', 'SHEEP', 'WHEAT', 'ORE'];
   developmentCardTypes = ['VICTORY_POINT', 'KNIGHT', 'MONOPOLY', 'YEAR_OF_PLENTY', 'ROAD_BUILDING'];
@@ -89,6 +95,29 @@ export class PlayerStateBoxComponent {
     }
     
     return 0;
+  }
+
+  getPlayerDisplayName(): string {
+    // Capitalize first letter and make rest lowercase for display
+    return this.color.charAt(0).toUpperCase() + this.color.slice(1).toLowerCase();
+  }
+
+  getPlayerIndicator(): string {
+    const indicators = [];
+    
+    if (this.isCurrentPlayer) {
+      indicators.push('⚡');
+    }
+    
+    if (this.isBot) {
+      indicators.push('🤖');
+    }
+    
+    if (this.actualVictoryPoints >= 10) {
+      indicators.push('👑');
+    }
+    
+    return indicators.join(' ') || '•';
   }
 
   getAmount(card: string): number {
