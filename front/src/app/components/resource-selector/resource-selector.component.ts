@@ -21,55 +21,61 @@ export interface ResourceOption {
     MatIconModule
   ],
   template: `
-    <div class="resource-selector-overlay" *ngIf="open">
-      <div class="resource-selector-dialog" (click)="$event.stopPropagation()">
-        <div class="resource-selector-header">
-          <h2>{{ getTitle() }}</h2>
-          <button mat-icon-button (click)="onClose.emit()">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-        
-        <div class="resource-selector-content">
-          <p *ngIf="mode === 'monopoly'">
-            Choose a resource type to take from all other players
-          </p>
-          <p *ngIf="mode === 'yearOfPlenty'">
-            Choose 2 resources to take from the bank
-          </p>
-          
-          <div class="resource-options">
-            <button 
-              *ngFor="let option of options" 
-              class="resource-option"
-              [ngClass]="option.type"
-              [disabled]="isDisabled(option)"
-              (click)="selectResource(option)">
-              
-              <div class="resource-icon">
-                <div class="resource-hex"></div>
-                <span class="resource-label">{{ option.label || option.type }}</span>
-              </div>
-              
-              <div class="resource-count" *ngIf="option.count !== undefined">
-                x{{ option.count }}
-              </div>
+    @if (open) {
+      <div class="resource-selector-overlay">
+        <div class="resource-selector-dialog" (click)="$event.stopPropagation()">
+          <div class="resource-selector-header">
+            <h2>{{ getTitle() }}</h2>
+            <button mat-icon-button (click)="onClose.emit()">
+              <mat-icon>close</mat-icon>
             </button>
           </div>
-        </div>
-        
-        <div class="resource-selector-footer" *ngIf="mode === 'yearOfPlenty' || mode === 'discard'">
-          <button 
-            mat-raised-button 
-            color="primary" 
-            [disabled]="!canConfirm()"
-            (click)="confirmSelection()">
-            Confirm
-          </button>
+          <div class="resource-selector-content">
+            @if (mode === 'monopoly') {
+              <p>
+                Choose a resource type to take from all other players
+              </p>
+            }
+            @if (mode === 'yearOfPlenty') {
+              <p>
+                Choose 2 resources to take from the bank
+              </p>
+            }
+            <div class="resource-options">
+              @for (option of options; track option) {
+                <button
+                  class="resource-option"
+                  [ngClass]="option.type"
+                  [disabled]="isDisabled(option)"
+                  (click)="selectResource(option)">
+                  <div class="resource-icon">
+                    <div class="resource-hex"></div>
+                    <span class="resource-label">{{ option.label || option.type }}</span>
+                  </div>
+                  @if (option.count !== undefined) {
+                    <div class="resource-count">
+                      x{{ option.count }}
+                    </div>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+          @if (mode === 'yearOfPlenty' || mode === 'discard') {
+            <div class="resource-selector-footer">
+              <button
+                mat-raised-button
+                color="primary"
+                [disabled]="!canConfirm()"
+                (click)="confirmSelection()">
+                Confirm
+              </button>
+            </div>
+          }
         </div>
       </div>
-    </div>
-  `,
+    }
+    `,
   styleUrls: ['./resource-selector.component.scss']
 })
 export class ResourceSelectorComponent {

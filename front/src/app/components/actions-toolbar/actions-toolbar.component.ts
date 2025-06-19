@@ -19,107 +19,116 @@ import { MatBadgeModule } from '@angular/material/badge';
     <div class="actions-area">
       <!-- State summary -->
       <div class="state-summary">
-        <div class="player-resources-summary" *ngIf="humanPlayer">
-          <div class="resources-flex">
-            <div class="resource-item" *ngFor="let resource of getResourceEntries(humanPlayer.resources)">
-              <div class="resource-icon" [ngClass]="resource.name"></div>
-              <span class="resource-value">{{ resource.count }}</span>
+        @if (humanPlayer) {
+          <div class="player-resources-summary">
+            <div class="resources-flex">
+              @for (resource of getResourceEntries(humanPlayer.resources); track resource) {
+                <div class="resource-item">
+                  <div class="resource-icon" [ngClass]="resource.name"></div>
+                  <span class="resource-value">{{ resource.count }}</span>
+                </div>
+              }
             </div>
           </div>
-        </div>
+        }
       </div>
-      
+    
       <!-- Actions toolbar -->
-      <div class="actions-toolbar" *ngIf="!isGameOver">
-        <!-- If bot is thinking, show loading/prompt -->
-        <div *ngIf="isBotTurn || isBotThinking" class="bot-thinking">
-          <div *ngIf="isBotThinking" class="thinking-indicator">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-          </div>
-          <span>{{ isBotThinking ? 'Bot is thinking...' : 'Waiting for bot turn to complete' }}</span>
+      @if (!isGameOver) {
+        <div class="actions-toolbar">
+          <!-- If bot is thinking, show loading/prompt -->
+          @if (isBotTurn || isBotThinking) {
+            <div class="bot-thinking">
+              @if (isBotThinking) {
+                <div class="thinking-indicator">
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
+              }
+              <span>{{ isBotThinking ? 'Bot is thinking...' : 'Waiting for bot turn to complete' }}</span>
+            </div>
+          }
+          <!-- Human player actions -->
+          @if (!isBotTurn && !isBotThinking) {
+            <!-- Use development cards -->
+            <button mat-raised-button color="secondary"
+              class="options-button"
+              [disabled]="!canUseCards"
+              [matMenuTriggerFor]="useMenu">
+              <mat-icon>sim_card</mat-icon>
+              Use
+            </button>
+            <mat-menu #useMenu="matMenu">
+              <button mat-menu-item
+                [disabled]="!canPlayMonopoly"
+              (click)="onUseCard('MONOPOLY')">Monopoly</button>
+              <button mat-menu-item
+                [disabled]="!canPlayYearOfPlenty"
+              (click)="onUseCard('YEAR_OF_PLENTY')">Year of Plenty</button>
+              <button mat-menu-item
+                [disabled]="!canPlayRoadBuilding"
+              (click)="onUseCard('ROAD_BUILDING')">Road Building</button>
+              <button mat-menu-item
+                [disabled]="!canPlayKnight"
+              (click)="onUseCard('KNIGHT')">Knight</button>
+            </mat-menu>
+            <!-- Buy/build -->
+            <button mat-raised-button color="secondary"
+              class="options-button"
+              [disabled]="!canBuild"
+              [matMenuTriggerFor]="buildMenu">
+              <mat-icon>build</mat-icon>
+              Buy
+            </button>
+            <mat-menu #buildMenu="matMenu">
+              <button mat-menu-item
+                [disabled]="!canBuyDevCard"
+              (click)="onBuild('DEV_CARD')">Development Card</button>
+              <button mat-menu-item
+                [disabled]="!canBuildCity"
+              (click)="onBuild('CITY')">City</button>
+              <button mat-menu-item
+                [disabled]="!canBuildSettlement"
+              (click)="onBuild('SETTLEMENT')">Settlement</button>
+              <button mat-menu-item
+                [disabled]="!canBuildRoad"
+              (click)="onBuild('ROAD')">Road</button>
+            </mat-menu>
+            <!-- Trade -->
+            <button mat-raised-button color="secondary"
+              class="options-button"
+              [disabled]="trades.length === 0"
+              [matMenuTriggerFor]="tradeMenu">
+              <mat-icon>account_balance</mat-icon>
+              Trade
+            </button>
+            <mat-menu #tradeMenu="matMenu">
+              @for (trade of trades; track trade) {
+                <button mat-menu-item
+                  (click)="onTrade(trade)">
+                  {{ trade.description }}
+                </button>
+              }
+              @if (trades.length === 0) {
+                <button mat-menu-item disabled>
+                  No trade options available
+                </button>
+              }
+            </mat-menu>
+            <!-- Main action button -->
+            <button mat-raised-button color="primary"
+              class="main-action-button"
+              [disabled]="isMainActionDisabled"
+              (click)="onMainAction()">
+              <mat-icon>{{ mainActionIcon }}</mat-icon>
+              {{ mainActionText }}
+            </button>
+          }
         </div>
-        
-        <!-- Human player actions -->
-        <ng-container *ngIf="!isBotTurn && !isBotThinking">
-          <!-- Use development cards -->
-          <button mat-raised-button color="secondary" 
-                  class="options-button"
-                  [disabled]="!canUseCards"
-                  [matMenuTriggerFor]="useMenu">
-            <mat-icon>sim_card</mat-icon>
-            Use
-          </button>
-          <mat-menu #useMenu="matMenu">
-            <button mat-menu-item 
-                    [disabled]="!canPlayMonopoly"
-                    (click)="onUseCard('MONOPOLY')">Monopoly</button>
-            <button mat-menu-item 
-                    [disabled]="!canPlayYearOfPlenty"
-                    (click)="onUseCard('YEAR_OF_PLENTY')">Year of Plenty</button>
-            <button mat-menu-item 
-                    [disabled]="!canPlayRoadBuilding"
-                    (click)="onUseCard('ROAD_BUILDING')">Road Building</button>
-            <button mat-menu-item 
-                    [disabled]="!canPlayKnight"
-                    (click)="onUseCard('KNIGHT')">Knight</button>
-          </mat-menu>
-          
-          <!-- Buy/build -->
-          <button mat-raised-button color="secondary" 
-                  class="options-button"
-                  [disabled]="!canBuild"
-                  [matMenuTriggerFor]="buildMenu">
-            <mat-icon>build</mat-icon>
-            Buy
-          </button>
-          <mat-menu #buildMenu="matMenu">
-            <button mat-menu-item 
-                    [disabled]="!canBuyDevCard"
-                    (click)="onBuild('DEV_CARD')">Development Card</button>
-            <button mat-menu-item 
-                    [disabled]="!canBuildCity"
-                    (click)="onBuild('CITY')">City</button>
-            <button mat-menu-item 
-                    [disabled]="!canBuildSettlement"
-                    (click)="onBuild('SETTLEMENT')">Settlement</button>
-            <button mat-menu-item 
-                    [disabled]="!canBuildRoad"
-                    (click)="onBuild('ROAD')">Road</button>
-          </mat-menu>
-          
-          <!-- Trade -->
-          <button mat-raised-button color="secondary" 
-                  class="options-button"
-                  [disabled]="trades.length === 0"
-                  [matMenuTriggerFor]="tradeMenu">
-            <mat-icon>account_balance</mat-icon>
-            Trade
-          </button>
-          <mat-menu #tradeMenu="matMenu">
-            <button mat-menu-item 
-                    *ngFor="let trade of trades"
-                    (click)="onTrade(trade)">
-              {{ trade.description }}
-            </button>
-            <button mat-menu-item *ngIf="trades.length === 0" disabled>
-              No trade options available
-            </button>
-          </mat-menu>
-          
-          <!-- Main action button -->
-          <button mat-raised-button color="primary" 
-                  class="main-action-button"
-                  [disabled]="isMainActionDisabled"
-                  (click)="onMainAction()">
-            <mat-icon>{{ mainActionIcon }}</mat-icon>
-            {{ mainActionText }}
-          </button>
-        </ng-container>
-      </div>
+      }
     </div>
-  `,
+    `,
   styleUrls: ['./actions-toolbar.component.scss']
 })
 export class ActionsToolbarComponent {

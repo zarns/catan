@@ -20,31 +20,36 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
     <div class="left-drawer" [class.mobile]="isMobile" [class.open]="isOpen">
       <div class="drawer-content">
         <!-- Player sections -->
-        <ng-container *ngIf="gameState && gameState.game">
-          <div *ngFor="let player of gameState.game.players; let i = index" 
-               class="player-section" 
-               [ngClass]="{'current-player': i === gameState.game.current_player_index}">
-            <app-player-state-box
-              [playerState]="gameState"
-              [playerKey]="player.color.toLowerCase()"
-              [color]="player.color">
-            </app-player-state-box>
-            <mat-divider></mat-divider>
-          </div>
-        </ng-container>
-        
+        @if (gameState && gameState.game) {
+          @for (player of gameState.game.players; track player; let i = $index) {
+            <div
+              class="player-section"
+              [ngClass]="{'current-player': i === gameState.game.current_player_index}">
+              <app-player-state-box
+                [playerState]="gameState"
+                [playerKey]="player.color.toLowerCase()"
+                [color]="player.color">
+              </app-player-state-box>
+              <mat-divider></mat-divider>
+            </div>
+          }
+        }
+    
         <!-- Action log -->
-        <div class="log" *ngIf="gameState && gameState.actions">
-          <div 
-            *ngFor="let action of getReversedActions()"
-            class="action foreground"
-            [ngClass]="action[0]?.toLowerCase()">
-            {{ humanizeAction(action) }}
+        @if (gameState && gameState.actions) {
+          <div class="log">
+            @for (action of getReversedActions(); track action) {
+              <div
+                class="action foreground"
+                [ngClass]="action[0]?.toLowerCase()">
+                {{ humanizeAction(action) }}
+              </div>
+            }
           </div>
-        </div>
+        }
       </div>
     </div>
-  `,
+    `,
   styleUrls: ['./left-drawer.component.scss']
 })
 export class LeftDrawerComponent implements OnInit {

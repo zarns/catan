@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { Router } from '@angular/router';
@@ -16,18 +16,17 @@ enum GameMode {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatProgressSpinnerModule],
+  imports: [MatButtonModule, MatProgressSpinnerModule],
   template: `
     <div class="home-container">
       <h1 class="logo">CATANATRON</h1>
-
+    
       <div class="switchable">
-        <ng-container *ngIf="!loading; else loadingTemplate">
+        @if (!loading) {
           <div class="game-rules">
             <div>OPEN HAND</div>
             <div>NO CHOICE DURING DISCARD</div>
           </div>
-          
           <div class="player-count-section">
             <div class="section-title">Number of Players</div>
             <div class="button-group">
@@ -42,24 +41,21 @@ enum GameMode {
               </button>
             </div>
           </div>
-
           <div class="action-buttons">
             <button class="action-button primary" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
               PLAY AGAINST CATANATRON
             </button>
-
             <button class="action-button secondary" (click)="startGame(GameMode.RANDOM_BOTS)">
               WATCH RANDOM BOTS
             </button>
           </div>
-        </ng-container>
-
-        <ng-template #loadingTemplate>
+        } @else {
           <mat-spinner diameter="60"></mat-spinner>
-        </ng-template>
+        }
+    
       </div>
     </div>
-  `,
+    `,
   styles: [`
     :host {
       display: block;

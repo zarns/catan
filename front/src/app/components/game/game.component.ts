@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ElementRef, ViewChild, HostListener, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -27,8 +27,7 @@ interface ExtendedPlayer extends Player {
   selector: 'app-game',
   standalone: true,
   imports: [
-    CommonModule, 
-    MatCardModule, 
+    MatCardModule,
     MatProgressSpinnerModule,
     MatBadgeModule,
     MatButtonModule,
@@ -39,7 +38,7 @@ interface ExtendedPlayer extends Player {
     LeftDrawerComponent,
     RightDrawerComponent,
     ResourceSelectorComponent
-  ],
+],
   templateUrl: './game.component.html',
   styleUrls: ['./game.component.scss']
 })

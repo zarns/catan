@@ -18,25 +18,31 @@ interface EdgeAbsoluteCoordinate {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="edge" 
-         [ngClass]="direction"
-         [ngStyle]="edgeStyle"
-         [attr.data-edge-id]="id"
-         [attr.data-edge-coord]="getCoordinateString()"
-         [attr.data-edge-direction]="direction"
-         [attr.data-edge-color]="color"
-         [attr.title]="getDebugTitle()"
-         (click)="onClick.emit(id)">
-      <div *ngIf="color" [ngClass]="color.toLowerCase()" class="road"></div>
-      <div *ngIf="flashing" class="pulse"></div>
-      
+    <div class="edge"
+      [ngClass]="direction"
+      [ngStyle]="edgeStyle"
+      [attr.data-edge-id]="id"
+      [attr.data-edge-coord]="getCoordinateString()"
+      [attr.data-edge-direction]="direction"
+      [attr.data-edge-color]="color"
+      [attr.title]="getDebugTitle()"
+      (click)="onClick.emit(id)">
+      @if (color) {
+        <div [ngClass]="color.toLowerCase()" class="road"></div>
+      }
+      @if (flashing) {
+        <div class="pulse"></div>
+      }
+    
       <!-- Debug overlay for development -->
-      <div class="debug-overlay" *ngIf="showDebugInfo">
-        <div class="debug-id">{{ id }}</div>
-        <div class="debug-direction">{{ direction }}</div>
-      </div>
+      @if (showDebugInfo) {
+        <div class="debug-overlay">
+          <div class="debug-id">{{ id }}</div>
+          <div class="debug-direction">{{ direction }}</div>
+        </div>
+      }
     </div>
-  `,
+    `,
   styleUrls: ['./edge.component.scss']
 })
 export class EdgeComponent {

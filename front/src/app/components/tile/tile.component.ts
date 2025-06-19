@@ -7,48 +7,60 @@ import { MatCardModule } from '@angular/material/card';
   standalone: true,
   imports: [CommonModule, MatCardModule],
   template: `
-    <div class="tile" 
-         [ngClass]="{'port-tile': isPort, 'hex-coord': true, 'hex-x-{{coordinate?.x}}': true, 'hex-y-{{coordinate?.y}}': true, 'hex-z-{{coordinate?.z}}': true}"
-         [ngStyle]="tileStyle"
-         [attr.data-hex-x]="coordinate?.x"
-         [attr.data-hex-y]="coordinate?.y"
-         [attr.data-hex-z]="coordinate?.z"
-         [attr.data-hex-coord]="getCoordinateString()"
-         [attr.data-resource]="resource"
-         [attr.data-number]="number"
-         [attr.data-tile-id]="getTileId()"
-         [attr.data-direction]="isPort ? portDirection : ''"
-         [attr.title]="getDebugTitle()"
-         (click)="onClick.emit(coordinate)">
-      
+    <div class="tile"
+      [ngClass]="{'port-tile': isPort, 'hex-coord': true, 'hex-x-{{coordinate?.x}}': true, 'hex-y-{{coordinate?.y}}': true, 'hex-z-{{coordinate?.z}}': true}"
+      [ngStyle]="tileStyle"
+      [attr.data-hex-x]="coordinate?.x"
+      [attr.data-hex-y]="coordinate?.y"
+      [attr.data-hex-z]="coordinate?.z"
+      [attr.data-hex-coord]="getCoordinateString()"
+      [attr.data-resource]="resource"
+      [attr.data-number]="number"
+      [attr.data-tile-id]="getTileId()"
+      [attr.data-direction]="isPort ? portDirection : ''"
+      [attr.title]="getDebugTitle()"
+      (click)="onClick.emit(coordinate)">
+    
       <img [src]="getTileImageSrc()" class="tile-image" [alt]="getNormalizedResource() + ' tile'">
-      
+    
       <!-- Only render the number token if there's a number -->
-      <div *ngIf="number" class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
-        <div class="number">{{ number }}</div>
-        <div class="pips">{{ numberToPips(number) }}</div>
-      </div>
-      
-      <!-- Debug overlay for development (only visible when debug mode is enabled) -->
-      <div class="debug-overlay" *ngIf="showDebugInfo">
-        <div class="debug-coord">{{ getCoordinateString() }}</div>
-        <div class="debug-resource" *ngIf="resource">{{ resource }}</div>
-        <div class="debug-number" *ngIf="number">{{ number }}</div>
-      </div>
-      
-      <!-- Port indicator for harbors - move this with the same transform as the port tile -->
-      <div *ngIf="isPort" class="port-container" [ngStyle]="getPortTranslateStyle()">
-        <div class="port-indicator">
-          <div class="port-ratio">{{ getPortRatio() }}</div>
-          <div *ngIf="isResourcePort()" class="resource-hex" [ngClass]="getPortResourceClass()">
-            <div class="resource-icon">{{ getResourceIconText() }}</div>
-          </div>
-          <!-- Comment out coordinates for debugging -->
-          <!-- <div class="coord-debug">{{getCoordinateString()}}</div> -->
+      @if (number) {
+        <div class="number-token" [ngClass]="{ 'flashing': flashing, 'high-probability': isHighProbability() }">
+          <div class="number">{{ number }}</div>
+          <div class="pips">{{ numberToPips(number) }}</div>
         </div>
-      </div>
+      }
+    
+      <!-- Debug overlay for development (only visible when debug mode is enabled) -->
+      @if (showDebugInfo) {
+        <div class="debug-overlay">
+          <div class="debug-coord">{{ getCoordinateString() }}</div>
+          @if (resource) {
+            <div class="debug-resource">{{ resource }}</div>
+          }
+          @if (number) {
+            <div class="debug-number">{{ number }}</div>
+          }
+        </div>
+      }
+    
+      <!-- Port indicator for harbors - move this with the same transform as the port tile -->
+      @if (isPort) {
+        <div class="port-container" [ngStyle]="getPortTranslateStyle()">
+          <div class="port-indicator">
+            <div class="port-ratio">{{ getPortRatio() }}</div>
+            @if (isResourcePort()) {
+              <div class="resource-hex" [ngClass]="getPortResourceClass()">
+                <div class="resource-icon">{{ getResourceIconText() }}</div>
+              </div>
+            }
+            <!-- Comment out coordinates for debugging -->
+            <!-- <div class="coord-debug">{{getCoordinateString()}}</div> -->
+          </div>
+        </div>
+      }
     </div>
-  `,
+    `,
   styleUrls: ['./tile.component.scss']
 })
 export class TileComponent implements OnInit {

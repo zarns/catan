@@ -18,77 +18,83 @@ import { Coordinate, GameBoard } from '../../services/game.service';
   ],
   template: `
     <div class="board-container" #boardContainer [ngClass]="{'show': show, 'debug-mode': debugMode}">
-      <ng-container *ngIf="gameState">
+      @if (gameState) {
         <!-- Tiles -->
-        <app-tile *ngFor="let tile of getTiles()"
-                  [coordinate]="tile.coordinate"
-                  [resource]="tile.tile.resource"
-                  [number]="tile.tile.number"
-                  [size]="size"
-                  [centerX]="centerX"
-                  [centerY]="centerY"
-                  [flashing]="isMovingRobber"
-                  [showDebugInfo]="debugMode"
-                  (onClick)="onTileClick(tile.coordinate)">
-        </app-tile>
-        
+        @for (tile of getTiles(); track tile) {
+          <app-tile
+            [coordinate]="tile.coordinate"
+            [resource]="tile.tile.resource"
+            [number]="tile.tile.number"
+            [size]="size"
+            [centerX]="centerX"
+            [centerY]="centerY"
+            [flashing]="isMovingRobber"
+            [showDebugInfo]="debugMode"
+            (onClick)="onTileClick(tile.coordinate)">
+          </app-tile>
+        }
         <!-- Port Tiles -->
-        <app-tile *ngFor="let port of getPorts()"
-                  [coordinate]="port.coordinate"
-                  [resource]="'port'"
-                  [isPort]="true"
-                  [portResource]="port.port.resource"
-                  [portRatio]="port.port.ratio"
-                  [portDirection]="port.port.direction"
-                  [size]="size"
-                  [centerX]="centerX"
-                  [centerY]="centerY"
-                  [showDebugInfo]="debugMode"
-                  (onClick)="onTileClick(port.coordinate)">
-        </app-tile>
-        
+        @for (port of getPorts(); track port) {
+          <app-tile
+            [coordinate]="port.coordinate"
+            [resource]="'port'"
+            [isPort]="true"
+            [portResource]="port.port.resource"
+            [portRatio]="port.port.ratio"
+            [portDirection]="port.port.direction"
+            [size]="size"
+            [centerX]="centerX"
+            [centerY]="centerY"
+            [showDebugInfo]="debugMode"
+            (onClick)="onTileClick(port.coordinate)">
+          </app-tile>
+        }
         <!-- Edges (Roads) -->
-        <app-edge *ngFor="let edge of getEdges()"
-                  [id]="edge.id"
-                  [coordinate]="edge.tile_coordinate"
-                  [node1AbsoluteCoordinate]="edge.node1_absolute_coordinate"
-                  [node2AbsoluteCoordinate]="edge.node2_absolute_coordinate"
-                  [direction]="edge.direction"
-                  [color]="edge.color"
-                  [flashing]="isActionableEdge(edge.id)"
-                  [size]="size"
-                  [centerX]="centerX"
-                  [centerY]="centerY"
-                  [showDebugInfo]="debugMode"
-                  (onClick)="onEdgeClick(edge.id)">
-        </app-edge>
-        
+        @for (edge of getEdges(); track edge) {
+          <app-edge
+            [id]="edge.id"
+            [coordinate]="edge.tile_coordinate"
+            [node1AbsoluteCoordinate]="edge.node1_absolute_coordinate"
+            [node2AbsoluteCoordinate]="edge.node2_absolute_coordinate"
+            [direction]="edge.direction"
+            [color]="edge.color"
+            [flashing]="isActionableEdge(edge.id)"
+            [size]="size"
+            [centerX]="centerX"
+            [centerY]="centerY"
+            [showDebugInfo]="debugMode"
+            (onClick)="onEdgeClick(edge.id)">
+          </app-edge>
+        }
         <!-- Nodes (Settlements/Cities) -->
-        <app-node *ngFor="let node of getNodes()"
-                  [id]="node.id"
-                  [coordinate]="node.tile_coordinate"
-                  [absoluteCoordinate]="node.absolute_coordinate"
-                  [direction]="node.direction"
-                  [building]="node.building"
-                  [color]="node.color"
-                  [flashing]="isActionableNode(node.id)"
-                  [size]="size"
-                  [centerX]="centerX"
-                  [centerY]="centerY"
-                  [showDebugInfo]="debugMode"
-                  (onClick)="onNodeClick(node.id)">
-        </app-node>
-        
+        @for (node of getNodes(); track node) {
+          <app-node
+            [id]="node.id"
+            [coordinate]="node.tile_coordinate"
+            [absoluteCoordinate]="node.absolute_coordinate"
+            [direction]="node.direction"
+            [building]="node.building"
+            [color]="node.color"
+            [flashing]="isActionableNode(node.id)"
+            [size]="size"
+            [centerX]="centerX"
+            [centerY]="centerY"
+            [showDebugInfo]="debugMode"
+            (onClick)="onNodeClick(node.id)">
+          </app-node>
+        }
         <!-- Robber -->
-        <app-robber *ngIf="gameState.robber_coordinate"
-                    [coordinate]="gameState.robber_coordinate"
-                    [size]="size"
-                    [centerX]="centerX"
-                    [centerY]="centerY">
-        </app-robber>
-      </ng-container>
+        @if (gameState.robber_coordinate) {
+          <app-robber
+            [coordinate]="gameState.robber_coordinate"
+            [size]="size"
+            [centerX]="centerX"
+            [centerY]="centerY">
+          </app-robber>
+        }
+      }
     </div>
-  `,
+    `,
   styleUrls: ['./board.component.scss']
 })
 export class BoardComponent implements OnInit, AfterViewInit {

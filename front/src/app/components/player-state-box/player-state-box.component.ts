@@ -14,51 +14,55 @@ import { MatDividerModule } from '@angular/material/divider';
   template: `
     <div class="player-state-box foreground" [ngClass]="color.toLowerCase()">
       <div class="resource-cards" title="Resource Cards">
-        <ng-container *ngFor="let card of resourceTypes">
-          <div *ngIf="getAmount(card) !== 0" 
-               class="{{card.toLowerCase()}}-cards center-text card">
-            <mat-card>{{ getAmount(card) }}</mat-card>
-          </div>
-        </ng-container>
-        
+        @for (card of resourceTypes; track card) {
+          @if (getAmount(card) !== 0) {
+            <div
+              class="{{card.toLowerCase()}}-cards center-text card">
+              <mat-card>{{ getAmount(card) }}</mat-card>
+            </div>
+          }
+        }
+    
         <div class="separator"></div>
-        
-        <ng-container *ngFor="let card of developmentCardTypes">
-          <div *ngIf="getAmount(card) !== 0"
-               class="dev-cards center-text card"
-               [attr.title]="getAmount(card) + ' ' + getCardTitle(card)">
-            <mat-card>
-              <span>{{ getAmount(card) }}</span>
-              <span>{{ getCardShortName(card) }}</span>
-            </mat-card>
-          </div>
-        </ng-container>
+    
+        @for (card of developmentCardTypes; track card) {
+          @if (getAmount(card) !== 0) {
+            <div
+              class="dev-cards center-text card"
+              [attr.title]="getAmount(card) + ' ' + getCardTitle(card)">
+              <mat-card>
+                <span>{{ getAmount(card) }}</span>
+                <span>{{ getCardShortName(card) }}</span>
+              </mat-card>
+            </div>
+          }
+        }
       </div>
-      
+    
       <div class="scores">
         <div class="num-knights center-text"
-             [ngClass]="{'bold': hasLargestArmy()}"
-             title="Knights Played">
+          [ngClass]="{'bold': hasLargestArmy()}"
+          title="Knights Played">
           <span>{{ getKnightsPlayed() }}</span>
           <small>knights</small>
         </div>
-        
+    
         <div class="num-roads center-text"
-             [ngClass]="{'bold': hasLongestRoad()}"
-             title="Longest Road">
+          [ngClass]="{'bold': hasLongestRoad()}"
+          title="Longest Road">
           {{ getLongestRoadLength() }}
           <small>roads</small>
         </div>
-        
+    
         <div class="victory-points center-text"
-             [ngClass]="{'bold': actualVictoryPoints >= 10}"
-             title="Victory Points">
+          [ngClass]="{'bold': actualVictoryPoints >= 10}"
+          title="Victory Points">
           {{ actualVictoryPoints }}
           <small>VPs</small>
         </div>
       </div>
     </div>
-  `,
+    `,
   styleUrls: ['./player-state-box.component.scss']
 })
 export class PlayerStateBoxComponent {

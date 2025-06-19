@@ -22,66 +22,84 @@ import { environment } from '../../../environments/environment';
       <div class="analysis-box">
         <div class="analysis-header">
           <h3>Win Probability Analysis</h3>
-          <button mat-raised-button color="primary" 
-                  (click)="handleAnalyzeClick()"
-                  [disabled]="loading || isGameOver"
-                  [class.loading]="loading">
-            <mat-icon *ngIf="!loading">assessment</mat-icon>
-            <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+          <button mat-raised-button color="primary"
+            (click)="handleAnalyzeClick()"
+            [disabled]="loading || isGameOver"
+            [class.loading]="loading">
+            @if (!loading) {
+              <mat-icon>assessment</mat-icon>
+            }
+            @if (loading) {
+              <mat-spinner diameter="20"></mat-spinner>
+            }
             {{ loading ? 'Analyzing...' : 'Analyze' }}
           </button>
         </div>
-
-        <div *ngIf="error" class="error-message">
-          {{ error }}
-        </div>
-
-        <div *ngIf="mctsResults && !loading && !error" class="probability-bars">
-          <div *ngFor="let result of getMctsResultsArray()" 
-               class="probability-row"
-               [ngClass]="result.color.toLowerCase()">
-            <span class="player-color">{{ result.color }}</span>
-            <span class="probability-bar">
-              <div class="bar-fill" [style.width.%]="result.probability"></div>
-            </span>
-            <span class="probability-value">{{ result.probability }}%</span>
+    
+        @if (error) {
+          <div class="error-message">
+            {{ error }}
           </div>
-        </div>
-        
+        }
+    
+        @if (mctsResults && !loading && !error) {
+          <div class="probability-bars">
+            @for (result of getMctsResultsArray(); track result) {
+              <div
+                class="probability-row"
+                [ngClass]="result.color.toLowerCase()">
+                <span class="player-color">{{ result.color }}</span>
+                <span class="probability-bar">
+                  <div class="bar-fill" [style.width.%]="result.probability"></div>
+                </span>
+                <span class="probability-value">{{ result.probability }}%</span>
+              </div>
+            }
+          </div>
+        }
+    
         <mat-divider></mat-divider>
-        
-        <div class="game-info" *ngIf="gameState && gameState.game">
-          <div class="info-header">Game Information</div>
-          <div class="info-row">
-            <span class="info-label">Game ID:</span>
-            <span class="info-value">{{ gameId }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Status:</span>
-            <span class="info-value">{{ gameState.status | titlecase }}</span>
-          </div>
-          <div class="info-row" *ngIf="gameState.game.turns">
-            <span class="info-label">Turns:</span>
-            <span class="info-value">{{ gameState.game.turns }}</span>
-          </div>
-          <div class="info-row" *ngIf="gameState.game.current_player_index !== undefined">
-            <span class="info-label">Current Player:</span>
-            <span class="info-value" 
+    
+        @if (gameState && gameState.game) {
+          <div class="game-info">
+            <div class="info-header">Game Information</div>
+            <div class="info-row">
+              <span class="info-label">Game ID:</span>
+              <span class="info-value">{{ gameId }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Status:</span>
+              <span class="info-value">{{ gameState.status | titlecase }}</span>
+            </div>
+            @if (gameState.game.turns) {
+              <div class="info-row">
+                <span class="info-label">Turns:</span>
+                <span class="info-value">{{ gameState.game.turns }}</span>
+              </div>
+            }
+            @if (gameState.game.current_player_index !== undefined) {
+              <div class="info-row">
+                <span class="info-label">Current Player:</span>
+                <span class="info-value"
                   [ngStyle]="{'color': getCurrentPlayerColor()}">
-              {{ getCurrentPlayerName() }}
-            </span>
-          </div>
-          <div class="info-row" *ngIf="gameState.winning_color">
-            <span class="info-label">Winner:</span>
-            <span class="info-value" 
+                  {{ getCurrentPlayerName() }}
+                </span>
+              </div>
+            }
+            @if (gameState.winning_color) {
+              <div class="info-row">
+                <span class="info-label">Winner:</span>
+                <span class="info-value"
                   [ngStyle]="{'color': gameState.winning_color.toLowerCase()}">
-              {{ gameState.winning_color }}
-            </span>
+                  {{ gameState.winning_color }}
+                </span>
+              </div>
+            }
           </div>
-        </div>
+        }
       </div>
     </div>
-  `,
+    `,
   styleUrls: ['./right-drawer.component.scss']
 })
 export class RightDrawerComponent implements OnInit {

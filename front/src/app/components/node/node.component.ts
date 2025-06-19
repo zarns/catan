@@ -18,33 +18,39 @@ interface NodeAbsoluteCoordinate {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="node" 
-         [ngClass]="direction"
-         [ngStyle]="nodeStyle"
-         [attr.data-node-id]="id"
-         [attr.data-node-coord]="getCoordinateString()"
-         [attr.data-node-direction]="direction"
-         [attr.data-node-building]="building"
-         [attr.data-node-color]="color"
-         [attr.title]="getDebugTitle()"
-         (click)="onClick.emit(id)">
-      
+    <div class="node"
+      [ngClass]="direction"
+      [ngStyle]="nodeStyle"
+      [attr.data-node-id]="id"
+      [attr.data-node-coord]="getCoordinateString()"
+      [attr.data-node-direction]="direction"
+      [attr.data-node-building]="building"
+      [attr.data-node-color]="color"
+      [attr.title]="getDebugTitle()"
+      (click)="onClick.emit(id)">
+    
       <!-- Settlement/City shape - always visible -->
-      <div class="settlement-shape" 
-           [ngClass]="getSettlementClasses()"
-           [attr.title]="getNodeTitle()">
+      <div class="settlement-shape"
+        [ngClass]="getSettlementClasses()"
+        [attr.title]="getNodeTitle()">
       </div>
-      
-      <div *ngIf="flashing" class="pulse"></div>
-      
+    
+      @if (flashing) {
+        <div class="pulse"></div>
+      }
+    
       <!-- Debug overlay for development -->
-      <div class="debug-overlay" *ngIf="showDebugInfo">
-        <div class="debug-id">{{ id }}</div>
-        <div class="debug-direction">{{ direction }}</div>
-        <div class="debug-building" *ngIf="building">{{ building }}</div>
-      </div>
+      @if (showDebugInfo) {
+        <div class="debug-overlay">
+          <div class="debug-id">{{ id }}</div>
+          <div class="debug-direction">{{ direction }}</div>
+          @if (building) {
+            <div class="debug-building">{{ building }}</div>
+          }
+        </div>
+      }
     </div>
-  `,
+    `,
   styleUrls: ['./node.component.scss']
 })
 export class NodeComponent {

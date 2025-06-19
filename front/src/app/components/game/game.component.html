@@ -1,11 +1,11 @@
 <div class="game-container">
   <!-- Drawer components -->
-  <app-left-drawer 
-    [gameState]="gameState" 
+  <app-left-drawer
+    [gameState]="gameState"
     [isOpen]="isLeftDrawerOpen"
     [isMobile]="isMobileView">
   </app-left-drawer>
-  
+
   <app-right-drawer
     [gameState]="gameState"
     [gameId]="gameId"
@@ -14,83 +14,92 @@
   </app-right-drawer>
 
   <!-- Loading State -->
-  <div *ngIf="isLoading" class="loading-container">
-    <mat-spinner [diameter]="40" color="accent"></mat-spinner>
-    <p>Loading game...</p>
-  </div>
+  @if (isLoading) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40" color="accent"></mat-spinner>
+      <p>Loading game...</p>
+    </div>
+  }
 
   <!-- Error State -->
-  <div *ngIf="error" class="error-container">
-    <p>Error: {{ error }}</p>
-  </div>
+  @if (error) {
+    <div class="error-container">
+      <p>Error: {{ error }}</p>
+    </div>
+  }
 
   <!-- Game Content -->
-  <div *ngIf="!isLoading && !error && gameState" class="game-content">
-    <!-- Main Game Area - Header removed as requested -->
-    <div class="main-game-area">
-      <!-- Watch Mode Status Bar -->
-      <div *ngIf="isWatchOnlyMode" class="watch-mode-status-bar">
-        <mat-icon>visibility</mat-icon>
-        <span>Watch Mode: Spectating Bot Game</span>
-        <div *ngIf="isBotThinking" class="bot-thinking">
-          <mat-spinner [diameter]="20" color="accent"></mat-spinner>
-          <span>{{ lastBotAction }}</span>
-        </div>
+  @if (!isLoading && !error && gameState) {
+    <div class="game-content">
+      <!-- Main Game Area - Header removed as requested -->
+      <div class="main-game-area">
+        <!-- Watch Mode Status Bar -->
+        @if (isWatchOnlyMode) {
+          <div class="watch-mode-status-bar">
+            <mat-icon>visibility</mat-icon>
+            <span>Watch Mode: Spectating Bot Game</span>
+            @if (isBotThinking) {
+              <div class="bot-thinking">
+                <mat-spinner [diameter]="20" color="accent"></mat-spinner>
+                <span>{{ lastBotAction }}</span>
+              </div>
+            }
+          </div>
+        }
+        <!-- Board Component -->
+        <app-board
+          [gameState]="gameState && gameState.game ? gameState.game.board : null"
+          [nodeActions]="nodeActions"
+          [edgeActions]="edgeActions"
+          [isMovingRobber]="isMovingRobber"
+          [debugMode]="debugMode"
+          (nodeClick)="onNodeClick($event)"
+          (edgeClick)="onEdgeClick($event)"
+          (hexClick)="onHexClick($event)">
+        </app-board>
+        <!-- Debug Mode Indicator -->
+        @if (debugMode) {
+          <div class="debug-indicator">
+            <mat-icon>bug_report</mat-icon>
+            <span>Debug Mode Active (Press 'D' to toggle)</span>
+          </div>
+        }
+        <!-- Actions Toolbar Component -->
+        <app-actions-toolbar
+          [gameState]="gameState"
+          [humanPlayer]="getHumanPlayer()"
+          [isBotThinking]="isBotThinking"
+          [isBotTurn]="isBotTurn"
+          [isGameOver]="isGameOver"
+          [isRoll]="isRoll"
+          [isBuildingSettlement]="isBuildingSettlement"
+          [isBuildingCity]="isBuildingCity"
+          [isBuildingRoad]="isBuildingRoad"
+          [canUseCards]="true"
+          [canPlayMonopoly]="true"
+          [canPlayYearOfPlenty]="true"
+          [canPlayRoadBuilding]="true"
+          [canPlayKnight]="true"
+          [canBuild]="true"
+          [canBuyDevCard]="true"
+          [canBuildCity]="true"
+          [canBuildSettlement]="true"
+          [canBuildRoad]="true"
+          [trades]="trades"
+          [isMainActionDisabled]="false"
+          (useCard)="onUseCard($event)"
+          (build)="onBuild($event)"
+          (trade)="onTrade($event)"
+          (mainAction)="onMainAction()">
+        </app-actions-toolbar>
       </div>
-
-      <!-- Board Component -->
-      <app-board 
-        [gameState]="gameState && gameState.game ? gameState.game.board : null" 
-        [nodeActions]="nodeActions"
-        [edgeActions]="edgeActions"
-        [isMovingRobber]="isMovingRobber"
-        [debugMode]="debugMode"
-        (nodeClick)="onNodeClick($event)"
-        (edgeClick)="onEdgeClick($event)"
-        (hexClick)="onHexClick($event)">
-      </app-board>
-      
-      <!-- Debug Mode Indicator -->
-      <div *ngIf="debugMode" class="debug-indicator">
-        <mat-icon>bug_report</mat-icon>
-        <span>Debug Mode Active (Press 'D' to toggle)</span>
-      </div>
-
-      <!-- Actions Toolbar Component -->
-      <app-actions-toolbar
-        [gameState]="gameState"
-        [humanPlayer]="getHumanPlayer()"
-        [isBotThinking]="isBotThinking"
-        [isBotTurn]="isBotTurn"
-        [isGameOver]="isGameOver"
-        [isRoll]="isRoll"
-        [isBuildingSettlement]="isBuildingSettlement"
-        [isBuildingCity]="isBuildingCity"
-        [isBuildingRoad]="isBuildingRoad"
-        [canUseCards]="true"
-        [canPlayMonopoly]="true"
-        [canPlayYearOfPlenty]="true"
-        [canPlayRoadBuilding]="true"
-        [canPlayKnight]="true"
-        [canBuild]="true"
-        [canBuyDevCard]="true"
-        [canBuildCity]="true"
-        [canBuildSettlement]="true"
-        [canBuildRoad]="true"
-        [trades]="trades"
-        [isMainActionDisabled]="false"
-        (useCard)="onUseCard($event)"
-        (build)="onBuild($event)"
-        (trade)="onTrade($event)"
-        (mainAction)="onMainAction()">
-      </app-actions-toolbar>
     </div>
-  </div>
+  }
 
   <!-- Backdrop for mobile drawer -->
-  <div 
-    class="drawer-backdrop" 
-    [class.visible]="(isLeftDrawerOpen || isRightDrawerOpen) && isMobileView" 
+  <div
+    class="drawer-backdrop"
+    [class.visible]="(isLeftDrawerOpen || isRightDrawerOpen) && isMobileView"
     (click)="closeDrawers()">
   </div>
 
@@ -102,4 +111,4 @@
     (onClose)="onResourceSelectorClose()"
     (onSelect)="onResourceSelected($event)">
   </app-resource-selector>
-</div> 
+</div>
