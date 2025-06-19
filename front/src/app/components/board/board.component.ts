@@ -20,7 +20,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
     <div class="board-container" #boardContainer [ngClass]="{'show': show, 'debug-mode': debugMode}">
       @if (gameState) {
         <!-- Tiles -->
-        @for (tile of getTiles(); track tile) {
+        @for (tile of getTiles(); track tile.coordinate) {
           <app-tile
             [coordinate]="tile.coordinate"
             [resource]="tile.tile.resource"
@@ -34,7 +34,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
           </app-tile>
         }
         <!-- Port Tiles -->
-        @for (port of getPorts(); track port) {
+        @for (port of getPorts(); track port.coordinate) {
           <app-tile
             [coordinate]="port.coordinate"
             [resource]="'port'"
@@ -50,7 +50,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
           </app-tile>
         }
         <!-- Edges (Roads) -->
-        @for (edge of getEdges(); track edge) {
+        @for (edge of getEdges(); track edge.id) {
           <app-edge
             [id]="edge.id"
             [coordinate]="edge.tile_coordinate"
@@ -67,7 +67,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
           </app-edge>
         }
         <!-- Nodes (Settlements/Cities) -->
-        @for (node of getNodes(); track node) {
+        @for (node of getNodes(); track node.id) {
           <app-node
             [id]="node.id"
             [coordinate]="node.tile_coordinate"
@@ -101,11 +101,8 @@ export class BoardComponent implements OnInit, AfterViewInit {
   @ViewChild('boardContainer') boardContainerRef!: ElementRef;
   
   @Input() set gameState(value: GameBoard | null) {
-    console.log('🎲 BoardComponent received gameState:', value);
     this._gameState = value;
-    if (value) {
-      console.log('📊 Board data - Tiles:', value.tiles?.length, 'Nodes:', Object.keys(value.nodes || {}).length, 'Edges:', Object.keys(value.edges || {}).length);
-    }
+    // Moved logging to ngAfterViewInit to avoid change detection issues
   }
   get gameState(): GameBoard | null {
     return this._gameState;

@@ -44,7 +44,7 @@ import { environment } from '../../../environments/environment';
     
         @if (mctsResults && !loading && !error) {
           <div class="probability-bars">
-            @for (result of getMctsResultsArray(); track result) {
+            @for (result of getMctsResultsArray(); track result.color) {
               <div
                 class="probability-row"
                 [ngClass]="result.color.toLowerCase()">

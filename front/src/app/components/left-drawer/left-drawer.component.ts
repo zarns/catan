@@ -21,7 +21,7 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
       <div class="drawer-content">
         <!-- Player sections -->
         @if (gameState && gameState.game) {
-          @for (player of gameState.game.players; track player; let i = $index) {
+          @for (player of gameState.game.players; track player.id; let i = $index) {
             <div
               class="player-section"
               [ngClass]="{'current-player': i === gameState.game.current_player_index}">
@@ -38,7 +38,7 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
         <!-- Action log -->
         @if (gameState && gameState.actions) {
           <div class="log">
-            @for (action of getReversedActions(); track action) {
+            @for (action of getReversedActions(); track $index) {
               <div
                 class="action foreground"
                 [ngClass]="action[0]?.toLowerCase()">

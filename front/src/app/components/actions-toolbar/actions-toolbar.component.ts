@@ -22,7 +22,7 @@ import { MatBadgeModule } from '@angular/material/badge';
         @if (humanPlayer) {
           <div class="player-resources-summary">
             <div class="resources-flex">
-              @for (resource of getResourceEntries(humanPlayer.resources); track resource) {
+              @for (resource of getResourceEntries(humanPlayer.resources); track resource.name) {
                 <div class="resource-item">
                   <div class="resource-icon" [ngClass]="resource.name"></div>
                   <span class="resource-value">{{ resource.count }}</span>
@@ -104,7 +104,7 @@ import { MatBadgeModule } from '@angular/material/badge';
               Trade
             </button>
             <mat-menu #tradeMenu="matMenu">
-              @for (trade of trades; track trade) {
+              @for (trade of trades; track $index) {
                 <button mat-menu-item
                   (click)="onTrade(trade)">
                   {{ trade.description }}

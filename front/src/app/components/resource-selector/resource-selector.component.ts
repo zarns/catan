@@ -42,7 +42,7 @@ export interface ResourceOption {
               </p>
             }
             <div class="resource-options">
-              @for (option of options; track option) {
+              @for (option of options; track option.type) {
                 <button
                   class="resource-option"
                   [ngClass]="option.type"
