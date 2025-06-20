@@ -92,6 +92,29 @@
           (trade)="onTrade($event)"
           (mainAction)="onMainAction()">
         </app-actions-toolbar>
+        
+        <!-- Mobile Drawer Toggle Buttons -->
+        @if (isMobileView) {
+          <div class="mobile-drawer-controls">
+            <button 
+              mat-raised-button 
+              class="drawer-toggle-btn left-toggle"
+              [class.active]="isLeftDrawerOpen"
+              (click)="toggleLeftDrawer()"
+              aria-label="Toggle player info">
+              <mat-icon>people</mat-icon>
+            </button>
+            
+            <button 
+              mat-raised-button 
+              class="drawer-toggle-btn right-toggle"
+              [class.active]="isRightDrawerOpen"
+              (click)="toggleRightDrawer()"
+              aria-label="Toggle game analysis">
+              <mat-icon>analytics</mat-icon>
+            </button>
+          </div>
+        }
       </div>
     </div>
   }

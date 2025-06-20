@@ -95,6 +95,21 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
   
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    if (!this.isMobileView) return;
+    
+    const target = event.target as HTMLElement;
+    
+    // Check if click is outside drawer and not on toggle buttons
+    const isDrawerClick = target.closest('.left-drawer, .right-drawer');
+    const isToggleClick = target.closest('.drawer-toggle-btn');
+    
+    if (!isDrawerClick && !isToggleClick && (this.isLeftDrawerOpen || this.isRightDrawerOpen)) {
+      this.closeDrawers();
+    }
+  }
+  
   private subscription = new Subscription();
   
   constructor(
@@ -587,10 +602,17 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   checkMobileView(): void {
     this.isMobileView = window.innerWidth < 1200;
     
-    // On large screens, always show left drawer; on smaller screens, control it via toggle
     if (!this.isMobileView) {
-      this.isLeftDrawerOpen = true; // Always open on desktop
-      this.isRightDrawerOpen = false; // Right drawer controlled separately
+      // Desktop: Always show left drawer, hide right drawer by default
+      this.isLeftDrawerOpen = true;
+      this.isRightDrawerOpen = false;
+    } else {
+      // Mobile: Hide both drawers by default when switching to mobile view
+      // Only close if they weren't already open (preserve user intent)
+      if (!this.isLeftDrawerOpen && !this.isRightDrawerOpen) {
+        this.isLeftDrawerOpen = false;
+        this.isRightDrawerOpen = false;
+      }
     }
   }
 } 

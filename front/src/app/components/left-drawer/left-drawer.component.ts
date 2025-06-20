@@ -11,7 +11,10 @@ import { PlayerStateBoxComponent } from '../player-state-box/player-state-box.co
   ],
 
   template: `
-    <div class="left-drawer" [class.mobile]="isMobile" [class.open]="isOpen">
+    <div class="left-drawer" 
+         [class.mobile]="isMobile" 
+         [class.desktop]="!isMobile"
+         [class.open]="isOpen">
       <div class="drawer-content">
         <!-- Player sections -->
         @if (gameState && gameState.game) {

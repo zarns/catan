@@ -74,6 +74,9 @@
     mat-icon {
       margin-right: 6px;
       font-size: 20px;
+      border: none !important; // Override any global debug borders
+      visibility: visible !important;
+      opacity: 1 !important;
     }
   }
   
@@ -90,6 +93,9 @@
     mat-icon {
       margin-right: 6px;
       font-size: 20px;
+      border: none !important; // Override any global debug borders
+      visibility: visible !important;
+      opacity: 1 !important;
     }
   }
 }

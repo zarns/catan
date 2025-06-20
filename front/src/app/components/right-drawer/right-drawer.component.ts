@@ -18,7 +18,10 @@ import { environment } from '../../../environments/environment';
     MatIconModule
   ],
   template: `
-    <div class="right-drawer" [class.mobile]="isMobile" [class.open]="isOpen">
+    <div class="right-drawer" 
+         [class.mobile]="isMobile" 
+         [class.desktop]="!isMobile"
+         [class.open]="isOpen">
       <div class="analysis-box">
         <div class="analysis-header">
           <h3>Win Probability Analysis</h3>

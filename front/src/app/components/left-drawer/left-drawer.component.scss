@@ -10,17 +10,25 @@ $accent-color: #4caf50;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 280px;
   background-color: $dark-gray;
-  z-index: 1000;
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
   color: #f0f0f0;
   border-right: 1px solid $dark-divider;
+  transition: transform 0.3s ease;
+
+  &.desktop {
+    width: 280px;
+    transform: translateX(0);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+  }
 
   &.mobile {
+    width: 100%;
+    max-width: 350px;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
 
     &.open {
       transform: translateX(0);
@@ -167,33 +175,19 @@ $accent-color: #4caf50;
   }
 }
 
-/* Responsive styles */
+/* Responsive fallback styles - these are now primarily handled by class-based logic */
 @media (min-width: 1200px) {
-  .left-drawer {
-    width: 280px;
-    // Always visible on large screens
+  .left-drawer.desktop {
+    // Ensure desktop drawer is always visible
     transform: translateX(0) !important;
-    
-    &.mobile {
-      transform: translateX(0) !important;
-    }
   }
 }
 
 @media (max-width: 1199px) {
-  .left-drawer {
-    width: 280px;
-    // Hidden by default on smaller screens
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    
-    &.open {
-      transform: translateX(0);
-      z-index: 1000;
-    }
-    
+  .left-drawer.mobile {
+    // Ensure mobile drawer respects open/closed state
     &:not(.open) {
-      transform: translateX(-100%);
+      transform: translateX(-100%) !important;
     }
   }
 } 

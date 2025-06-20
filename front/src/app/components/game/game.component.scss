@@ -82,12 +82,15 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 900;
-  display: none;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
   
   &.visible {
-    display: block;
+    opacity: 1;
+    visibility: visible;
   }
 }
 
@@ -138,7 +141,7 @@
 // Debug indicator styles
 .debug-indicator {
   position: absolute;
-  top: 10px;
+  top: 80px; // Moved down to avoid mobile drawer controls
   right: 10px;
   background: rgba(255, 152, 0, 0.9);
   color: white;
@@ -160,5 +163,57 @@
   
   span {
     font-family: monospace;
+  }
+}
+
+// Mobile drawer toggle buttons
+.mobile-drawer-controls {
+  position: fixed;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 48px; // Explicit height to prevent expansion
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; // Align to top
+  padding: 0 20px;
+  z-index: 1002; // Higher than drawers but shouldn't interfere with toolbar
+  pointer-events: none; // Allow clicks to pass through container
+  
+  .drawer-toggle-btn {
+    pointer-events: all; // Re-enable clicks on buttons
+    width: 48px;
+    height: 48px;
+    min-width: 48px; // Prevent shrinking
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px; // Rounded square instead of circle
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 0; // Remove default padding
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.9);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    &.active {
+      background-color: #4caf50;
+      border-color: #4caf50;
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+      
+      &:hover {
+        background-color: #45a049;
+      }
+    }
+    
+    mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      margin: 0; // Remove any default margins
+    }
   }
 } 
