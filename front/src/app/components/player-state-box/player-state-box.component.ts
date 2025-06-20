@@ -8,16 +8,8 @@ import { CommonModule } from '@angular/common';
     CommonModule
   ],
   template: `
-    <div class="player-state-box foreground" [ngClass]="color.toLowerCase()">
-      <!-- Player header with name and indicators -->
-      <div class="player-header">
-        <div class="player-name">{{ getPlayerDisplayName() }}</div>
-        <div class="player-indicator" 
-             [ngClass]="{ 'current': isCurrentPlayer, 'bot': isBot }">
-          {{ getPlayerIndicator() }}
-        </div>
-      </div>
-      
+    <div class="player-state-box foreground" 
+         [class]="getPlayerClasses()">
       <div class="resource-cards" title="Resource Cards">
         @for (card of resourceTypes; track card) {
           @if (getAmount(card) !== 0) {
@@ -45,21 +37,21 @@ import { CommonModule } from '@angular/common';
     
       <div class="scores">
         <div class="num-knights center-text"
-          [ngClass]="{'bold': hasLargestArmy()}"
+          [class.bold]="hasLargestArmy()"
           title="Knights Played">
           <span>{{ getKnightsPlayed() }}</span>
           <small>knights</small>
         </div>
     
         <div class="num-roads center-text"
-          [ngClass]="{'bold': hasLongestRoad()}"
+          [class.bold]="hasLongestRoad()"
           title="Longest Road">
           {{ getLongestRoadLength() }}
           <small>roads</small>
         </div>
     
         <div class="victory-points center-text"
-          [ngClass]="{'bold': actualVictoryPoints >= 10}"
+          [class.bold]="actualVictoryPoints >= 10"
           title="Victory Points">
           {{ actualVictoryPoints }}
           <small>VPs</small>
@@ -79,6 +71,14 @@ export class PlayerStateBoxComponent {
   resourceTypes = ['WOOD', 'BRICK', 'SHEEP', 'WHEAT', 'ORE'];
   developmentCardTypes = ['VICTORY_POINT', 'KNIGHT', 'MONOPOLY', 'YEAR_OF_PLENTY', 'ROAD_BUILDING'];
 
+  getPlayerClasses(): string {
+    const classes = [this.color.toLowerCase()];
+    if (this.isCurrentPlayer) {
+      classes.push('current-player');
+    }
+    return classes.join(' ');
+  }
+
   get actualVictoryPoints(): number {
     if (!this.playerState) return 0;
     
@@ -95,29 +95,6 @@ export class PlayerStateBoxComponent {
     }
     
     return 0;
-  }
-
-  getPlayerDisplayName(): string {
-    // Capitalize first letter and make rest lowercase for display
-    return this.color.charAt(0).toUpperCase() + this.color.slice(1).toLowerCase();
-  }
-
-  getPlayerIndicator(): string {
-    const indicators = [];
-    
-    if (this.isCurrentPlayer) {
-      indicators.push('⚡');
-    }
-    
-    if (this.isBot) {
-      indicators.push('🤖');
-    }
-    
-    if (this.actualVictoryPoints >= 10) {
-      indicators.push('👑');
-    }
-    
-    return indicators.join(' ') || '•';
   }
 
   getAmount(card: string): number {

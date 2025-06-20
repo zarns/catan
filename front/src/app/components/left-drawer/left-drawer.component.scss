@@ -38,18 +38,31 @@ $accent-color: #4caf50;
       flex-shrink: 0;
       
       &.current-player {
-        background-color: rgba(255, 255, 255, 0.05);
+        // Enhanced border for current player instead of green accent
+        app-player-state-box {
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px; // Thicker border
+            background: inherit; // Will inherit the player color
+            z-index: 1;
+            opacity: 1;
+          }
+        }
         
-        // Add subtle glow effect for current player
-        &::before {
+        // Also add a subtle pulse animation for current player
+        &::after {
           content: '';
           position: absolute;
           left: 0;
           top: 0;
           bottom: 0;
-          width: 3px;
-          background: $accent-color;
-          z-index: 1;
+          width: 4px;
+          background: rgba(255, 255, 255, 0.3);
+          animation: pulse 2s infinite;
         }
       }
       
@@ -138,6 +151,19 @@ $accent-color: #4caf50;
         opacity: 0.5;
       }
     }
+  }
+}
+
+// Add pulse animation for current player
+@keyframes pulse {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.3;
   }
 }
 
