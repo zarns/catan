@@ -17,21 +17,7 @@ import { MatBadgeModule } from '@angular/material/badge';
   ],
   template: `
     <div class="actions-area">
-      <!-- State summary -->
-      <div class="state-summary">
-        @if (humanPlayer) {
-          <div class="player-resources-summary">
-            <div class="resources-flex">
-              @for (resource of getResourceEntries(humanPlayer.resources); track resource.name) {
-                <div class="resource-item">
-                  <div class="resource-icon" [ngClass]="resource.name"></div>
-                  <span class="resource-value">{{ resource.count }}</span>
-                </div>
-              }
-            </div>
-          </div>
-        }
-      </div>
+
     
       <!-- Actions toolbar -->
       @if (!isGameOver) {
@@ -179,17 +165,7 @@ export class ActionsToolbarComponent {
     }
   }
   
-  // Helper method to format player resources for display
-  getResourceEntries(resources: {[key: string]: number}): {name: string, count: number}[] {
-    if (!resources) {
-      return [];
-    }
 
-    return Object.entries(resources).map(([resource, count]) => ({
-      name: resource.toLowerCase(),
-      count
-    }));
-  }
   
   onUseCard(cardType: string): void {
     this.useCard.emit(cardType);

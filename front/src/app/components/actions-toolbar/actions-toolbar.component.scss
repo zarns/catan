@@ -7,7 +7,7 @@
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   background-color: rgba(26, 26, 26, 0.9);
   padding: 12px 16px;
@@ -17,44 +17,7 @@
   border-top: 1px solid #333;
 }
 
-.state-summary {
-  display: flex;
-  align-items: center;
-}
 
-.player-resources-summary {
-  .resources-flex {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .resource-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background-color: #333;
-    padding: 6px 10px;
-    border-radius: 4px;
-    color: #ffffff;
-  }
-  
-  .resource-icon {
-    width: 18px;
-    height: 18px;
-    border-radius: 3px;
-    
-    &.brick { background-color: $color-brick; }
-    &.wood { background-color: $color-wood; }
-    &.sheep { background-color: $color-sheep; }
-    &.wheat { background-color: $color-wheat; }
-    &.ore { background-color: $color-ore; }
-  }
-  
-  .resource-value {
-    font-weight: 500;
-    font-size: 14px;
-  }
-}
 
 .actions-toolbar {
   display: flex;
@@ -144,19 +107,13 @@
 
 @media (max-width: 768px) {
   .actions-area {
-    flex-direction: column;
     height: auto;
     padding: 8px;
-    gap: 8px;
-  }
-  
-  .state-summary {
-    width: 100%;
   }
   
   .actions-toolbar {
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
     
     .options-button {
       min-width: 60px;
