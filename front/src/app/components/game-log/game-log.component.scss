@@ -1,0 +1,113 @@
+@use '../../../_variables.scss';
+
+.game-log {
+  margin: 0.5rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+
+  .log-entries {
+    overflow-y: auto;
+    // Height will be set dynamically by TypeScript
+    
+    // Custom scrollbar styling
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+    }
+    
+    // Firefox scrollbar styling
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+
+    .action-entry {
+      margin-bottom: 0.25rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border-left: 4px solid transparent;
+      background: rgba(255, 255, 255, 0.05);
+      transition: all 0.2s ease;
+
+      // Player color indicators using variables from _variables.scss
+      &.red {
+        border-left-color: variables.$player-red;
+        background: linear-gradient(90deg, rgba(variables.$player-red, 0.1), rgba(255, 255, 255, 0.05));
+      }
+      
+      &.blue {
+        border-left-color: variables.$player-blue;
+        background: linear-gradient(90deg, rgba(variables.$player-blue, 0.1), rgba(255, 255, 255, 0.05));
+      }
+      
+      &.white {
+        border-left-color: variables.$player-white;
+        background: linear-gradient(90deg, rgba(variables.$player-white, 0.15), rgba(255, 255, 255, 0.05));
+      }
+      
+      &.orange {
+        border-left-color: variables.$player-orange;
+        background: linear-gradient(90deg, rgba(variables.$player-orange, 0.1), rgba(255, 255, 255, 0.05));
+      }
+
+      .action-main {
+        .action-text {
+          color: white;
+          font-size: 0.85rem;
+          line-height: 1.4;
+        }
+      }
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(2px);
+      }
+    }
+  }
+
+
+
+  .no-actions {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    margin: 0.25rem 0;
+    
+    .log-entries {
+      // Same flexbox approach for mobile - no fixed heights needed
+      
+      .action-entry {
+        margin-bottom: 0.4rem;
+        padding: 0.4rem;
+        
+        .action-main .action-text {
+          font-size: 0.8rem;
+        }
+      }
+    }
+    
+
+  }
+}

@@ -116,6 +116,9 @@ pub struct Player {
     pub largest_army: bool,
 }
 
+// Action tracking for the game log - format: [player_color, action_type, action_data]
+pub type ActionLog = Vec<serde_json::Value>;
+
 // The unified Game struct that replaces both Game enum and GameView
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
@@ -128,6 +131,7 @@ pub struct Game {
     pub turns: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_dice_roll: Option<[u8; 2]>,
+    pub actions: ActionLog, // Track all actions for the game log
     #[serde(skip)]
     pub state: Option<State>, // Internal game logic state, skipped in serialization
 }
@@ -400,6 +404,7 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
         dice_rolled: false,
         turns: 0,
         current_dice_roll: None,
+        actions: Vec::new(), // Initialize empty actions log
         state: Some(state),
     }
 }
@@ -467,6 +472,7 @@ impl Game {
             dice_rolled: false,
             turns: 0,
             current_dice_roll: None,
+            actions: Vec::new(), // Initialize empty actions log
             state: Some(state),
         }
     }
@@ -488,6 +494,9 @@ impl Game {
 
         let player_index = player_index.unwrap();
         let _color_idx = player_index as u8; // Prefix with underscore to indicate it's unused
+        
+        // Get player color for logging (clone to avoid borrowing issues)
+        let player_color = self.players[player_index].color.clone();
 
         // Apply the action and get updated state info
         let (new_current_player, new_dice_rolled) = {
@@ -516,6 +525,69 @@ impl Game {
 
         // Update the board representation to reflect the new state
         self.update_board();
+
+        // Log the action for the game log - format: [player_color, action_type, action_data]
+        let action_log_entry = {
+            let (action_type, action_data) = match &action {
+                EnumAction::BuildSettlement { node_id, .. } => {
+                    ("BuildSettlement", serde_json::json!(node_id))
+                }
+                EnumAction::BuildCity { node_id, .. } => {
+                    ("BuildCity", serde_json::json!(node_id))
+                }
+                EnumAction::BuildRoad { edge_id, .. } => {
+                    ("BuildRoad", serde_json::json!(edge_id))
+                }
+                EnumAction::BuyDevelopmentCard { .. } => {
+                    ("BuyDevelopmentCard", serde_json::Value::Null)
+                }
+                EnumAction::PlayKnight { .. } => {
+                    ("PlayKnight", serde_json::Value::Null)
+                }
+                EnumAction::PlayMonopoly { resource, .. } => {
+                    ("PlayMonopoly", serde_json::json!(resource))
+                }
+                EnumAction::PlayYearOfPlenty { resources, .. } => {
+                    ("PlayYearOfPlenty", serde_json::json!(resources))
+                }
+                EnumAction::PlayRoadBuilding { .. } => {
+                    ("PlayRoadBuilding", serde_json::Value::Null)
+                }
+                EnumAction::MoveRobber { coordinate, victim_opt, .. } => {
+                    let mut data = serde_json::json!([coordinate.0, coordinate.1, coordinate.2]);
+                    if let Some(victim) = victim_opt {
+                        if let serde_json::Value::Array(ref mut arr) = data {
+                            arr.push(serde_json::json!(victim));
+                        }
+                    }
+                    ("MoveRobber", data)
+                }
+                EnumAction::MaritimeTrade { give, take, ratio, .. } => {
+                    ("MaritimeTrade", serde_json::json!([give, take, ratio]))
+                }
+                EnumAction::EndTurn { .. } => {
+                    ("EndTurn", serde_json::Value::Null)
+                }
+                EnumAction::Roll { dice_opt, .. } => {
+                    let dice_data = if let Some(dice) = dice_opt {
+                        serde_json::json!([dice.0, dice.1])
+                    } else if let Some(dice_roll) = self.current_dice_roll {
+                        serde_json::json!([dice_roll[0], dice_roll[1]])
+                    } else {
+                        serde_json::Value::Null
+                    };
+                    ("Roll", dice_data)
+                }
+                EnumAction::Discard { .. } => {
+                    ("Discard", serde_json::Value::Null)
+                }
+                _ => ("Unknown", serde_json::Value::Null),
+            };
+
+            serde_json::json!([player_color.to_uppercase(), action_type, action_data])
+        };
+
+        self.actions.push(action_log_entry);
 
         // BUGFIX - Sync frontend game_state with internal state phase transitions
         // Check if we should transition from Setup to Active phase

@@ -38,3 +38,21 @@ The project includes a CLI tool for simulating Catan games between AI players:
 ## Attribution
 
 Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Licensed under GPL-3.0.
+
+
+# TODO
+- hide mobile buttons after clicking
+- finish leftdrawer
+  - ✅ Add logging component below player-state-box
+  - clean up logging statements "You" "unknown"
+- implement rightdrawer
+  - backend mcts endpoint
+- Actions toolbar
+  - center actions buttons
+  - remove card numbers
+- GameBoard
+  - implement player interactivity so user can play against bots
+  - Hide actionsToolbar buttons when bots are playing
+- Fix cargo test - failed tests
+- Tokio Dependabot vuln
+- Add play against catanatron buttons
