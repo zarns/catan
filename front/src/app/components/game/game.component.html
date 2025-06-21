@@ -94,12 +94,11 @@
         </app-actions-toolbar>
         
         <!-- Mobile Drawer Toggle Buttons -->
-        @if (isMobileView) {
+        @if (isMobileView && !isLeftDrawerOpen && !isRightDrawerOpen) {
           <div class="mobile-drawer-controls">
             <button 
               mat-raised-button 
               class="drawer-toggle-btn left-toggle"
-              [class.active]="isLeftDrawerOpen"
               (click)="toggleLeftDrawer()"
               aria-label="Toggle player info">
               <mat-icon>people</mat-icon>
@@ -108,7 +107,6 @@
             <button 
               mat-raised-button 
               class="drawer-toggle-btn right-toggle"
-              [class.active]="isRightDrawerOpen"
               (click)="toggleRightDrawer()"
               aria-label="Toggle game analysis">
               <mat-icon>analytics</mat-icon>
