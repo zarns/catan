@@ -94,40 +94,48 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
       return 'Invalid action';
     }
 
-    const botColors = this.gameState.bot_colors || [];
-    const player = botColors.includes(action[0]) ? "BOT" : "YOU";
+    // Get player index from color
+    const playerColor = action[0]?.toLowerCase();
+    const playerIndex = this.gameState?.game?.players?.findIndex((p: any) => 
+      p.color.toLowerCase() === playerColor
+    );
+    
+    const player = playerIndex !== -1 ? `P${playerIndex + 1}` : action[0];
     
     switch (action[1]) {
       case "Roll":
-        return `${player} ROLLED A ${action[2]?.[0] + action[2]?.[1] || 'unknown'}`;
+        if (action[2] && typeof action[2] === 'number') {
+          return `${player} ROLLED ${action[2]}`;
+        }
+        return `${player} ROLLED`;
       case "Discard":
         return `${player} DISCARDED`;
       case "BuyDevelopmentCard":
-        return `${player} BOUGHT DEVELOPMENT CARD`;
+        return `${player} BOUGHT DEV CARD`;
       case "BuildSettlement":
-        return `${player} BUILT SETTLEMENT`;
+        return `${player} BUILT SETTLEMENT ${action[2] !== undefined ? `N${action[2]}` : ''}`;
       case "BuildCity":
-        return `${player} BUILT CITY`;
+        return `${player} BUILT CITY ${action[2] !== undefined ? `N${action[2]}` : ''}`;
       case "BuildRoad":
-        return `${player} BUILT ROAD`;
-      case "PlayKnightCard":
-        return `${player} PLAYED KNIGHT CARD`;
+        return `${player} BUILT ROAD ${action[2] !== undefined ? `E${action[2]}` : ''}`;
+      case "PlayKnight":
+        return `${player} PLAYED KNIGHT`;
       case "PlayRoadBuilding":
         return `${player} PLAYED ROAD BUILDING`;
       case "PlayMonopoly":
-        return `${player} MONOPOLIZED ${action[2]}`;
+        return `${player} MONOPOLIZED ${action[2] || 'RESOURCE'}`;
       case "PlayYearOfPlenty": {
         const resources = action[2];
         if (Array.isArray(resources) && resources.length >= 2) {
-          return `${player} PLAYED YEAR OF PLENTY. CLAIMED ${resources[0]} AND ${resources[1]}`;
+          return `${player} PLAYED YEAR OF PLENTY: ${resources[0]} & ${resources[1]}`;
         } else {
-          return `${player} PLAYED YEAR OF PLENTY. CLAIMED ${resources}`;
+          return `${player} PLAYED YEAR OF PLENTY: ${resources || 'RESOURCES'}`;
         }
       }
       case "MoveRobber":
         return `${player} MOVED ROBBER`;
       case "MaritimeTrade":
-        return `${player} TRADED (MARITIME)`;
+        return `${player} MARITIME TRADE`;
       case "EndTurn":
         return `${player} ENDED TURN`;
       default:

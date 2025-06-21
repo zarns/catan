@@ -568,11 +568,15 @@ impl Game {
                 EnumAction::EndTurn { .. } => {
                     ("EndTurn", serde_json::Value::Null)
                 }
-                EnumAction::Roll { dice_opt, .. } => {
-                    let dice_data = if let Some(dice) = dice_opt {
-                        serde_json::json!([dice.0, dice.1])
-                    } else if let Some(dice_roll) = self.current_dice_roll {
-                        serde_json::json!([dice_roll[0], dice_roll[1]])
+                EnumAction::Roll { .. } => {
+                    // Simple approach: get dice from state after action is applied
+                    let dice_data = if let Some(ref state) = self.state {
+                        if let Some((die1, die2)) = state.get_last_dice_roll() {
+                            let total = die1 + die2;
+                            serde_json::json!(total)
+                        } else {
+                            serde_json::Value::Null
+                        }
                     } else {
                         serde_json::Value::Null
                     };

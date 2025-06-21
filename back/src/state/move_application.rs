@@ -642,6 +642,10 @@ impl State {
             let mut rng = rand::thread_rng();
             (rng.gen_range(1..=6), rng.gen_range(1..=6))
         });
+        
+        // Store the dice roll for logging purposes
+        self.last_dice_roll = Some((die1, die2));
+        
         let total = die1 + die2;
 
         log::info!("🎲 Player {} rolled {} + {} = {}", color, die1, die2, total);

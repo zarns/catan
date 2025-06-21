@@ -56,6 +56,9 @@ pub struct State {
 
     // Cached winner to avoid recalculating every time
     cached_winner: Option<u8>,
+    
+    // Store the last dice roll for logging purposes
+    last_dice_roll: Option<(u8, u8)>,
 }
 
 impl State {
@@ -101,6 +104,7 @@ impl State {
             largest_army_color,
             largest_army_count,
             cached_winner: None,
+            last_dice_roll: None,
         }
     }
 
@@ -577,6 +581,10 @@ impl State {
         &self.vector[BANK_RESOURCE_SLICE]
     }
 
+    pub fn get_last_dice_roll(&self) -> Option<(u8, u8)> {
+        self.last_dice_roll
+    }
+
     pub fn set_bank_resource(&mut self, resource_index: usize, count: u8) {
         self.vector[BANK_RESOURCE_SLICE.start + resource_index] = count;
     }
@@ -647,6 +655,7 @@ impl Clone for State {
             largest_army_color: self.largest_army_color,
             largest_army_count: self.largest_army_count,
             cached_winner: self.cached_winner,
+            last_dice_roll: self.last_dice_roll,
         }
     }
 }
