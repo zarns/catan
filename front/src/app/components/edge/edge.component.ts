@@ -99,7 +99,7 @@ export class EdgeComponent {
     }
     
     // Uniform transparent white for all edges
-    const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, 0.2)';
+    const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, .15)';
     
     return {
       left: `${centerX}px`,

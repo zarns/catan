@@ -435,13 +435,21 @@ pub fn simulate_bot_game(num_players: u8) -> Game {
 
 // Initial setup for a game against Catanatron
 pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
-    let mut player_names = vec![human_name];
+    println!("🎮 DEBUG start_human_vs_catanatron:");
+    println!("  - Human name: {}", human_name);
+    println!("  - Number of bots: {}", num_bots);
+    
+    let mut player_names = vec![human_name.clone()];
 
     for i in 0..num_bots {
         player_names.push(format!("Bot {}", i + 1));
     }
+    
+    println!("  - Player names: {:?}", player_names);
 
     let game_id = format!("hvs_{}", uuid::Uuid::new_v4());
+    println!("  - Game ID: {}", game_id);
+    
     let mut game = Game::new(game_id, player_names);
     
     // Set bot_colors - all players except the first one (human) are bots
@@ -450,8 +458,18 @@ pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
         .map(|p| p.color.clone())
         .collect();
     
+    println!("  - Bot colors: {:?}", game.bot_colors);
+    println!("  - All players:");
+    for (i, player) in game.players.iter().enumerate() {
+        let is_bot = game.bot_colors.contains(&player.color);
+        println!("    - Player {}: {} (color: {}, is_bot: {})", i, player.name, player.color, is_bot);
+    }
+    
     // Update metadata from state
+    println!("  - Calling update_metadata_from_state...");
     game.update_metadata_from_state();
+    
+    println!("🎮 END start_human_vs_catanatron debug\n");
     
     game
 }
@@ -687,15 +705,33 @@ impl Game {
     /// Update game metadata from the internal state
     pub fn update_metadata_from_state(&mut self) {
         if let Some(state) = &self.state {
+            // DEBUG: Log essential information about the current state
+            let current_color_index = state.get_current_color();
+            let is_initial_phase = state.is_initial_build_phase();
+            let action_prompt = state.get_action_prompt();
+            
+            println!("🔍 DEBUG update_metadata_from_state:");
+            println!("  - Current color index: {}", current_color_index);
+            println!("  - Is initial build phase: {}", is_initial_phase);
+            println!("  - Action prompt: {:?}", action_prompt);
+            
             // Update current_playable_actions
             let playable_actions = state.generate_playable_actions();
+            println!("  - Generated {} playable actions", playable_actions.len());
+            
+            // Debug: Log just the first action for verification
+            if !playable_actions.is_empty() {
+                println!("    - First action: {:?}", playable_actions[0]);
+            }
+            
             self.current_playable_actions = playable_actions
                 .iter()
                 .map(|action| crate::actions::PlayerAction::from(*action))
                 .collect();
             
+            println!("  - Converted to {} PlayerActions", self.current_playable_actions.len());
+            
             // Update current_color
-            let current_color_index = state.get_current_color();
             self.current_color = Some(match current_color_index {
                 0 => "RED".to_string(),
                 1 => "BLUE".to_string(),
@@ -705,11 +741,11 @@ impl Game {
             });
             
             // Update is_initial_build_phase
-            self.is_initial_build_phase = state.is_initial_build_phase();
+            self.is_initial_build_phase = is_initial_phase;
             
             // Update current_prompt based on action prompt
             use crate::enums::ActionPrompt;
-            self.current_prompt = Some(match state.get_action_prompt() {
+            self.current_prompt = Some(match action_prompt {
                 ActionPrompt::BuildInitialSettlement => "BUILD_INITIAL_SETTLEMENT".to_string(),
                 ActionPrompt::BuildInitialRoad => "BUILD_INITIAL_ROAD".to_string(),
                 ActionPrompt::PlayTurn => "PLAY_TURN".to_string(),
@@ -718,6 +754,11 @@ impl Game {
                 ActionPrompt::DecideTrade => "DECIDE_TRADE".to_string(),
                 ActionPrompt::DecideAcceptees => "DECIDE_ACCEPTEES".to_string(),
             });
+            
+            println!("  - Current color: {:?}, Current prompt: {:?}", self.current_color, self.current_prompt);
+            println!("🔍 END update_metadata_from_state debug\n");
+        } else {
+            println!("❌ update_metadata_from_state: No internal state available!");
         }
     }
 

@@ -113,8 +113,23 @@ export class BoardComponent implements OnInit, AfterViewInit {
   @Input() isMobile: boolean = false;
   @Input() isMovingRobber: boolean = false;
   @Input() show: boolean = true;
-  @Input() nodeActions: {[key: string]: any} = {};
-  @Input() edgeActions: {[key: string]: any} = {};
+  @Input() set nodeActions(value: {[key: string]: any}) {
+    this._nodeActions = value;
+    console.log('🎯 BoardComponent received nodeActions:', Object.keys(value).length, 'nodes', value);
+  }
+  get nodeActions(): {[key: string]: any} {
+    return this._nodeActions;
+  }
+  private _nodeActions: {[key: string]: any} = {};
+  
+  @Input() set edgeActions(value: {[key: string]: any}) {
+    this._edgeActions = value;
+    console.log('🛣️ BoardComponent received edgeActions:', Object.keys(value).length, 'edges', value);
+  }
+  get edgeActions(): {[key: string]: any} {
+    return this._edgeActions;
+  }
+  private _edgeActions: {[key: string]: any} = {};
   
   // Debug mode flag - can be controlled from parent component
   @Input() debugMode: boolean = false;
@@ -149,6 +164,14 @@ export class BoardComponent implements OnInit, AfterViewInit {
       };
     });
     
+    // Log first few node IDs to see the format
+    if (nodes.length > 0) {
+      console.log('🏠 First 5 node IDs:', nodes.slice(0, 5).map(n => n.id));
+      console.log('🏠 Sample nodeActions keys:', Object.keys(this.nodeActions).slice(0, 5));
+      console.log('🏠 Full node structure of first node:', nodes[0]);
+      console.log('🏠 Node keys:', Object.keys(nodes[0]));
+    }
+    
     // Log nodes with buildings for debugging
     const nodesWithBuildings = nodes.filter(node => node.building);
     if (nodesWithBuildings.length > 0) {
@@ -182,11 +205,45 @@ export class BoardComponent implements OnInit, AfterViewInit {
   }
   
   isActionableNode(nodeId: string): boolean {
-    return !!this.nodeActions[nodeId];
+    // Try multiple ID formats to find a match
+    let isActionable = !!this.nodeActions[nodeId];
+    let actionData = this.nodeActions[nodeId];
+    let mappedNodeId = nodeId;
+    
+    // If direct match fails, try extracting numeric part from 'n7_NE' format
+    if (!isActionable && nodeId.startsWith('n')) {
+      const numericPart = nodeId.split('_')[0].substring(1); // Extract '7' from 'n7_NE'
+      isActionable = !!this.nodeActions[numericPart];
+      actionData = this.nodeActions[numericPart];
+      mappedNodeId = numericPart;
+      
+      if (isActionable) {
+        console.log(`🎯 MATCH FOUND: Frontend node '${nodeId}' maps to backend node '${numericPart}'`);
+      }
+    }
+    
+    // Add counter to see how often this is called
+    if (!this.actionableCheckCount) this.actionableCheckCount = 0;
+    this.actionableCheckCount++;
+    
+    if (this.actionableCheckCount <= 10) { // Only log first 10 calls to avoid spam
+      console.log(`🎯 Node ${nodeId} is actionable check #${this.actionableCheckCount}: ${isActionable} (nodeActions has: ${Object.keys(this.nodeActions).length} keys)`);
+    }
+    
+    if (isActionable) {
+      console.log(`🎯 Node ${nodeId} is actionable:`, actionData);
+    }
+    return isActionable;
   }
   
+  private actionableCheckCount = 0;
+  
   isActionableEdge(edgeId: string): boolean {
-    return !!this.edgeActions[edgeId];
+    const isActionable = !!this.edgeActions[edgeId];
+    if (isActionable) {
+      console.log(`🛣️ Edge ${edgeId} is actionable:`, this.edgeActions[edgeId]);
+    }
+    return isActionable;
   }
   
   // Event emitters for user interactions

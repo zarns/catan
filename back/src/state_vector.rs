@@ -223,9 +223,10 @@ pub fn initialize_state(num_players: u8) -> Vec<u8> {
     // Initialize Players
     let mut player_state_start = PLAYER_STATE_START_INDEX;
 
-    // Shuffle player indices
-    let mut color_seating_order = COLORS[0..n].iter().map(|&x| x as u8).collect::<Vec<u8>>();
-    color_seating_order.shuffle(&mut rand::thread_rng());
+    // Use deterministic seating order instead of shuffling
+    // This ensures RED (0) always goes first, which is important for human vs bot games
+    let color_seating_order: Vec<u8> = COLORS[0..n].iter().map(|&x| x as u8).collect();
+    println!("🎲 DEBUG: Using deterministic seating order: {:?}", color_seating_order);
     vector[player_state_start..player_state_start + n].copy_from_slice(&color_seating_order);
     player_state_start += n;
 

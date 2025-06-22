@@ -252,16 +252,37 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     console.log('🎯 GameComponent: Processing', this.gameState.current_playable_actions.length, 'playable actions:', this.gameState.current_playable_actions);
 
-    // Parse current_playable_actions using modern PlayableAction structure
+    // Parse current_playable_actions - these are Rust enum variants, not flat objects
     this.gameState.current_playable_actions.forEach((action, index) => {
       console.log(`🎯 GameComponent: Processing action ${index}:`, action);
       
-      // Check if this is a node-based action (BUILD_SETTLEMENT, BUILD_CITY)
-      if ((action.action_type === 'BUILD_SETTLEMENT' || action.action_type === 'BUILD_CITY') && action.node_id !== undefined) {
-        console.log(`🎯 GameComponent: Found node action for node ${action.node_id}:`, action);
+      // Check if this is a BuildSettlement action (Rust enum format)
+      if (action.hasOwnProperty('BuildSettlement') && action.BuildSettlement?.node_id !== undefined) {
+        const nodeId = action.BuildSettlement.node_id;
+        console.log(`🎯 GameComponent: Found BuildSettlement action for node ${nodeId}:`, action);
+        this.nodeActions[nodeId.toString()] = { 
+          type: 'BUILD_SETTLEMENT',
+          action: action,
+          node_id: nodeId
+        };
+      }
+      // Check if this is a BuildCity action (Rust enum format)
+      else if (action.hasOwnProperty('BuildCity') && action.BuildCity?.node_id !== undefined) {
+        const nodeId = action.BuildCity.node_id;
+        console.log(`🎯 GameComponent: Found BuildCity action for node ${nodeId}:`, action);
+        this.nodeActions[nodeId.toString()] = { 
+          type: 'BUILD_CITY',
+          action: action,
+          node_id: nodeId
+        };
+      }
+      // Also handle flat object format for backwards compatibility
+      else if ((action.action_type === 'BUILD_SETTLEMENT' || action.action_type === 'BUILD_CITY') && action.node_id !== undefined) {
+        console.log(`🎯 GameComponent: Found flat object action for node ${action.node_id}:`, action);
         this.nodeActions[action.node_id.toString()] = { 
           type: action.action_type,
-          action: action
+          action: action,
+          node_id: action.node_id
         };
       }
     });
@@ -281,19 +302,30 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     console.log('🛣️ GameComponent: Processing', this.gameState.current_playable_actions.length, 'playable actions for edges');
 
-    // Parse current_playable_actions using modern PlayableAction structure
+    // Parse current_playable_actions - these are Rust enum variants, not flat objects
     this.gameState.current_playable_actions.forEach((action, index) => {
       console.log(`🛣️ GameComponent: Processing action ${index}:`, action);
       
-      // Check if this is an edge-based action (BUILD_ROAD)
-      if (action.action_type === 'BUILD_ROAD' && action.edge_id !== undefined) {
-        // edge_id is [node1, node2], create edge key format: e{min}_{max}
+      // Check if this is a BuildRoad action (Rust enum format)
+      if (action.hasOwnProperty('BuildRoad') && action.BuildRoad?.edge_id !== undefined) {
+        const [node1, node2] = action.BuildRoad.edge_id;
+        const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
+        console.log(`🛣️ GameComponent: Found BuildRoad action for edge ${edgeKey} (nodes ${node1}-${node2}):`, action);
+        this.edgeActions[edgeKey] = {
+          type: 'BUILD_ROAD',
+          action: action,
+          edge_id: action.BuildRoad.edge_id
+        };
+      }
+      // Also handle flat object format for backwards compatibility
+      else if (action.action_type === 'BUILD_ROAD' && action.edge_id !== undefined) {
         const [node1, node2] = action.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
-        console.log(`🛣️ GameComponent: Found edge action for edge ${edgeKey} (nodes ${node1}-${node2}):`, action);
+        console.log(`🛣️ GameComponent: Found flat object BUILD_ROAD action for edge ${edgeKey} (nodes ${node1}-${node2}):`, action);
         this.edgeActions[edgeKey] = {
           type: action.action_type,
-          action: action
+          action: action,
+          edge_id: action.edge_id
         };
       }
     });
@@ -317,13 +349,22 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
     // Check if this node has an available action
-    const nodeAction = this.nodeActions[nodeId];
+    let nodeAction = this.nodeActions[nodeId];
+    let mappedNodeId = nodeId;
+    
+    // If direct lookup fails, try extracting numeric part from 'n7_NE' format
+    if (!nodeAction && nodeId.startsWith('n')) {
+      const numericPart = nodeId.split('_')[0].substring(1); // Extract '7' from 'n7_NE'
+      nodeAction = this.nodeActions[numericPart];
+      mappedNodeId = numericPart;
+    }
+    
     if (!nodeAction?.action) {
       console.log(`Node ${nodeId} clicked but no action available`);
       return;
     }
     
-    console.log(`🎯 Executing node action:`, nodeAction.action);
+    console.log(`🎯 Executing node action for ${nodeId} (mapped to ${mappedNodeId}):`, nodeAction.action);
     
     // Use the exact action from current_playable_actions
     this.gameService.postAction(this.gameId, nodeAction.action).subscribe({

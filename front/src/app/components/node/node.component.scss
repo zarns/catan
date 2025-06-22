@@ -140,9 +140,9 @@
     display: block;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.8); // More visible white
+    background-color: rgba(255, 255, 255, 0.4); // Reduced from 0.8 to 0.4
     border-radius: 4px;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.3); // Reduced from 12px/0.6 to 6px/0.3
     animation: pulse-node 1.5s ease-in-out infinite;
   }
 }

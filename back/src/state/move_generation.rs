@@ -30,23 +30,38 @@ impl State {
     }
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
+        println!("🏘️  DEBUG settlement_possibilities: color {}, initial_phase: {}", color, is_initial_build_phase);
+        
         if is_initial_build_phase {
+            println!("  - Using initial build phase logic, {} buildable nodes", self.board_buildable_ids.len());
+            
             // Use the maintained board_buildable_ids cache for initial build phase
-            self.board_buildable_ids
+            let actions: Vec<Action> = self.board_buildable_ids
                 .iter()
-                .map(|node_id| Action::BuildSettlement {
-                    color,
-                    node_id: *node_id,
+                .map(|node_id| {
+                    Action::BuildSettlement {
+                        color,
+                        node_id: *node_id,
+                    }
                 })
-                .collect()
+                .collect();
+                
+            println!("  - Returning {} settlement actions", actions.len());
+            actions
         } else {
+            println!("  - Using normal build phase logic");
             let has_resources = freqdeck_contains(self.get_player_hand(color), &SETTLEMENT_COST);
             let settlements_used = self.get_settlements(color).len();
             let has_settlements_available = settlements_used < 5;
+            
+            println!("  - has_resources: {}, settlements_used: {}, has_settlements_available: {}", has_resources, settlements_used, has_settlements_available);
 
             if has_resources && has_settlements_available {
                 // For non-initial phase, check road connectivity
-                self.buildable_node_ids(color)
+                let buildable_nodes = self.buildable_node_ids(color);
+                println!("  - {} buildable nodes found", buildable_nodes.len());
+                
+                let connected_nodes: Vec<u8> = buildable_nodes
                     .into_iter()
                     .filter(|&node_id| {
                         // Must be adjacent to at least one road owned by this player
@@ -55,9 +70,19 @@ impl State {
                             .iter()
                             .any(|&edge_id| self.roads.get(&edge_id) == Some(&color))
                     })
+                    .collect();
+                    
+                println!("  - {} connected nodes found", connected_nodes.len());
+                    
+                let actions: Vec<Action> = connected_nodes
+                    .into_iter()
                     .map(|node_id| Action::BuildSettlement { color, node_id })
-                    .collect()
+                    .collect();
+                    
+                println!("  - Returning {} settlement actions", actions.len());
+                actions
             } else {
+                println!("  - No resources or settlements available, returning empty");
                 vec![]
             }
         }

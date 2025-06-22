@@ -68,14 +68,29 @@ export interface Player {
 
 // Modern action structure for frontend - matches backend actions::PlayableAction
 export interface PlayableAction {
-  action_type: string;
-  color: string;
+  // Flat object format (legacy)
+  action_type?: string;
+  color?: string;
   node_id?: number;
   edge_id?: [number, number]; // EdgeId is (NodeId, NodeId) = (u8, u8)
   coordinate?: [number, number, number];
   resource?: string;
   resources?: string[];
   target_player?: string;
+  
+  // Rust enum format support
+  BuildSettlement?: { node_id: number };
+  BuildCity?: { node_id: number };
+  BuildRoad?: { edge_id: [number, number] };
+  Roll?: {};
+  EndTurn?: {};
+  BuyDevelopmentCard?: {};
+  PlayKnight?: {};
+  MoveRobber?: { coordinate: [number, number, number]; victim?: string };
+  Discard?: { resources: string[] };
+  
+  // Support for unknown properties from Rust enum variants
+  [key: string]: any;
 }
 
 export interface Game {
