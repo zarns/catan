@@ -225,7 +225,7 @@ enum GameMode {
 export class HomeComponent implements OnInit {
   GameMode = GameMode;
   loading = false;
-  numPlayers = 2;
+  numPlayers = 4;
 
   constructor(
     private router: Router,
@@ -239,10 +239,12 @@ export class HomeComponent implements OnInit {
   }
 
   async startGame(gameMode: GameMode) {
+    console.log('🎮 HomeComponent: Starting game with mode:', gameMode, 'players:', this.numPlayers);
     this.loading = true;
     
     // Map local enum to service enum
     const serviceGameMode = this.mapGameMode(gameMode);
+    console.log('🎮 HomeComponent: Mapped service mode:', serviceGameMode);
     
     // Call the backend API to create a game
     this.gameService.createGame({
@@ -250,12 +252,13 @@ export class HomeComponent implements OnInit {
       num_players: this.numPlayers
     }).subscribe({
       next: (gameState) => {
-        console.log('Game created:', gameState);
+        console.log('🎮 HomeComponent: Game created successfully:', gameState);
+        console.log('🎮 HomeComponent: Navigating to game:', gameState.id);
         this.router.navigate(['/game', gameState.id]);
         this.loading = false;
       },
       error: (error) => {
-        console.error('Error creating game:', error);
+        console.error('❌ HomeComponent: Error creating game:', error);
         this.loading = false;
       }
     });

@@ -58,8 +58,8 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
     const availableHeight = window.innerHeight - rect.top;
     
     // Set the height to fill from current position to bottom of screen
-    this.logEntries.nativeElement.style.height = `${availableHeight - 20}px`; // 20px for margins
-    this.logEntries.nativeElement.style.maxHeight = `${availableHeight - 20}px`;
+    this.logEntries.nativeElement.style.height = `${availableHeight}px`; // 20px for margins
+    this.logEntries.nativeElement.style.maxHeight = `${availableHeight}px`;
   }
 
   private setupResizeObserver(): void {

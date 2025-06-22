@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ElementRef, ViewChild, HostListener, AfterViewInit } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -7,7 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
-import { GameService, GameAction, GameState, Player, Coordinate } from '../../services/game.service';
+import { GameService, GameAction, GameState, Player, Coordinate, PlayableAction } from '../../services/game.service';
 import { WebsocketService } from '../../services/websocket.service';
 import { Subscription } from 'rxjs';
 
@@ -115,83 +116,63 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private route: ActivatedRoute,
     private gameService: GameService,
-    private websocketService: WebsocketService
+    private websocketService: WebsocketService,
+    private router: Router
   ) {}
   
-  ngOnInit(): void {
-    this.isLoading = true;
+  ngOnInit() {
+    console.log('🎮 GameComponent: ngOnInit() called');
+    
+    // Initialize mobile view detection
     this.checkMobileView();
     
-    // Check for watch mode from query parameters
-    this.subscription.add(
-      this.route.queryParams.subscribe((params: any) => {
-        this.isWatchOnlyMode = params['mode'] === 'watch';
-        if (this.isWatchOnlyMode) {
-          console.log('Watch-only mode activated');
-        }
-      })
-    );
-    
     // Get the game ID from the route
-    this.subscription.add(
-      this.route.paramMap.subscribe((params: any) => {
-        this.gameId = params.get('id') || '';
-        if (this.gameId) {
-          this.loadGameState();
-        } else {
-          this.error = 'No game ID provided.';
-          this.isLoading = false;
-        }
-      })
-    );
-    
-    // Subscribe to game state updates
-    this.subscription.add(
-      this.gameService.gameUIState$.subscribe(uiState => {
-        console.log('🎮 GameComponent received UI state update:', uiState);
+    const gameIdParam = this.route.snapshot.paramMap.get('id');
+    console.log('🎮 GameComponent: Game ID from route:', gameIdParam);
+
+    if (!gameIdParam) {
+      console.error('❌ GameComponent: No game ID found in route');
+      this.router.navigate(['/']);
+      return;
+    }
+
+    this.gameId = gameIdParam;
+
+    // Subscribe to game state changes
+    this.gameService.gameUIState$.subscribe(uiState => {
+      console.log('🎮 GameComponent: Received gameUIState update:', uiState);
+      
+      if (uiState.gameState) {
+        console.log('🎮 GameComponent: Setting gameState:', uiState.gameState);
+        console.log('🎮 GameComponent: Game has current_playable_actions:', uiState.gameState.current_playable_actions?.length || 0, 'actions');
+        console.log('🎮 GameComponent: Game bot_colors:', uiState.gameState.bot_colors);
+        console.log('🎮 GameComponent: Game current_color:', uiState.gameState.current_color);
+        console.log('🎮 GameComponent: Game current_prompt:', uiState.gameState.current_prompt);
         
         this.gameState = uiState.gameState;
-        this.isBuildingRoad = uiState.isBuildingRoad;
-        this.isBuildingSettlement = uiState.isBuildingSettlement;
-        this.isBuildingCity = uiState.isBuildingCity;
-        this.isPlayingMonopoly = uiState.isPlayingMonopoly;
-        this.isPlayingYearOfPlenty = uiState.isPlayingYearOfPlenty;
-        this.isMovingRobber = uiState.isMovingRobber;
+        this.isLoading = false;  // Stop loading when we have game state
+        this.error = null;       // Clear any previous errors
         
-        if (this.gameState) {
-          console.log('🎲 GameComponent updating with new game state:', this.gameState);
-          this.isLoading = false;
-          this.updateGameState();
-        }
-      })
-    );
-    
-    // Subscribe to WebSocket messages for bot actions
-    this.subscription.add(
-      this.websocketService.messages$.subscribe(message => {
-        console.log('WebSocket message received:', message);
-        
-        if (message.type === 'bot_action') {
-          // Update bot thinking status based on bot actions
-          if (message.data.action === 'thinking') {
-            this.isBotThinking = true;
-            this.lastBotAction = 'Thinking...';
-          } else {
-            this.lastBotAction = `Bot ${message.data.action}`;
-            // For all other bot actions, we can set thinking to false after a short delay
-            // to give the user time to see what the bot did
-            setTimeout(() => {
-              this.isBotThinking = false;
-            }, 500);
-          }
-        } else if (message.type === 'game_state') {
-          // Update game state when WebSocket sends updates
-          if (this.isWatchOnlyMode) {
-            this.gameService.updateGameState(message.data);
-          }
-        }
-      })
-    );
+        // Update actions when game state changes
+        console.log('🎮 GameComponent: Updating node and edge actions...');
+        this.updateNodeActions();
+        this.updateEdgeActions();
+      } else {
+        console.log('🎮 GameComponent: No gameState in uiState');
+      }
+      
+      // Update UI state flags
+      this.isBuildingRoad = uiState.isBuildingRoad;
+      this.isBuildingSettlement = uiState.isBuildingSettlement;
+      this.isBuildingCity = uiState.isBuildingCity;
+      this.isPlayingMonopoly = uiState.isPlayingMonopoly;
+      this.isPlayingYearOfPlenty = uiState.isPlayingYearOfPlenty;
+      this.isMovingRobber = uiState.isMovingRobber;
+    });
+
+    // Load the initial game state from the API
+    console.log('🎮 GameComponent: Loading initial game state...');
+    this.loadGameState();
   }
   
   ngAfterViewInit(): void {
@@ -205,15 +186,20 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   loadGameState(): void {
+    console.log('🎮 GameComponent: loadGameState() called for game:', this.gameId);
     this.isLoading = true;
+    this.error = null;
+    
     this.gameService.getGameState(this.gameId).subscribe({
-      next: () => {
-        // Game state will be updated via the subscription
+      next: (gameState) => {
+        console.log('🎮 GameComponent: Initial game state loaded:', gameState);
+        // Game state will be updated via the gameUIState$ subscription
         // Connect to the WebSocket for real-time updates
+        console.log('🎮 GameComponent: Connecting to WebSocket for game:', this.gameId);
         this.websocketService.connect(this.gameId);
       },
       error: (err) => {
-        console.error('Error loading game state:', err);
+        console.error('❌ GameComponent: Error loading game state:', err);
         this.error = 'Failed to load game state. Please try again.';
         this.isLoading = false;
       }
@@ -256,45 +242,64 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   updateNodeActions(): void {
+    console.log('🎯 GameComponent: updateNodeActions() called');
     this.nodeActions = {};
     
-    if (!this.gameState || !this.gameState.game) return;
-    
-    if (this.isBuildingSettlement) {
-      // Find nodes where settlements can be built
-      this.gameState.game.board.nodes && Object.entries(this.gameState.game.board.nodes).forEach(([nodeId, node]) => {
-        // Check if the node is buildable - this would depend on game rules
-        // For now, we'll just check if it's empty
-        if (!node.building) {
-          this.nodeActions[nodeId] = { type: 'BUILD_SETTLEMENT' };
-        }
-      });
-    } else if (this.isBuildingCity) {
-      // Find nodes where cities can be built (must have a settlement)
-      this.gameState.game.board.nodes && Object.entries(this.gameState.game.board.nodes).forEach(([nodeId, node]) => {
-        // Check if the node has a settlement of the player's color
-        const humanPlayer = this.getCurrentPlayer();
-        if (node.building === 'Settlement' && node.color === humanPlayer?.color) {
-          this.nodeActions[nodeId] = { type: 'BUILD_CITY' };
-        }
-      });
+    if (!this.gameState?.current_playable_actions) {
+      console.log('🎯 GameComponent: No current_playable_actions found');
+      return;
     }
+    
+    console.log('🎯 GameComponent: Processing', this.gameState.current_playable_actions.length, 'playable actions:', this.gameState.current_playable_actions);
+
+    // Parse current_playable_actions using modern PlayableAction structure
+    this.gameState.current_playable_actions.forEach((action, index) => {
+      console.log(`🎯 GameComponent: Processing action ${index}:`, action);
+      
+      // Check if this is a node-based action (BUILD_SETTLEMENT, BUILD_CITY)
+      if ((action.action_type === 'BUILD_SETTLEMENT' || action.action_type === 'BUILD_CITY') && action.node_id !== undefined) {
+        console.log(`🎯 GameComponent: Found node action for node ${action.node_id}:`, action);
+        this.nodeActions[action.node_id.toString()] = { 
+          type: action.action_type,
+          action: action
+        };
+      }
+    });
+
+    console.log('🎯 GameComponent: Final nodeActions:', this.nodeActions);
+    console.log('🎯 GameComponent: Number of actionable nodes:', Object.keys(this.nodeActions).length);
   }
   
   updateEdgeActions(): void {
+    console.log('🛣️ GameComponent: updateEdgeActions() called');
     this.edgeActions = {};
     
-    if (!this.gameState || !this.gameState.game) return;
-    
-    if (this.isBuildingRoad) {
-      // Find edges where roads can be built
-      this.gameState.game.board.edges && Object.entries(this.gameState.game.board.edges).forEach(([edgeId, edge]) => {
-        // Check if the edge is buildable - for now, just check if it's empty
-        if (!edge.color) {
-          this.edgeActions[edgeId] = { type: 'BUILD_ROAD' };
-        }
-      });
+    if (!this.gameState?.current_playable_actions) {
+      console.log('🛣️ GameComponent: No current_playable_actions found');
+      return;
     }
+    
+    console.log('🛣️ GameComponent: Processing', this.gameState.current_playable_actions.length, 'playable actions for edges');
+
+    // Parse current_playable_actions using modern PlayableAction structure
+    this.gameState.current_playable_actions.forEach((action, index) => {
+      console.log(`🛣️ GameComponent: Processing action ${index}:`, action);
+      
+      // Check if this is an edge-based action (BUILD_ROAD)
+      if (action.action_type === 'BUILD_ROAD' && action.edge_id !== undefined) {
+        // edge_id is [node1, node2], create edge key format: e{min}_{max}
+        const [node1, node2] = action.edge_id;
+        const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
+        console.log(`🛣️ GameComponent: Found edge action for edge ${edgeKey} (nodes ${node1}-${node2}):`, action);
+        this.edgeActions[edgeKey] = {
+          type: action.action_type,
+          action: action
+        };
+      }
+    });
+
+    console.log('🛣️ GameComponent: Final edgeActions:', this.edgeActions);
+    console.log('🛣️ GameComponent: Number of actionable edges:', Object.keys(this.edgeActions).length);
   }
   
   updateTrades(): void {
@@ -311,39 +316,47 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onNodeClick(nodeId: string): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
-    if (this.isBuildingSettlement) {
-      this.gameService.buildSettlementAction(this.gameId, nodeId).subscribe({
-        next: () => {
-          // Settlement built - state will update via WebSocket
-          this.isBuildingSettlement = false;
-        },
-        error: (err: Error) => {
-          console.error('Error building settlement:', err);
-        }
-      });
-    } else if (this.isBuildingCity) {
-      this.gameService.buildCityAction(this.gameId, nodeId).subscribe({
-        next: () => {
-          // City built - state will update via WebSocket
-          this.isBuildingCity = false;
-        },
-        error: (err: Error) => {
-          console.error('Error building city:', err);
-        }
-      });
+    // Check if this node has an available action
+    const nodeAction = this.nodeActions[nodeId];
+    if (!nodeAction?.action) {
+      console.log(`Node ${nodeId} clicked but no action available`);
+      return;
     }
+    
+    console.log(`🎯 Executing node action:`, nodeAction.action);
+    
+    // Use the exact action from current_playable_actions
+    this.gameService.postAction(this.gameId, nodeAction.action).subscribe({
+      next: (gameState) => {
+        console.log('✅ Node action completed successfully');
+        // State will be updated via WebSocket, no need for manual UI state changes
+      },
+      error: (err: Error) => {
+        console.error('❌ Error executing node action:', err);
+      }
+    });
   }
   
   onEdgeClick(edgeId: string): void {
-    if (!this.gameId || !this.isBuildingRoad || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
-    this.gameService.buildRoadAction(this.gameId, edgeId).subscribe({
-      next: () => {
-        // Road built - state will update via WebSocket
-        this.isBuildingRoad = false;
+    // Check if this edge has an available action
+    const edgeAction = this.edgeActions[edgeId];
+    if (!edgeAction?.action) {
+      console.log(`Edge ${edgeId} clicked but no action available`);
+      return;
+    }
+    
+    console.log(`🛣️ Executing edge action:`, edgeAction.action);
+    
+    // Use the exact action from current_playable_actions
+    this.gameService.postAction(this.gameId, edgeAction.action).subscribe({
+      next: (gameState) => {
+        console.log('✅ Edge action completed successfully');
+        // State will be updated via WebSocket, no need for manual UI state changes
       },
       error: (err: Error) => {
-        console.error('Error building road:', err);
+        console.error('❌ Error executing edge action:', err);
       }
     });
   }
@@ -448,29 +461,24 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onBuild(buildType: string): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
-    if (buildType === 'ROAD') {
-      this.gameService.dispatch({
-        type: GameAction.TOGGLE_BUILDING_ROAD
-      });
-    } else if (buildType === 'SETTLEMENT') {
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_BUILDING_SETTLEMENT,
-        payload: !this.isBuildingSettlement
-      });
-    } else if (buildType === 'CITY') {
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_BUILDING_CITY,
-        payload: !this.isBuildingCity
-      });
-    } else if (buildType === 'DEV_CARD') {
+    if (buildType === 'DEV_CARD') {
+      // Development card purchase is immediate
       this.gameService.buyDevelopmentCardAction(this.gameId).subscribe({
         next: () => {
-          // Development card purchased - state will update via WebSocket
+          console.log('✅ Development card purchased');
         },
         error: (err: Error) => {
-          console.error('Error buying development card:', err);
+          console.error('❌ Error buying development card:', err);
         }
       });
+    } else {
+      // For building actions (ROAD, SETTLEMENT, CITY), just let the user know to click on the board
+      // The actual building happens when they click on nodes/edges
+      // The backend's current_playable_actions will determine what's clickable
+      const actionName = buildType.toLowerCase().replace('_', ' ');
+      console.log(`🏗️ Ready to build ${actionName}. Click on the board to place it.`);
+      
+      // No need to set UI state - the backend controls what's clickable via current_playable_actions
     }
   }
   
@@ -614,5 +622,63 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isRightDrawerOpen = false;
       }
     }
+  }
+  
+  // Methods to determine available actions based on current_playable_actions
+  
+  canBuildSettlement(): boolean {
+    return this.hasActionType('BUILD_SETTLEMENT');
+  }
+  
+  canBuildCity(): boolean {
+    return this.hasActionType('BUILD_CITY');
+  }
+  
+  canBuildRoad(): boolean {
+    return this.hasActionType('BUILD_ROAD');
+  }
+  
+  canBuyDevelopmentCard(): boolean {
+    return this.hasActionType('BUY_DEVELOPMENT_CARD');
+  }
+  
+  canPlayMonopoly(): boolean {
+    return this.hasActionType('PLAY_MONOPOLY');
+  }
+  
+  canPlayYearOfPlenty(): boolean {
+    return this.hasActionType('PLAY_YEAR_OF_PLENTY');
+  }
+  
+  canPlayRoadBuilding(): boolean {
+    return this.hasActionType('PLAY_ROAD_BUILDING');
+  }
+  
+  canPlayKnight(): boolean {
+    return this.hasActionType('PLAY_KNIGHT_CARD') || this.hasActionType('PLAY_KNIGHT');
+  }
+  
+  canRollDice(): boolean {
+    return this.hasActionType('ROLL');
+  }
+  
+  canEndTurn(): boolean {
+    return this.hasActionType('END_TURN');
+  }
+  
+  hasAnyBuildActions(): boolean {
+    return this.canBuildSettlement() || this.canBuildCity() || this.canBuildRoad() || this.canBuyDevelopmentCard();
+  }
+  
+  hasAnyCardActions(): boolean {
+    return this.canPlayMonopoly() || this.canPlayYearOfPlenty() || this.canPlayRoadBuilding() || this.canPlayKnight();
+  }
+  
+  private hasActionType(actionType: string): boolean {
+    if (!this.gameState?.current_playable_actions) return false;
+    
+    return this.gameState.current_playable_actions.some((action: PlayableAction) => {
+      return action.action_type === actionType;
+    });
   }
 } 

@@ -9,6 +9,7 @@ use crate::state::{BuildingType, State};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use uuid;
 
 // Use EnumAction instead of defining GameAction
 pub type GameAction = EnumAction;
@@ -132,6 +133,12 @@ pub struct Game {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_dice_roll: Option<[u8; 2]>,
     pub actions: ActionLog, // Track all actions for the game log
+    // Frontend compatibility fields
+    pub current_playable_actions: Vec<crate::actions::PlayerAction>,
+    pub is_initial_build_phase: bool,
+    pub current_color: Option<String>,
+    pub current_prompt: Option<String>,
+    pub bot_colors: Vec<String>, // Colors of bot players for frontend identification
     #[serde(skip)]
     pub state: Option<State>, // Internal game logic state, skipped in serialization
 }
@@ -395,18 +402,28 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
     let state = State::new(Arc::new(config), Arc::new(map_instance.clone()));
 
     // Create the Game object
-    Game {
+    let mut game = Game {
         id,
         players,
-        game_state: GameState::Active,
+        game_state: GameState::Setup,
         board: generate_board_from_template(&map_instance),
         current_player_index: 0,
         dice_rolled: false,
         turns: 0,
         current_dice_roll: None,
         actions: Vec::new(), // Initialize empty actions log
+        current_playable_actions: Vec::new(),
+        is_initial_build_phase: true,
+        current_color: None,
+        current_prompt: None,
+        bot_colors: Vec::new(),
         state: Some(state),
-    }
+    };
+
+    // Update metadata from the initial state
+    game.update_metadata_from_state();
+
+    game
 }
 
 // Game simulation for bot play
@@ -421,11 +438,22 @@ pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
     let mut player_names = vec![human_name];
 
     for i in 0..num_bots {
-        player_names.push(format!("Catanatron {}", i + 1));
+        player_names.push(format!("Bot {}", i + 1));
     }
 
     let game_id = format!("hvs_{}", uuid::Uuid::new_v4());
-    Game::new(game_id, player_names)
+    let mut game = Game::new(game_id, player_names);
+    
+    // Set bot_colors - all players except the first one (human) are bots
+    game.bot_colors = game.players.iter()
+        .skip(1) // Skip the first player (human)
+        .map(|p| p.color.clone())
+        .collect();
+    
+    // Update metadata from state
+    game.update_metadata_from_state();
+    
+    game
 }
 
 impl Game {
@@ -463,7 +491,7 @@ impl Game {
         let state = State::new(Arc::new(config), Arc::new(map_instance.clone()));
 
         // Create the Game object
-        Game {
+        let mut game = Game {
             id,
             players,
             game_state: GameState::Setup,
@@ -473,8 +501,18 @@ impl Game {
             turns: 0,
             current_dice_roll: None,
             actions: Vec::new(), // Initialize empty actions log
+            current_playable_actions: Vec::new(),
+            is_initial_build_phase: true,
+            current_color: None,
+            current_prompt: None,
+            bot_colors: Vec::new(),
             state: Some(state),
-        }
+        };
+
+        // Update metadata from the initial state
+        game.update_metadata_from_state();
+
+        game
     }
 
     // Process an action on the game
@@ -638,12 +676,49 @@ impl Game {
         }
     }
 
-    /// Get whether the game is in the initial build phase from the internal state
+    /// Check if the game is in the initial build phase from the internal state
     pub fn is_initial_build_phase(&self) -> bool {
         self.state
             .as_ref()
             .map(|s| s.is_initial_build_phase())
             .unwrap_or(true) // Default to true if no state available
+    }
+
+    /// Update game metadata from the internal state
+    pub fn update_metadata_from_state(&mut self) {
+        if let Some(state) = &self.state {
+            // Update current_playable_actions
+            let playable_actions = state.generate_playable_actions();
+            self.current_playable_actions = playable_actions
+                .iter()
+                .map(|action| crate::actions::PlayerAction::from(*action))
+                .collect();
+            
+            // Update current_color
+            let current_color_index = state.get_current_color();
+            self.current_color = Some(match current_color_index {
+                0 => "RED".to_string(),
+                1 => "BLUE".to_string(),
+                2 => "WHITE".to_string(),
+                3 => "ORANGE".to_string(),
+                _ => format!("PLAYER_{}", current_color_index),
+            });
+            
+            // Update is_initial_build_phase
+            self.is_initial_build_phase = state.is_initial_build_phase();
+            
+            // Update current_prompt based on action prompt
+            use crate::enums::ActionPrompt;
+            self.current_prompt = Some(match state.get_action_prompt() {
+                ActionPrompt::BuildInitialSettlement => "BUILD_INITIAL_SETTLEMENT".to_string(),
+                ActionPrompt::BuildInitialRoad => "BUILD_INITIAL_ROAD".to_string(),
+                ActionPrompt::PlayTurn => "PLAY_TURN".to_string(),
+                ActionPrompt::Discard => "DISCARD".to_string(),
+                ActionPrompt::MoveRobber => "MOVE_ROBBER".to_string(),
+                ActionPrompt::DecideTrade => "DECIDE_TRADE".to_string(),
+                ActionPrompt::DecideAcceptees => "DECIDE_ACCEPTEES".to_string(),
+            });
+        }
     }
 
     /// Helper method to verify frontend and backend state consistency

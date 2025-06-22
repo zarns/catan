@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, Subject, tap, catchError, throwError, map } from 'rxjs';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { map, tap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { WebsocketService, WsMessage } from './websocket.service';
+import { WebsocketService } from './websocket.service';
 
 // Game state interfaces matching backend structure
 export interface Coordinate {
@@ -65,25 +66,45 @@ export interface Player {
   achievements?: string[];
 }
 
+// Modern action structure for frontend - matches backend actions::PlayableAction
+export interface PlayableAction {
+  action_type: string;
+  color: string;
+  node_id?: number;
+  edge_id?: [number, number]; // EdgeId is (NodeId, NodeId) = (u8, u8)
+  coordinate?: [number, number, number];
+  resource?: string;
+  resources?: string[];
+  target_player?: string;
+}
+
 export interface Game {
   id: string;
   players: Player[];
+  game_state: string;
   board: GameBoard;
   current_player_index: number;
   dice_rolled: boolean;
-  winner?: string;
   turns: number;
   current_dice_roll?: [number, number];
+  actions: any[]; // Game log actions
+  // Modern action structure instead of legacy format
+  current_playable_actions: PlayableAction[];
+  is_initial_build_phase: boolean;
+  current_color?: string;
+  current_prompt?: string;
+  bot_colors: string[];
 }
 
 export interface GameState {
   id: string;
   status: 'waiting' | 'in_progress' | 'finished';
-  game?: Game;
+  game: Game;
+  // Modern action structure instead of legacy format
+  current_playable_actions: PlayableAction[];
   current_color?: string;
-  current_prompt?: 'PLAY_TURN' | 'DISCARD' | 'MOVE_ROBBER';
+  current_prompt?: string;
   bot_colors: string[];
-  winning_color?: string;
 }
 
 export interface GameConfig {
@@ -141,7 +162,7 @@ export class GameService {
     private websocketService: WebsocketService
   ) {
     // Listen for WebSocket messages to update game state
-    this.websocketService.messages$.subscribe((message: WsMessage) => {
+    this.websocketService.messages$.subscribe((message: any) => { // Changed WsMessage to any as WsMessage is removed
       console.log('🎮 GameService processing WebSocket message:', message.type, message);
       
       if (message.type === 'game_state' || message.type === 'game_updated') {
@@ -154,7 +175,10 @@ export class GameService {
             id: game.id,
             status: 'in_progress',
             game: game,
-            bot_colors: []
+            current_playable_actions: game.current_playable_actions || [],
+            current_color: game.current_color,
+            current_prompt: game.current_prompt,
+            bot_colors: game.bot_colors || []
           };
           
           console.log('🔄 Dispatching SET_GAME_STATE with:', gameState);
@@ -223,16 +247,26 @@ export class GameService {
 
   // API methods
   createGame(config: GameConfig): Observable<GameState> {
+    console.log('🌐 GameService: Creating game with config:', config);
     return this.http.post<Game>(`${this.apiUrl}/games`, config).pipe(
       tap(game => {
-        console.log('Game created:', game);
+        console.log('🌐 GameService: Game created successfully:', game);
+        console.log('🌐 GameService: Game has current_playable_actions:', game.current_playable_actions?.length || 0, 'actions');
+        console.log('🌐 GameService: Game bot_colors:', game.bot_colors);
+        console.log('🌐 GameService: Game current_color:', game.current_color);
+        console.log('🌐 GameService: Game is_initial_build_phase:', game.is_initial_build_phase);
+        
         // HTTP API returns Game object directly, wrap it as GameState
         const gameState: GameState = {
           id: game.id,
           status: 'in_progress',
           game: game,
-          bot_colors: []
+          current_playable_actions: game.current_playable_actions || [],
+          current_color: game.current_color,
+          current_prompt: game.current_prompt,
+          bot_colors: game.bot_colors || []
         };
+        console.log('🌐 GameService: Dispatching SET_GAME_STATE with:', gameState);
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
           payload: gameState
@@ -242,26 +276,39 @@ export class GameService {
         id: game.id,
         status: 'in_progress' as const,
         game: game,
-        bot_colors: []
+        current_playable_actions: game.current_playable_actions,
+        current_color: game.current_color,
+        current_prompt: game.current_prompt,
+        bot_colors: game.bot_colors || []
       })),
       catchError(error => {
-        console.error('Error creating game:', error);
+        console.error('❌ GameService: Error creating game:', error);
         return throwError(() => new Error('Failed to create game'));
       })
     );
   }
 
   getGameState(gameId: string): Observable<GameState> {
+    console.log('🌐 GameService: Getting game state for:', gameId);
     return this.http.get<Game>(`${this.apiUrl}/games/${gameId}`).pipe(
       tap(game => {
-        console.log('Game state retrieved:', game);
+        console.log('🌐 GameService: Game state retrieved:', game);
+        console.log('🌐 GameService: Game has current_playable_actions:', game.current_playable_actions?.length || 0, 'actions');
+        console.log('🌐 GameService: Game bot_colors:', game.bot_colors);
+        console.log('🌐 GameService: Game current_color:', game.current_color);
+        console.log('🌐 GameService: Game current_prompt:', game.current_prompt);
+        
         // HTTP API returns Game object directly, wrap it as GameState
         const gameState: GameState = {
           id: game.id,
           status: 'in_progress',
           game: game,
-          bot_colors: []
+          current_playable_actions: game.current_playable_actions,
+          current_color: game.current_color,
+          current_prompt: game.current_prompt,
+          bot_colors: game.bot_colors || []
         };
+        console.log('🌐 GameService: Dispatching SET_GAME_STATE with:', gameState);
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
           payload: gameState
@@ -271,10 +318,13 @@ export class GameService {
         id: game.id,
         status: 'in_progress' as const,
         game: game,
-        bot_colors: []
+        current_playable_actions: game.current_playable_actions,
+        current_color: game.current_color,
+        current_prompt: game.current_prompt,
+        bot_colors: game.bot_colors || []
       })),
       catchError(error => {
-        console.error('Error retrieving game state:', error);
+        console.error('❌ GameService: Error retrieving game state:', error);
         return throwError(() => new Error('Failed to retrieve game state'));
       })
     );
@@ -488,7 +538,13 @@ export class GameService {
   // Core action method to match React UI's postAction function
   // This sends actions via WebSocket instead of HTTP
   postAction(gameId: string, action?: any): Observable<GameState> {
-    const subject = new Subject<GameState>();
+    const subject = new BehaviorSubject<GameState>({
+      id: gameId,
+      status: 'in_progress',
+      game: {} as any, // Temporary placeholder
+      current_playable_actions: [],
+      bot_colors: []
+    });
     
     if (!action) {
       // This is a bot action in the React implementation
@@ -506,7 +562,7 @@ export class GameService {
     }
     
     // Set up one-time listener for the response
-    const subscription = this.websocketService.messages$.subscribe((message: WsMessage) => {
+    const subscription = this.websocketService.messages$.subscribe((message: any) => { // Changed WsMessage to any
       if (message.type === 'game_state') {
         // Update internal state
         this.dispatch({

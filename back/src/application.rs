@@ -36,29 +36,49 @@ impl GameService {
     pub async fn create_game(&self, num_players: u8, bot_type: &str) -> CatanResult<GameId> {
         let game_id = Uuid::new_v4().to_string();
 
-        // Create player names
-        let player_names: Vec<String> = (0..num_players)
-            .map(|i| format!("Player {}", i + 1))
-            .collect();
+        // Create the game instance using the appropriate function
+        let game = match bot_type {
+            "human" => {
+                // For human vs bots mode, use the specialized function
+                crate::game::start_human_vs_catanatron("Human".to_string(), num_players - 1)
+            },
+            _ => {
+                // For other modes, use the regular Game::new
+                let player_names: Vec<String> = (0..num_players)
+                    .map(|i| format!("Bot {}", i + 1))
+                    .collect();
+                let mut game = Game::new(game_id.clone(), player_names);
+                
+                // For all-bot games, all players are bots
+                if bot_type == "random" {
+                    game.bot_colors = game.players.iter().map(|p| p.color.clone()).collect();
+                }
+                
+                game
+            }
+        };
 
-        // Create the game instance
-        let game = Game::new(game_id.clone(), player_names.clone());
+        // Override the game ID with our generated one
+        let mut game = game;
+        game.id = game_id.clone();
 
-        // Create player instances using the new player system
+        // Create player instances using the simple player system
         let mut players = Vec::new();
         let colors = ["red", "blue", "white", "orange"];
 
-        for (i, name) in player_names.iter().enumerate() {
+        for (i, player) in game.players.iter().enumerate() {
             let player_id = format!("player_{}", i);
             let color = colors[i % colors.len()].to_string();
 
-            let player = match bot_type {
-                "random" => PlayerFactory::create_random_bot(player_id, name.clone(), color),
-                "human" => PlayerFactory::create_human(player_id, name.clone(), color),
-                _ => PlayerFactory::create_random_bot(player_id, name.clone(), color),
+            let player_obj = if bot_type == "human" && i == 0 {
+                // First player is human in human vs bots mode
+                PlayerFactory::create_human(player_id, player.name.clone(), color)
+            } else {
+                // All other players are bots
+                PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
             };
 
-            players.push(player);
+            players.push(player_obj);
         }
 
         // Store the game and players
@@ -80,7 +100,9 @@ impl GameService {
         let games = self.games.read().await;
 
         if let Some(game_arc) = games.get(game_id) {
-            let game = game_arc.read().await;
+            let mut game = game_arc.write().await;
+            // Update metadata before returning
+            game.update_metadata_from_state();
             Ok(game.clone())
         } else {
             Err(CatanError::Game(GameError::GameNotFound {
