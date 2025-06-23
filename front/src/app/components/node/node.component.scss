@@ -49,8 +49,8 @@
   
   // Empty node state - much more subtle
   &.empty {
-    background-color: rgba(255, 255, 255, 0.05); // Much more subtle
-    border-color: rgba(255, 255, 255, 0.1); // Very faint border
+    background-color: rgba(255, 255, 255, 0.1); // Slightly more visible base
+    border-color: rgba(255, 255, 255, 0.2); // Slightly more visible border
     border-width: 1px; // Thinner border
     
     &:hover {
@@ -120,45 +120,19 @@
   }
 }
 
-.pulse {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translateX(-50%) translateY(-50%);
-  width: 150%; // Make it larger to be more visible
-  height: 150%;
-  animation: pulse-node 1.5s ease-in-out infinite;
-  z-index: 1; // Above the node but below other elements
-  pointer-events: none; // Don't interfere with clicks
-  
-  &:after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    display: block;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.4); // Reduced from 0.8 to 0.4
-    border-radius: 4px;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.3); // Reduced from 12px/0.6 to 6px/0.3
-    animation: pulse-node 1.5s ease-in-out infinite;
-  }
+// Apply brightness animation to settlement-shape when node is flashing
+.node.flashing .settlement-shape {
+  animation: node-brightness-pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulse-node {
-  0% {
-    opacity: 0.6;
-    transform: translateX(-50%) translateY(-50%) scale(0.9);
+@keyframes node-brightness-pulse {
+  0%, 100% {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
   50% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-50%) scale(1.1);
-  }
-  100% {
-    opacity: 0.6;
-    transform: translateX(-50%) translateY(-50%) scale(0.9);
+    background-color: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.5);
   }
 }
 

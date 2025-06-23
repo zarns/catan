@@ -19,7 +19,7 @@ interface NodeAbsoluteCoordinate {
   imports: [CommonModule],
   template: `
     <div class="node"
-      [ngClass]="direction"
+      [ngClass]="getNodeClasses()"
       [ngStyle]="nodeStyle"
       [attr.data-node-id]="id"
       [attr.data-node-coord]="getCoordinateString()"
@@ -34,10 +34,6 @@ interface NodeAbsoluteCoordinate {
         [ngClass]="getSettlementClasses()"
         [attr.title]="getNodeTitle()">
       </div>
-    
-      @if (flashing) {
-        <div class="pulse"></div>
-      }
     
       <!-- Debug overlay for development -->
       @if (showDebugInfo) {
@@ -210,5 +206,19 @@ export class NodeComponent {
       return '';
     }
     return `Node ${this.id} - Building: ${this.building}`;
+  }
+
+  getNodeClasses(): string[] {
+    const classes = [];
+    
+    if (this.flashing) {
+      classes.push('flashing');
+    }
+    
+    if (this.direction) {
+      classes.push(this.direction);
+    }
+    
+    return classes;
   }
 } 

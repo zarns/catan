@@ -19,7 +19,7 @@ interface EdgeAbsoluteCoordinate {
   imports: [CommonModule],
   template: `
     <div class="edge"
-      [ngClass]="direction"
+      [ngClass]="getEdgeClasses()"
       [ngStyle]="edgeStyle"
       [attr.data-edge-id]="id"
       [attr.data-edge-coord]="getCoordinateString()"
@@ -27,12 +27,14 @@ interface EdgeAbsoluteCoordinate {
       [attr.data-edge-color]="color"
       [attr.title]="getDebugTitle()"
       (click)="onClick.emit(id)">
-      @if (color) {
-        <div [ngClass]="color.toLowerCase()" class="road"></div>
-      }
-      @if (flashing) {
-        <div class="pulse"></div>
-      }
+      
+      <!-- Edge indicator - always visible (like settlement-shape for nodes) -->
+      <div class="edge-indicator" [ngClass]="getEdgeIndicatorClasses()">
+        <!-- Built road appears on top when color exists -->
+        @if (color) {
+          <div [ngClass]="color.toLowerCase()" class="road"></div>
+        }
+      </div>
     
       <!-- Debug overlay for development -->
       @if (showDebugInfo) {
@@ -98,8 +100,8 @@ export class EdgeComponent {
       console.log(`Edge ${this.id}: Long edge detected - Length: ${fullLength}, connecting [${x1},${y1}] to [${x2},${y2}]`);
     }
     
-    // Uniform transparent white for all edges
-    const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, .15)';
+    // Remove background color since edge-indicator handles visual feedback
+    const debugColor = 'transparent'; // Always transparent now
     
     return {
       left: `${centerX}px`,
@@ -109,7 +111,7 @@ export class EdgeComponent {
       transform: `translateX(-50%) translateY(-50%) rotate(${angle}deg)`,
       'z-index': this.color ? 16 : 15,
       'background-color': debugColor,
-      'border': '1px solid rgba(0, 0, 0, 0.4)',
+      'border': 'none', // Remove border too
       'border-radius': '2px'
     };
   }
@@ -121,8 +123,8 @@ export class EdgeComponent {
     // Make roads shorter for tile-relative positioning too
     const roadLength = this.size * 0.75 * 0.7; // 70% of the original 75% size
     
-    // Uniform transparent white for all edges
-    const debugColor = this.color ? 'transparent' : 'rgba(255, 255, 255, 0.2)';
+    // Remove background color since edge-indicator handles visual feedback
+    const debugColor = 'transparent'; // Always transparent now
     
     return {
       left: `${tileX}px`,
@@ -132,7 +134,7 @@ export class EdgeComponent {
       transform: transform,
       'z-index': this.color ? 16 : 15,
       'background-color': debugColor,
-      'border': '1px solid rgba(0, 0, 0, 0.4)',
+      'border': 'none', // Remove border too
       'border-radius': '2px'
     };
   }
@@ -215,5 +217,33 @@ export class EdgeComponent {
   
   getDebugTitle(): string {
     return `Edge ID: ${this.id}, Direction: ${this.direction}, Color: ${this.color}`;
+  }
+
+  getEdgeClasses(): string[] {
+    const classes = [];
+    
+    if (this.flashing) {
+      classes.push('flashing');
+    }
+    
+    if (this.direction) {
+      classes.push(this.direction);
+    }
+    
+    return classes;
+  }
+
+  getEdgeIndicatorClasses(): string[] {
+    const classes = ['edge-base'];
+    
+    if (this.color) {
+      // Has a road - show as occupied
+      classes.push('occupied');
+    } else {
+      // Empty edge - show subtle indicator
+      classes.push('empty');
+    }
+    
+    return classes;
   }
 } 

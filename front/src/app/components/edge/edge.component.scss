@@ -31,6 +31,22 @@
   }
 }
 
+.edge-indicator {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  
+  &.empty {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  &.occupied {
+    // Road content goes here, no background needed
+    background-color: transparent;
+  }
+}
+
 .road {
   position: absolute;
   border: 1px solid #333;
@@ -56,48 +72,21 @@
   }
 }
 
-.pulse {
-  cursor: pointer;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translateX(-50%) translateY(-50%);
-  width: 120%; // Make it larger to be more visible
-  height: 200%; // Make it taller for better visibility
-  animation: pulse-edge 1.5s ease-in-out infinite;
-  z-index: 1;
-  pointer-events: none;
-  
-  &:after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    display: block;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(255, 255, 255, 0.8); // More visible white
-    border-radius: 3px;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
-    animation: pulse-edge 1.5s ease-in-out infinite;
-  }
+// Apply scaling animation to edge-indicator when edge is flashing (like nodes)
+.edge.flashing .edge-indicator {
+  animation: edge-brightness-pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulse-edge {
-  0% {
-    opacity: 0.6;
-    transform: translateX(-50%) translateY(-50%) scale(0.9);
+@keyframes edge-brightness-pulse {
+  0%, 100% {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
   50% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-50%) scale(1.1);
+    background-color: rgba(255, 255, 255, 0.35); 
+    border-color: rgba(255, 255, 255, 0.5);
   }
-  100% {
-    opacity: 0.6;
-    transform: translateX(-50%) translateY(-50%) scale(0.9);
-  }
-} 
+}
 
 // Debug overlay styles
 .debug-overlay {
