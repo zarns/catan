@@ -75,7 +75,7 @@ impl NodeDirection {
 pub fn calculate_node_coordinate(tile_coord: CubeCoordinate, direction: NodeDirection) -> NodeCoordinate {
     // Convert cube coordinates to cartesian for the tile center
     let tile_x = tile_coord.0 as f64;
-    let tile_y = tile_coord.1 as f64;
+    let _tile_y = tile_coord.1 as f64; // Intentionally unused - keeping for coordinate completeness
     let tile_z = tile_coord.2 as f64;
 
     // Hexagonal grid constants

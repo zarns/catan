@@ -1,17 +1,10 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use std::f64;
-use rand::Rng;
-use std::collections::HashMap;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 
-// use super::Player;
 use crate::enums::Action;
 use crate::state::State;
 
 const DEFAULT_DEPTH: i32 = 2;
-const MAX_SEARCH_TIME: u64 = 10; // 10 seconds max
-const MAX_ACTIONS_TO_CONSIDER: usize = 10;
 
 use super::BotPlayer;
 
@@ -22,26 +15,6 @@ pub struct AlphaBetaPlayer {
     pub name: String,
     pub color: String,
     depth: i32,
-}
-
-/// Represents a state node in the search tree, used for debugging
-struct StateNode {
-    state: State,
-    expected_value: Option<f64>,
-    children: Vec<ActionNode>,
-}
-
-/// Represents an action node in the search tree, used for debugging
-struct ActionNode {
-    action: Action,
-    expected_value: Option<f64>,
-    outcomes: Vec<(StateNode, f64)>, // (node, probability)
-}
-
-/// A structure representing a weighted outcome from an action
-struct Outcome {
-    state: State,
-    probability: f64,
 }
 
 impl AlphaBetaPlayer {

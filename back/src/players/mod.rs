@@ -2,8 +2,7 @@
 //
 // This module organizes various player implementations
 
-// Import the Player trait
-use crate::player::Player as MainPlayer;
+// Import necessary types
 use crate::enums::Action;
 use crate::state::State;
 
