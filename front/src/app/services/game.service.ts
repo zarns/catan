@@ -178,7 +178,7 @@ export class GameService {
   ) {
     // Listen for WebSocket messages to update game state
     this.websocketService.messages$.subscribe((message: any) => { // Changed WsMessage to any as WsMessage is removed
-      console.log('🎮 GameService processing WebSocket message:', message.type, message);
+      console.debug('🎮 GameService processing WebSocket message:', message.type);
       
       if (message.type === 'game_state' || message.type === 'game_updated') {
         // WebSocket sends {type: 'game_state', game: Game}, so message.game contains the Game object
@@ -303,301 +303,80 @@ export class GameService {
     );
   }
 
-  getGameState(gameId: string): Observable<GameState> {
-    console.log('🌐 GameService: Getting game state for:', gameId);
-    return this.http.get<Game>(`${this.apiUrl}/games/${gameId}`).pipe(
-      tap(game => {
-        console.log('🌐 GameService: Game state retrieved:', game);
-        console.log('🌐 GameService: Game has current_playable_actions:', game.current_playable_actions?.length || 0, 'actions');
-        console.log('🌐 GameService: Game bot_colors:', game.bot_colors);
-        console.log('🌐 GameService: Game current_color:', game.current_color);
-        console.log('🌐 GameService: Game current_prompt:', game.current_prompt);
-        
-        // HTTP API returns Game object directly, wrap it as GameState
-        const gameState: GameState = {
-          id: game.id,
-          status: 'in_progress',
-          game: game,
-          current_playable_actions: game.current_playable_actions,
-          current_color: game.current_color,
-          current_prompt: game.current_prompt,
-          bot_colors: game.bot_colors || []
-        };
-        console.log('🌐 GameService: Dispatching SET_GAME_STATE with:', gameState);
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      map(game => ({
-        id: game.id,
-        status: 'in_progress' as const,
-        game: game,
-        current_playable_actions: game.current_playable_actions,
-        current_color: game.current_color,
-        current_prompt: game.current_prompt,
-        bot_colors: game.bot_colors || []
-      })),
-      catchError(error => {
-        console.error('❌ GameService: Error retrieving game state:', error);
-        return throwError(() => new Error('Failed to retrieve game state'));
-      })
-    );
-  }
+  // ✅ REMOVED: getGameState() HTTP method  
+  // Game state is now fetched via WebSocket using websocketService.requestGameState()
 
   // Build a road at an edge
-  buildRoad(gameId: string, edgeId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'build_road', edge_id: edgeId }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-        this.dispatch({
-          type: GameAction.TOGGLE_BUILDING_ROAD,
-        });
-      }),
-      catchError(error => {
-        console.error('Error building road:', error);
-        return throwError(() => new Error('Failed to build road'));
-      })
-    );
-  }
+  // ✅ REMOVED: Legacy HTTP methods - buildRoad, buildSettlement, buildCity, rollDice, endTurn
+  // All actions now use WebSocket via postAction() and the *Action() helper methods below
 
-  // Build a settlement at a node
-  buildSettlement(gameId: string, nodeId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'build_settlement', node_id: nodeId }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-        this.dispatch({
-          type: GameAction.SET_IS_BUILDING_SETTLEMENT,
-          payload: false
-        });
-      }),
-      catchError(error => {
-        console.error('Error building settlement:', error);
-        return throwError(() => new Error('Failed to build settlement'));
-      })
-    );
-  }
+  // ✅ REMOVED: Legacy HTTP methods - moveRobber, playRoadBuilding, playKnightCard, buyDevelopmentCard, executeTrade
+  // All actions now use WebSocket via postAction() and the *Action() helper methods below
 
-  // Build a city at a node
-  buildCity(gameId: string, nodeId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'build_city', node_id: nodeId }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-        this.dispatch({
-          type: GameAction.SET_IS_BUILDING_CITY,
-          payload: false
-        });
-      }),
-      catchError(error => {
-        console.error('Error building city:', error);
-        return throwError(() => new Error('Failed to build city'));
-      })
-    );
-  }
-
-  // Roll dice
-  rollDice(gameId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'roll_dice' }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error rolling dice:', error);
-        return throwError(() => new Error('Failed to roll dice'));
-      })
-    );
-  }
-
-  // End turn
-  endTurn(gameId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'end_turn' }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error ending turn:', error);
-        return throwError(() => new Error('Failed to end turn'));
-      })
-    );
-  }
-
-  // Move the robber
-  moveRobber(gameId: string, coordinate: Coordinate): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'move_robber', coordinate }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-        this.dispatch({
-          type: GameAction.SET_IS_MOVING_ROBBER,
-          payload: false
-        });
-      }),
-      catchError(error => {
-        console.error('Error moving robber:', error);
-        return throwError(() => new Error('Failed to move robber'));
-      })
-    );
-  }
-
-  // Play road building development card
-  playRoadBuilding(gameId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'play_road_building' }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error playing road building card:', error);
-        return throwError(() => new Error('Failed to play road building card'));
-      })
-    );
-  }
-
-  // Play knight development card
-  playKnightCard(gameId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'play_knight_card' }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error playing knight card:', error);
-        return throwError(() => new Error('Failed to play knight card'));
-      })
-    );
-  }
-
-  // Buy development card
-  buyDevelopmentCard(gameId: string): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'buy_development_card' }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error buying development card:', error);
-        return throwError(() => new Error('Failed to buy development card'));
-      })
-    );
-  }
-
-  // Execute a trade
-  executeTrade(gameId: string, trade: any): Observable<GameState> {
-    return this.http.post<GameState>(
-      `${this.apiUrl}/games/${gameId}/actions`,
-      { action: 'maritime_trade', ...trade }
-    ).pipe(
-      tap(gameState => {
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: gameState
-        });
-      }),
-      catchError(error => {
-        console.error('Error executing trade:', error);
-        return throwError(() => new Error('Failed to execute trade'));
-      })
-    );
-  }
-
-  // Core action method to match React UI's postAction function
-  // This sends actions via WebSocket instead of HTTP
+  // Core action method - sends actions via WebSocket using enum format
   postAction(gameId: string, action?: any): Observable<GameState> {
-    const subject = new BehaviorSubject<GameState>({
-      id: gameId,
-      status: 'in_progress',
-      game: {} as any, // Temporary placeholder
-      current_playable_actions: [],
-      bot_colors: []
-    });
-    
-    if (!action) {
-      // This is a bot action in the React implementation
-      this.websocketService.sendMessage({
-        type: 'bot_action',
-        game_id: gameId
-      });
-    } else {
-      // Regular player action
-      this.websocketService.sendMessage({
-        type: 'player_action',
-        game_id: gameId,
-        action: action
-      });
-    }
-    
-    // Set up one-time listener for the response
-    const subscription = this.websocketService.messages$.subscribe((message: any) => { // Changed WsMessage to any
-      if (message.type === 'game_state') {
-        // Update internal state
-        this.dispatch({
-          type: GameAction.SET_GAME_STATE,
-          payload: message.data
-        });
-        
-        // Emit the response
-        subject.next(message.data);
-        subject.complete();
-        
-        // Clean up subscription
-        subscription.unsubscribe();
-      } else if (message.type === 'error') {
-        subject.error(new Error(message.data.message || 'Action failed'));
-        subscription.unsubscribe();
+    return new Observable(observer => {
+      console.debug('🎮 GameService.postAction called with:', { gameId, action_type: action ? Object.keys(action)[0] : 'BOT_ACTION' });
+      
+      if (!action) {
+        // This is a bot action request
+        console.debug('🤖 Requesting bot action');
+        this.websocketService.sendBotAction(gameId);
+      } else {
+        // Regular player action in enum format
+        console.debug('👤 Sending player action:', Object.keys(action)[0]);
+        this.websocketService.sendPlayerAction(gameId, action);
       }
+      
+      // Set up one-time listener for the response
+      const subscription = this.websocketService.messages$.subscribe((message: any) => {
+        console.debug('📨 GameService received WebSocket message:', message.type);
+        
+        if (message.type === 'game_state' || message.type === 'game_updated') {
+          // Extract game from message
+          const game = message.game;
+          if (game) {
+            console.debug('🎲 Converting game to GameState');
+            
+            const gameState: GameState = {
+              id: game.id,
+              status: 'in_progress',
+              game: game,
+              current_playable_actions: game.current_playable_actions || [],
+              current_color: game.current_color,
+              current_prompt: game.current_prompt,
+              bot_colors: game.bot_colors || []
+            };
+            
+            // Update internal state
+            this.dispatch({
+              type: GameAction.SET_GAME_STATE,
+              payload: gameState
+            });
+            
+            // Emit the response
+            observer.next(gameState);
+            observer.complete();
+            
+            // Clean up subscription
+            subscription.unsubscribe();
+          }
+        } else if (message.type === 'action_result') {
+          // Action processed successfully, wait for game state update
+          console.debug('✅ Action result received');
+        } else if (message.type === 'error') {
+          console.error('❌ Error from WebSocket:', message.message);
+          observer.error(new Error(message.message || 'Action failed'));
+          subscription.unsubscribe();
+        }
+      });
+      
+      // Set a timeout to avoid hanging forever
+      setTimeout(() => {
+        subscription.unsubscribe();
+        observer.error(new Error('WebSocket response timeout'));
+      }, 10000); // 10 second timeout
     });
-    
-    return subject.asObservable();
   }
   
   // Method to directly update game state (useful for watch mode)
@@ -608,66 +387,67 @@ export class GameService {
     });
   }
   
-  // Simplified helper methods that match the React implementation pattern
+  // Simplified helper methods using enum format
   
-  // Build a road using the generic postAction format
+  // Build a road using enum format
   buildRoadAction(gameId: string, edgeId: string): Observable<GameState> {
-    return this.postAction(gameId, ['BUILD_ROAD', edgeId]);
+    return this.postAction(gameId, { BuildRoad: { edge_id: edgeId } });
   }
   
-  // Build a settlement using the generic postAction format
+  // Build a settlement using enum format
   buildSettlementAction(gameId: string, nodeId: string): Observable<GameState> {
-    return this.postAction(gameId, ['BUILD_SETTLEMENT', nodeId]);
+    return this.postAction(gameId, { BuildSettlement: { node_id: nodeId } });
   }
   
-  // Build a city using the generic postAction format
+  // Build a city using enum format
   buildCityAction(gameId: string, nodeId: string): Observable<GameState> {
-    return this.postAction(gameId, ['BUILD_CITY', nodeId]);
+    return this.postAction(gameId, { BuildCity: { node_id: nodeId } });
   }
   
-  // Roll dice using the generic postAction format
+  // Roll dice using enum format
   rollDiceAction(gameId: string): Observable<GameState> {
-    return this.postAction(gameId, ['ROLL']);
+    return this.postAction(gameId, { Roll: {} });
   }
   
-  // End turn using the generic postAction format
+  // End turn using enum format
   endTurnAction(gameId: string): Observable<GameState> {
-    return this.postAction(gameId, ['END_TURN']);
+    return this.postAction(gameId, { EndTurn: {} });
   }
   
-  // Move robber using the generic postAction format
+  // Move robber using enum format
   moveRobberAction(gameId: string, coordinate: Coordinate, targetColor?: string): Observable<GameState> {
+    const coordinateArray = [coordinate.x, coordinate.y, coordinate.z];
     if (targetColor) {
-      return this.postAction(gameId, ['MOVE_ROBBER', coordinate, targetColor]);
+      return this.postAction(gameId, { MoveRobber: { coordinate: coordinateArray, victim: targetColor } });
     } else {
-      return this.postAction(gameId, ['MOVE_ROBBER', coordinate]);
+      return this.postAction(gameId, { MoveRobber: { coordinate: coordinateArray, victim: null } });
     }
   }
   
-  // Play development cards using the generic postAction format
+  // Play development cards using enum format
   playMonopolyAction(gameId: string, resource: string): Observable<GameState> {
-    return this.postAction(gameId, ['PLAY_MONOPOLY', resource]);
+    return this.postAction(gameId, { PlayMonopoly: { resource } });
   }
   
   playYearOfPlentyAction(gameId: string, resources: string[]): Observable<GameState> {
-    return this.postAction(gameId, ['PLAY_YEAR_OF_PLENTY', ...resources]);
+    return this.postAction(gameId, { PlayYearOfPlenty: { resources } });
   }
   
   playRoadBuildingAction(gameId: string): Observable<GameState> {
-    return this.postAction(gameId, ['PLAY_ROAD_BUILDING']);
+    return this.postAction(gameId, { PlayRoadBuilding: {} });
   }
   
   playKnightAction(gameId: string): Observable<GameState> {
-    return this.postAction(gameId, ['PLAY_KNIGHT']);
+    return this.postAction(gameId, { PlayKnight: {} });
   }
   
   // Buying development card
   buyDevelopmentCardAction(gameId: string): Observable<GameState> {
-    return this.postAction(gameId, ['BUY_DEVELOPMENT_CARD']);
+    return this.postAction(gameId, { BuyDevelopmentCard: {} });
   }
   
   // Trading
   tradeWithBankAction(gameId: string, give: string, receive: string): Observable<GameState> {
-    return this.postAction(gameId, ['TRADE_WITH_BANK', give, receive]);
+    return this.postAction(gameId, { MaritimeTrade: { give, take: receive, ratio: 4 } });
   }
 } 

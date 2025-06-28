@@ -190,17 +190,20 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isLoading = true;
     this.error = null;
     
-    this.gameService.getGameState(this.gameId).subscribe({
-      next: (gameState) => {
-        console.log('🎮 GameComponent: Initial game state loaded:', gameState);
-        // Game state will be updated via the gameUIState$ subscription
-        // Connect to the WebSocket for real-time updates
-        console.log('🎮 GameComponent: Connecting to WebSocket for game:', this.gameId);
-        this.websocketService.connect(this.gameId);
+    // Connect to WebSocket first and request game state via WebSocket
+    console.log('🎮 GameComponent: Connecting to WebSocket for game:', this.gameId);
+    this.websocketService.connect(this.gameId).subscribe({
+      next: (connected) => {
+        if (connected) {
+          console.log('🎮 GameComponent: WebSocket connected, requesting game state');
+          // Request game state via WebSocket instead of HTTP
+          this.websocketService.requestGameState(this.gameId);
+          // Loading state will be cleared when we receive the game_state message
+        }
       },
       error: (err) => {
-        console.error('❌ GameComponent: Error loading game state:', err);
-        this.error = 'Failed to load game state. Please try again.';
+        console.error('❌ GameComponent: Error connecting to WebSocket:', err);
+        this.error = 'Failed to connect to game. Please try again.';
         this.isLoading = false;
       }
     });
@@ -366,7 +369,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     console.log(`🎯 Executing node action for ${nodeId} (mapped to ${mappedNodeId}):`, nodeAction.action);
     
-    // Use the exact action from current_playable_actions
+    // Pass the enum format directly - no conversion needed!
     this.gameService.postAction(this.gameId, nodeAction.action).subscribe({
       next: (gameState) => {
         console.log('✅ Node action completed successfully');
@@ -390,7 +393,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     console.log(`🛣️ Executing edge action:`, edgeAction.action);
     
-    // Use the exact action from current_playable_actions
+    // Pass the enum format directly - no conversion needed!
     this.gameService.postAction(this.gameId, edgeAction.action).subscribe({
       next: (gameState) => {
         console.log('✅ Edge action completed successfully');
@@ -722,4 +725,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       return action.action_type === actionType;
     });
   }
+
+  // Removed convertRustEnumToArray - now passing enum format directly
 } 

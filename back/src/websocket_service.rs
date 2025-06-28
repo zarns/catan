@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 
-use crate::actions::{GameEvent, GameId, PlayerAction};
+use crate::actions::{GameEvent, GameId};
 use crate::application::GameService;
 use crate::errors::CatanResult;
 use crate::game::Game;
@@ -22,7 +22,16 @@ pub enum WsMessage {
     GameUpdated { game: Game },
 
     #[serde(rename = "player_action")]
-    PlayerAction { action: PlayerAction },
+    PlayerAction { 
+        game_id: String,
+        action: crate::actions::PlayerAction  // Accept enum format directly: {Roll: {}}
+    },
+
+    #[serde(rename = "get_game_state")]
+    GetGameState { game_id: String },
+
+    #[serde(rename = "bot_action")]
+    BotAction { game_id: String },
 
     #[serde(rename = "action_result")]
     ActionResult {
@@ -40,6 +49,10 @@ pub enum WsMessage {
     #[serde(rename = "bot_thinking")]
     BotThinking { player_id: String },
 }
+
+/// Convert array action format to PlayerAction enum
+/// Expected format: [player_color, action_type, action_data]
+// Removed array_to_player_action function - now accepting enum format directly
 
 /// WebSocket service that handles real-time communication
 /// This is purely an infrastructure concern - no business logic here
@@ -312,40 +325,88 @@ impl WebSocketService {
         })?;
 
         match ws_message {
-            WsMessage::PlayerAction { action } => {
-                // For now, assume first player (in real app, get from authentication)
-                let player_id = "player_0";
-
-                // Process the action through the game service
+            WsMessage::PlayerAction { game_id: action_game_id, action } => {
+                log::info!("🎯 Processing action for game {}: {:?}", action_game_id, action);
+                
+                // Use the PlayerAction enum directly - no conversion needed!
+                log::info!("✅ Received PlayerAction enum: {:?}", action);
+                
+                // Process the action through the game service (use game_id from function parameter)
                 match game_service
-                    .process_action(game_id, player_id, action)
+                    .process_action(game_id, "player_0", action)
                     .await
                 {
-                    Ok(events) => {
-                        // Send action result
-                        let result_msg = WsMessage::ActionResult {
-                            success: true,
-                            message: "Action processed".to_string(),
-                            events: events.clone(),
-                        };
-                        let _ = broadcaster.send((game_id.to_string(), result_msg));
+                            Ok(events) => {
+                                log::info!("✅ Action processed successfully");
+                                
+                                // Send action result
+                                let result_msg = WsMessage::ActionResult {
+                                    success: true,
+                                    message: "Action processed".to_string(),
+                                    events: events.clone(),
+                                };
+                                let _ = broadcaster.send((game_id.to_string(), result_msg));
 
-                        // Send updated game state
-                        if let Ok(updated_game) = game_service.get_game(game_id).await {
-                            let update_msg = WsMessage::GameUpdated { game: updated_game };
-                            let _ = broadcaster.send((game_id.to_string(), update_msg));
-                        }
+                                // Send updated game state
+                                if let Ok(updated_game) = game_service.get_game(game_id).await {
+                                    let update_msg = WsMessage::GameUpdated { game: updated_game };
+                                    let _ = broadcaster.send((game_id.to_string(), update_msg));
+                                }
 
-                        // Process bot turns if needed (only if connections exist)
-                        if service.has_active_connections(game_id).await {
-                            service.ensure_bot_simulation_running(game_id).await;
+                                // Restart bot simulation after human action (only if connections exist)
+                                if service.has_active_connections(game_id).await {
+                                    log::debug!("🔄 Restarting bot simulation after human action for game {}", game_id);
+                                    service.start_bot_simulation(game_id).await;
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("❌ Action processing failed: {}", e);
+                                let error_msg = WsMessage::Error {
+                                    message: format!("Action failed: {}", e),
+                                };
+                                let _ = broadcaster.send((game_id.to_string(), error_msg));
+                            }
                         }
+            }
+            WsMessage::GetGameState { game_id: requested_game_id } => {
+                log::info!("📡 Getting game state for game {}", requested_game_id);
+                
+                match game_service.get_game(&requested_game_id).await {
+                    Ok(game) => {
+                        let state_msg = WsMessage::GameState { game };
+                        let _ = broadcaster.send((requested_game_id, state_msg));
                     }
                     Err(e) => {
-                        let error_msg = WsMessage::Error {
-                            message: format!("Action failed: {}", e),
+                        log::error!("❌ Failed to get game state: {}", e);
+                        let error_msg = WsMessage::Error { 
+                            message: format!("Failed to get game: {}", e) 
                         };
-                        let _ = broadcaster.send((game_id.to_string(), error_msg));
+                        let _ = broadcaster.send((requested_game_id, error_msg));
+                    }
+                }
+            }
+            WsMessage::BotAction { game_id: bot_game_id } => {
+                log::info!("🤖 Processing bot action for game {}", bot_game_id);
+                
+                match game_service.process_bot_turn(&bot_game_id).await {
+                    Ok(Some(_events)) => {
+                        log::info!("✅ Bot action processed successfully");
+                        
+                        // Send updated game state after bot move
+                        if let Ok(updated_game) = game_service.get_game(&bot_game_id).await {
+                            let update_msg = WsMessage::GameUpdated { game: updated_game };
+                            let _ = broadcaster.send((bot_game_id, update_msg));
+                        }
+                    }
+                    Ok(None) => {
+                        log::info!("ℹ️ No bot action needed for game {}", bot_game_id);
+                    }
+                    Err(e) => {
+                        log::error!("❌ Bot action failed: {}", e);
+                        let error_msg = WsMessage::Error {
+                            message: format!("Bot action failed: {}", e),
+                        };
+                        let _ = broadcaster.send((bot_game_id, error_msg));
                     }
                 }
             }
@@ -365,14 +426,7 @@ impl WebSocketService {
             .map_or(false, |conns| !conns.is_empty())
     }
 
-    /// Ensure bot simulation is running if connections exist
-    async fn ensure_bot_simulation_running(&self, game_id: &str) {
-        let bot_tasks = self.bot_tasks.read().await;
-        if !bot_tasks.contains_key(game_id) && self.has_active_connections(game_id).await {
-            drop(bot_tasks); // Release read lock before calling start_bot_simulation
-            self.start_bot_simulation(game_id).await;
-        }
-    }
+    // ✅ REMOVED: ensure_bot_simulation_running() - now using event-driven bot simulation
 
     /// Process bot turns with cancellation support
     async fn process_bot_turns_with_cancellation(
@@ -430,8 +484,9 @@ impl WebSocketService {
                     }
                 }
                 Ok(None) => {
-                    // No more bot moves needed, wait a bit and check again
-                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                    // No more bot moves needed - exit the loop instead of continuous polling
+                    log::debug!("🤖 No bot actions needed for game {}, ending bot simulation loop", game_id);
+                    break;
                 }
                 Err(e) => {
                     log::error!("Bot processing error for game {}: {}", game_id, e);

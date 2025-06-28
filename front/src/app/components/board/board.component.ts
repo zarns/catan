@@ -164,23 +164,7 @@ export class BoardComponent implements OnInit, AfterViewInit {
       };
     });
     
-    // Log first few node IDs to see the format
-    if (nodes.length > 0) {
-      console.log('🏠 First 5 node IDs:', nodes.slice(0, 5).map(n => n.id));
-      console.log('🏠 Sample nodeActions keys:', Object.keys(this.nodeActions).slice(0, 5));
-      console.log('🏠 Full node structure of first node:', nodes[0]);
-      console.log('🏠 Node keys:', Object.keys(nodes[0]));
-    }
-    
-    // Log nodes with buildings for debugging
-    const nodesWithBuildings = nodes.filter(node => node.building);
-    if (nodesWithBuildings.length > 0) {
-      console.log('🏠 Nodes with buildings:', nodesWithBuildings);
-    } else {
-      console.log('🏠 No nodes with buildings found. Total nodes:', nodes.length);
-      // Log first few nodes to see their structure
-      console.log('🏠 Sample nodes:', nodes.slice(0, 3));
-    }
+    // Removed excessive debugging logs
     
     return nodes;
   }
@@ -195,11 +179,7 @@ export class BoardComponent implements OnInit, AfterViewInit {
       id
     }));
     
-    // Log edges with roads for debugging
-    const edgesWithRoads = edges.filter(edge => edge.color);
-    if (edgesWithRoads.length > 0) {
-      console.log('🛣️ Edges with roads:', edgesWithRoads);
-    }
+    // Removed excessive edge debugging
     
     return edges;
   }
@@ -216,34 +196,13 @@ export class BoardComponent implements OnInit, AfterViewInit {
       isActionable = !!this.nodeActions[numericPart];
       actionData = this.nodeActions[numericPart];
       mappedNodeId = numericPart;
-      
-      if (isActionable) {
-        console.log(`🎯 MATCH FOUND: Frontend node '${nodeId}' maps to backend node '${numericPart}'`);
-      }
     }
     
-    // Add counter to see how often this is called
-    if (!this.actionableCheckCount) this.actionableCheckCount = 0;
-    this.actionableCheckCount++;
-    
-    if (this.actionableCheckCount <= 10) { // Only log first 10 calls to avoid spam
-      console.log(`🎯 Node ${nodeId} is actionable check #${this.actionableCheckCount}: ${isActionable} (nodeActions has: ${Object.keys(this.nodeActions).length} keys)`);
-    }
-    
-    if (isActionable) {
-      console.log(`🎯 Node ${nodeId} is actionable:`, actionData);
-    }
     return isActionable;
   }
   
-  private actionableCheckCount = 0;
-  
   isActionableEdge(edgeId: string): boolean {
-    const isActionable = !!this.edgeActions[edgeId];
-    if (isActionable) {
-      console.log(`🛣️ Edge ${edgeId} is actionable:`, this.edgeActions[edgeId]);
-    }
-    return isActionable;
+    return !!this.edgeActions[edgeId];
   }
   
   // Event emitters for user interactions
@@ -294,14 +253,7 @@ export class BoardComponent implements OnInit, AfterViewInit {
     
     this.size = this.computeDefaultSize(containerWidth, containerHeight);
     
-    // Log dimensions for debugging
-    console.debug('Board dimensions:', { 
-      width: this.width, 
-      height: this.height,
-      containerWidth,
-      containerHeight,
-      hexSize: this.size
-    });
+    // Board dimensions calculated
   }
   
   // Update board center coordinates

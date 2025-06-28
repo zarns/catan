@@ -2,13 +2,17 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'bot_action' | 'bot_thinking' | 'action_result';
+export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'get_game_state' | 'bot_action' | 'bot_thinking' | 'action_result';
 
 export interface WsMessage {
   type: WsMessageType;
   data?: any;
   game?: any;
+  game_id?: string;
+  action?: any;
   message?: string;
+  success?: boolean;
+  events?: any[];
 }
 
 @Injectable({
@@ -80,9 +84,33 @@ export class WebsocketService {
   
   public sendMessage(message: any) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.debug('📤 Sending WebSocket message:', message.type);
       this.socket.send(JSON.stringify(message));
     } else {
       console.error('Cannot send message, WebSocket is not connected');
     }
+  }
+
+  // Helper methods for specific message types
+  public sendPlayerAction(gameId: string, action: any): void {
+    this.sendMessage({
+      type: 'player_action',
+      game_id: gameId,
+      action: action
+    });
+  }
+
+  public sendBotAction(gameId: string): void {
+    this.sendMessage({
+      type: 'bot_action',
+      game_id: gameId
+    });
+  }
+
+  public requestGameState(gameId: string): void {
+    this.sendMessage({
+      type: 'get_game_state',
+      game_id: gameId
+    });
   }
 } 

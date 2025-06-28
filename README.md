@@ -50,10 +50,6 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - ✅ Enable proper click handling for settlements, cities, and roads
   - ✅ Connect frontend actions to backend via WebSocket
   - ✅ Dynamic actions toolbar based on available actions
-  - ActionsToolbar buttons not clickable
-  - Hide actionsToolbar buttons if they are not valid playable_actions
-  - Robber getting moved after first turn to wood 10 tile every time?
-  - stop highlighting clickable nodes for bot players on bot turns
 - ✅ **COMPLETE: Interactive Human vs Bot Gameplay**
   - ✅ Backend exposes current_playable_actions in legacy [player_color, action_type, action_data] format
   - ✅ Frontend parses actions and enables proper node/edge clicking
@@ -62,10 +58,11 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - ✅ Initial build phase support for settlement/road placement
   - ✅ Actions toolbar dynamically enables/disables based on available actions
   - ✅ Proper human player turn detection and UI state management
+  - ✅ implement player interactivity so user can play against bots
+- ActionsToolbar buttons not clickable
 - implement rightdrawer
   - backend mcts endpoint
 - GameBoard
-  - ✅ implement player interactivity so user can play against bots
   - Hide actionsToolbar buttons when bots are playing
 - Fix cargo test - failed tests
 - Add play against catanatron buttons
@@ -75,3 +72,9 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - Evaluate frontend conversion serialized enums and remove unnecessary conversions
   - Attempt to remove node_coordinates.rs. Frontend should be responsible for this logic.
 - Build the greatest catan bot player of all time
+- Implement DB functionality to track user count and game history
+  - MCP integration
+- ActionsToolbar buttons not clickable
+- Hide actionsToolbar buttons if they are not valid playable_actions
+- Robber getting moved after first turn to wood 10 tile every time?
+- stop highlighting clickable nodes for bot players on bot turns
