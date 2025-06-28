@@ -12,7 +12,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use catan::application::GameService;
 use catan::game::Game;
-use catan::websocket_service::WebSocketService;
+use catan::websocket::WebSocketService;
 
 // Game configuration
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]

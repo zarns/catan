@@ -319,9 +319,9 @@ export class GameService {
       console.debug('🎮 GameService.postAction called with:', { gameId, action_type: action ? Object.keys(action)[0] : 'BOT_ACTION' });
       
       if (!action) {
-        // This is a bot action request
-        console.debug('🤖 Requesting bot action');
-        this.websocketService.sendBotAction(gameId);
+        // ✅ REMOVED: Bot action requests - bots should act automatically
+        observer.error(new Error('Manual bot actions not supported - bots act automatically'));
+        return;
       } else {
         // Regular player action in enum format
         console.debug('👤 Sending player action:', Object.keys(action)[0]);

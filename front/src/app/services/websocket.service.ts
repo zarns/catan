@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'get_game_state' | 'bot_action' | 'bot_thinking' | 'action_result';
+export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'get_game_state' | 'bot_thinking' | 'action_result' | 'create_game' | 'game_created';
 
 export interface WsMessage {
   type: WsMessageType;
@@ -95,22 +95,24 @@ export class WebsocketService {
   public sendPlayerAction(gameId: string, action: any): void {
     this.sendMessage({
       type: 'player_action',
-      game_id: gameId,
       action: action
     });
   }
 
-  public sendBotAction(gameId: string): void {
-    this.sendMessage({
-      type: 'bot_action',
-      game_id: gameId
-    });
-  }
+  // ✅ REMOVED: sendBotAction() - Frontend should never trigger bot actions
+  // Bot actions are handled automatically by the backend
 
   public requestGameState(gameId: string): void {
     this.sendMessage({
-      type: 'get_game_state',
-      game_id: gameId
+      type: 'get_game_state'
+    });
+  }
+
+  public createGame(mode: string, numPlayers: number): void {
+    this.sendMessage({
+      type: 'create_game',
+      mode: mode,
+      num_players: numPlayers
     });
   }
 } 

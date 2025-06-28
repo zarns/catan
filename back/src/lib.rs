@@ -10,7 +10,7 @@ pub mod player_system;
 
 // Clean architecture layers
 pub mod application;
-pub mod websocket_service;
+pub mod websocket;
 
 // Core game data structures and enums
 pub mod enums;
@@ -28,9 +28,7 @@ pub mod ordered_hashmap;
 pub mod player;
 pub mod players;
 
-// Server implementation
-pub mod manager;
-pub mod websocket;
+// Server implementation - using modern GameService in application.rs
 
 // Re-export new unified types
 pub use crate::actions::{ActionResult, GameCommand, GameEvent, GameId, PlayerAction, PlayerId};
@@ -41,10 +39,10 @@ pub use crate::errors::{
 // Re-export common types for convenient access
 pub use crate::enums::{ActionPrompt, DevCard, GameConfiguration, MapType, Resource};
 pub use crate::game::{Game, GameState, Player};
-pub use crate::manager::{GameManager, GameStatus};
+// Removed legacy GameManager - use GameService from application.rs instead
 pub use crate::player::{HumanPlayer, Player as GamePlayer};
 pub use crate::player_system::{Player as NewPlayer, PlayerFactory, PlayerStrategy};
-pub use crate::websocket::{WebSocketManager, WsMessage};
+pub use crate::websocket::{WebSocketService, WsMessage};
 
 // Common types used throughout the application
 pub type PlayerColor = String;
