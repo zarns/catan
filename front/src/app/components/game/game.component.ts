@@ -73,7 +73,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   resourceSelectorMode: 'monopoly' | 'yearOfPlenty' | 'discard' | 'trade' = 'monopoly';
   
   // Available trades
-  trades: any[] = [];
+  // trades property removed - ActionToolbar now handles trade detection
   
   // Board interactions
   nodeActions: {[key: string]: any} = {};
@@ -234,14 +234,20 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   shouldShowRollButton(): boolean {
-    if (!this.gameState || !this.gameState.game) return true;
+    if (!this.gameState || !this.gameState.game) return false;
     
     // Always hide roll button in watch mode
     if (this.isWatchOnlyMode) return false;
     
-    // Check if it's time to roll dice in the game
-    return this.gameState.status === 'in_progress' && 
-           !this.gameState.game.dice_rolled;
+    // React-style logic: if ROLL action is available, show ROLL button
+    // The backend handles player-specific logic, so we just check action availability
+    const isPlayTurnPhase = this.gameState.current_prompt === 'PLAY_TURN';
+    const canRoll = this.canRollDice();
+    
+
+    
+    // If ROLL action is available, show ROLL. If END_TURN is available, show END.
+    return isPlayTurnPhase && canRoll;
   }
   
   updateNodeActions(): void {
@@ -338,7 +344,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   updateTrades(): void {
-    this.trades = [];
+    // trades assignment removed - ActionToolbar now handles trade detection
     
     if (!this.gameState || !this.gameState.game) return;
     
@@ -682,25 +688,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.hasActionType('BUILD_ROAD');
   }
   
-  canBuyDevelopmentCard(): boolean {
-    return this.hasActionType('BUY_DEVELOPMENT_CARD');
-  }
-  
-  canPlayMonopoly(): boolean {
-    return this.hasActionType('PLAY_MONOPOLY');
-  }
-  
-  canPlayYearOfPlenty(): boolean {
-    return this.hasActionType('PLAY_YEAR_OF_PLENTY');
-  }
-  
-  canPlayRoadBuilding(): boolean {
-    return this.hasActionType('PLAY_ROAD_BUILDING');
-  }
-  
-  canPlayKnight(): boolean {
-    return this.hasActionType('PLAY_KNIGHT_CARD') || this.hasActionType('PLAY_KNIGHT');
-  }
+  // Card action detection methods moved to ActionToolbar component
   
   canRollDice(): boolean {
     return this.hasActionType('ROLL');
@@ -710,19 +698,66 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.hasActionType('END_TURN');
   }
   
-  hasAnyBuildActions(): boolean {
-    return this.canBuildSettlement() || this.canBuildCity() || this.canBuildRoad() || this.canBuyDevelopmentCard();
-  }
-  
-  hasAnyCardActions(): boolean {
-    return this.canPlayMonopoly() || this.canPlayYearOfPlenty() || this.canPlayRoadBuilding() || this.canPlayKnight();
-  }
+  // Build and card action aggregation methods moved to ActionToolbar component
   
   private hasActionType(actionType: string): boolean {
     if (!this.gameState?.current_playable_actions) return false;
     
-    return this.gameState.current_playable_actions.some((action: PlayableAction) => {
-      return action.action_type === actionType;
+    return this.gameState.current_playable_actions.some((action: any) => {
+      // Handle simple string format (e.g., 'Roll', 'EndTurn')
+      if (typeof action === 'string') {
+        const enumMap: {[key: string]: string[]} = {
+          'ROLL': ['Roll'],
+          'END_TURN': ['EndTurn'],
+          'BUILD_SETTLEMENT': ['BuildSettlement'],
+          'BUILD_CITY': ['BuildCity'], 
+          'BUILD_ROAD': ['BuildRoad'],
+          'BUY_DEVELOPMENT_CARD': ['BuyDevelopmentCard'],
+          'PLAY_MONOPOLY': ['PlayMonopoly'],
+          'PLAY_YEAR_OF_PLENTY': ['PlayYearOfPlenty'],
+          'PLAY_ROAD_BUILDING': ['PlayRoadBuilding'],
+          'PLAY_KNIGHT_CARD': ['PlayKnight'],
+          'PLAY_KNIGHT': ['PlayKnight']
+        };
+        
+        const possibleEnumNames = enumMap[actionType] || [];
+        if (possibleEnumNames.includes(action)) {
+          return true;
+        }
+        
+        // Also check direct string match (case-insensitive)
+        if (action.toLowerCase() === actionType.toLowerCase()) {
+          return true;
+        }
+      }
+      
+      // Handle legacy flat format
+      if (action.action_type === actionType) {
+        return true;
+      }
+      
+      // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
+      if (action.hasOwnProperty(actionType)) {
+        return true;
+      }
+      
+      // Handle mapped enum names for object format
+      const enumMap: {[key: string]: string[]} = {
+        'ROLL': ['Roll'],
+        'END_TURN': ['EndTurn'],
+        'BUILD_SETTLEMENT': ['BuildSettlement'],
+        'BUILD_CITY': ['BuildCity'], 
+        'BUILD_ROAD': ['BuildRoad'],
+        'BUY_DEVELOPMENT_CARD': ['BuyDevelopmentCard'],
+        'PLAY_MONOPOLY': ['PlayMonopoly'],
+        'PLAY_YEAR_OF_PLENTY': ['PlayYearOfPlenty'],
+        'PLAY_ROAD_BUILDING': ['PlayRoadBuilding'],
+        'PLAY_KNIGHT_CARD': ['PlayKnight'],
+        'PLAY_KNIGHT': ['PlayKnight']
+      };
+      
+      const possibleEnumNames = enumMap[actionType] || [];
+      return possibleEnumNames.some(enumName => action.hasOwnProperty(enumName));
     });
   }
 

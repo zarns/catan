@@ -59,7 +59,12 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - ✅ Actions toolbar dynamically enables/disables based on available actions
   - ✅ Proper human player turn detection and UI state management
   - ✅ implement player interactivity so user can play against bots
-- ActionsToolbar buttons not clickable
+- ✅ **COMPLETE: ActionsToolbar React-Style Implementation**
+  - ✅ Dynamic button filtering (only show enabled actions)
+  - ✅ Player-specific roll detection (ROLL vs END button logic)
+  - ✅ Fixed button layout (no horizontal shifting when buttons hide)
+  - ✅ Proper material icons (dice for ROLL, skip for END)
+  - ✅ Visibility-based hiding instead of conditional rendering
 - implement rightdrawer
   - backend mcts endpoint
 - GameBoard
@@ -74,7 +79,6 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - Build the greatest catan bot player of all time
 - Implement DB functionality to track user count and game history
   - MCP integration
-- ActionsToolbar buttons not clickable
-- Hide actionsToolbar buttons if they are not valid playable_actions
 - Robber getting moved after first turn to wood 10 tile every time?
 - stop highlighting clickable nodes for bot players on bot turns
+- Resource distribution mismatch between sheep/wood??

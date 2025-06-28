@@ -34,6 +34,11 @@
       background-color: #376c30;
     }
     
+    // When hidden, prevent interaction but maintain layout space
+    &[style*="visibility: hidden"] {
+      pointer-events: none;
+    }
+    
     mat-icon {
       margin-right: 6px;
       font-size: 20px;

@@ -5,6 +5,20 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 
+interface PlayableAction {
+  action_type?: string;
+  [key: string]: any;
+}
+
+interface GameState {
+  current_playable_actions?: PlayableAction[];
+  current_prompt?: string;
+  game?: {
+    is_initial_build_phase?: boolean;
+    dice_rolled?: boolean;
+  };
+}
+
 @Component({
   selector: 'app-actions-toolbar',
   standalone: true,
@@ -17,10 +31,8 @@ import { MatBadgeModule } from '@angular/material/badge';
   ],
   template: `
     <div class="actions-area">
-
-    
       <!-- Actions toolbar -->
-      @if (!isGameOver) {
+      @if (!isGameOver && shouldShowActionButtons) {
         <div class="actions-toolbar">
           <!-- If bot is thinking, show loading/prompt -->
           @if (isBotTurn || isBotThinking) {
@@ -37,10 +49,10 @@ import { MatBadgeModule } from '@angular/material/badge';
           }
           <!-- Human player actions -->
           @if (!isBotTurn && !isBotThinking) {
-            <!-- Use development cards -->
+            <!-- Use development cards - maintain space even when hidden -->
             <button mat-raised-button color="secondary"
               class="options-button"
-              [disabled]="!canUseCards"
+              [style.visibility]="playableDevCardTypes.size > 0 ? 'visible' : 'hidden'"
               [matMenuTriggerFor]="useMenu">
               <mat-icon>sim_card</mat-icon>
               Use
@@ -48,21 +60,22 @@ import { MatBadgeModule } from '@angular/material/badge';
             <mat-menu #useMenu="matMenu">
               <button mat-menu-item
                 [disabled]="!canPlayMonopoly"
-              (click)="onUseCard('MONOPOLY')">Monopoly</button>
+                (click)="onUseCard('MONOPOLY')">Monopoly</button>
               <button mat-menu-item
                 [disabled]="!canPlayYearOfPlenty"
-              (click)="onUseCard('YEAR_OF_PLENTY')">Year of Plenty</button>
+                (click)="onUseCard('YEAR_OF_PLENTY')">Year of Plenty</button>
               <button mat-menu-item
                 [disabled]="!canPlayRoadBuilding"
-              (click)="onUseCard('ROAD_BUILDING')">Road Building</button>
+                (click)="onUseCard('ROAD_BUILDING')">Road Building</button>
               <button mat-menu-item
                 [disabled]="!canPlayKnight"
-              (click)="onUseCard('KNIGHT')">Knight</button>
+                (click)="onUseCard('KNIGHT')">Knight</button>
             </mat-menu>
-            <!-- Buy/build -->
+            
+            <!-- Buy/build - maintain space even when hidden -->
             <button mat-raised-button color="secondary"
               class="options-button"
-              [disabled]="!canBuild"
+              [style.visibility]="buildActionTypes.size > 0 ? 'visible' : 'hidden'"
               [matMenuTriggerFor]="buildMenu">
               <mat-icon>build</mat-icon>
               Buy
@@ -70,39 +83,41 @@ import { MatBadgeModule } from '@angular/material/badge';
             <mat-menu #buildMenu="matMenu">
               <button mat-menu-item
                 [disabled]="!canBuyDevCard"
-              (click)="onBuild('DEV_CARD')">Development Card</button>
+                (click)="onBuild('DEV_CARD')">Development Card</button>
               <button mat-menu-item
                 [disabled]="!canBuildCity"
-              (click)="onBuild('CITY')">City</button>
+                (click)="onBuild('CITY')">City</button>
               <button mat-menu-item
                 [disabled]="!canBuildSettlement"
-              (click)="onBuild('SETTLEMENT')">Settlement</button>
+                (click)="onBuild('SETTLEMENT')">Settlement</button>
               <button mat-menu-item
                 [disabled]="!canBuildRoad"
-              (click)="onBuild('ROAD')">Road</button>
+                (click)="onBuild('ROAD')">Road</button>
             </mat-menu>
-            <!-- Trade -->
+            
+            <!-- Trade - maintain space even when hidden -->
             <button mat-raised-button color="secondary"
               class="options-button"
-              [disabled]="trades.length === 0"
+              [style.visibility]="tradeActions.length > 0 ? 'visible' : 'hidden'"
               [matMenuTriggerFor]="tradeMenu">
               <mat-icon>account_balance</mat-icon>
               Trade
             </button>
             <mat-menu #tradeMenu="matMenu">
-              @for (trade of trades; track $index) {
+              @for (trade of tradeActions; track $index) {
                 <button mat-menu-item
                   (click)="onTrade(trade)">
-                  {{ trade.description }}
+                  {{ getTradeDescription(trade) }}
                 </button>
               }
-              @if (trades.length === 0) {
+              @if (tradeActions.length === 0) {
                 <button mat-menu-item disabled>
-                  No trade options available
+                  No trades available
                 </button>
               }
             </mat-menu>
-            <!-- Main action button -->
+            
+            <!-- Main action button - Roll/End -->
             <button mat-raised-button color="primary"
               class="main-action-button"
               [disabled]="isMainActionDisabled"
@@ -118,32 +133,84 @@ import { MatBadgeModule } from '@angular/material/badge';
   styleUrls: ['./actions-toolbar.component.scss']
 })
 export class ActionsToolbarComponent {
-  @Input() humanPlayer: any;
-  @Input() gameState: any;
+  @Input() gameState: GameState | null = null;
   @Input() isBotThinking: boolean = false;
   @Input() isBotTurn: boolean = false;
   @Input() isGameOver: boolean = false;
   @Input() isRoll: boolean = true;
-  @Input() isBuildingSettlement: boolean = false;
-  @Input() isBuildingCity: boolean = false;
-  @Input() isBuildingRoad: boolean = false;
-  @Input() canUseCards: boolean = false;
-  @Input() canPlayMonopoly: boolean = false;
-  @Input() canPlayYearOfPlenty: boolean = false;
-  @Input() canPlayRoadBuilding: boolean = false;
-  @Input() canPlayKnight: boolean = false;
-  @Input() canBuild: boolean = false;
-  @Input() canBuyDevCard: boolean = false;
-  @Input() canBuildCity: boolean = false;
-  @Input() canBuildSettlement: boolean = false;
-  @Input() canBuildRoad: boolean = false;
-  @Input() trades: any[] = [];
   @Input() isMainActionDisabled: boolean = false;
   
   @Output() useCard = new EventEmitter<string>();
   @Output() build = new EventEmitter<string>();
   @Output() trade = new EventEmitter<any>();
   @Output() mainAction = new EventEmitter<void>();
+  
+  // Angular best practice: Use getters for computed properties
+  get shouldShowActionButtons(): boolean {
+    // Don't show action buttons during initial build phase or if no game state
+    return !this.gameState?.game?.is_initial_build_phase && !!this.gameState;
+  }
+  
+  get buildActionTypes(): Set<string> {
+    if (!this.gameState?.current_playable_actions) return new Set();
+    
+    return new Set(
+      this.gameState.current_playable_actions
+        .filter(action => this.actionStartsWith(action, 'BUILD') || this.actionStartsWith(action, 'BUY'))
+        .map(action => this.getActionType(action))
+    );
+  }
+  
+  get playableDevCardTypes(): Set<string> {
+    if (!this.gameState?.current_playable_actions) return new Set();
+    
+    return new Set(
+      this.gameState.current_playable_actions
+        .filter(action => this.actionStartsWith(action, 'PLAY'))
+        .map(action => this.getActionType(action))
+    );
+  }
+  
+  get tradeActions(): PlayableAction[] {
+    if (!this.gameState?.current_playable_actions) return [];
+    
+    return this.gameState.current_playable_actions
+      .filter(action => this.actionStartsWith(action, 'MARITIME_TRADE'));
+  }
+  
+  // Individual dev card checks
+  get canPlayMonopoly(): boolean {
+    return this.hasActionType('PLAY_MONOPOLY');
+  }
+  
+  get canPlayYearOfPlenty(): boolean {
+    return this.hasActionType('PLAY_YEAR_OF_PLENTY');
+  }
+  
+  get canPlayRoadBuilding(): boolean {
+    return this.hasActionType('PLAY_ROAD_BUILDING');
+  }
+  
+  get canPlayKnight(): boolean {
+    return this.hasActionType('PLAY_KNIGHT');
+  }
+  
+  // Individual build checks
+  get canBuyDevCard(): boolean {
+    return this.hasActionType('BUY_DEVELOPMENT_CARD');
+  }
+  
+  get canBuildCity(): boolean {
+    return this.hasActionType('BUILD_CITY');
+  }
+  
+  get canBuildSettlement(): boolean {
+    return this.hasActionType('BUILD_SETTLEMENT');
+  }
+  
+  get canBuildRoad(): boolean {
+    return this.hasActionType('BUILD_ROAD');
+  }
   
   get mainActionText(): string {
     if (this.gameState?.current_prompt === 'DISCARD') {
@@ -158,14 +225,67 @@ export class ActionsToolbarComponent {
   }
   
   get mainActionIcon(): string {
-    if (this.isRoll) {
-      return 'casino';
+    if (this.gameState?.current_prompt === 'DISCARD') {
+      return 'delete_sweep';
+    } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
+      return 'gps_fixed';
+    } else if (this.isRoll) {
+      return 'casino';  // Dice icon for roll
     } else {
-      return 'skip_next';
+      return 'skip_next';  // Skip icon for end turn
     }
   }
   
-
+  // Helper methods for handling both flat and Rust enum formats
+  private actionStartsWith(action: PlayableAction, prefix: string): boolean {
+    // Handle legacy flat format
+    if (action.action_type?.startsWith(prefix)) return true;
+    
+    // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
+    return Object.keys(action).some(key => key.startsWith(prefix));
+  }
+  
+  private getActionType(action: PlayableAction): string {
+    // Return action_type for legacy format
+    if (action.action_type) return action.action_type;
+    
+    // Return first key for Rust enum format
+    return Object.keys(action)[0] || '';
+  }
+  
+  private hasActionType(actionType: string): boolean {
+    if (!this.gameState?.current_playable_actions) return false;
+    
+    return this.gameState.current_playable_actions.some((action: PlayableAction) => {
+      // Handle legacy flat format
+      if (action.action_type === actionType) return true;
+      
+      // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
+      if (action.hasOwnProperty(actionType)) return true;
+      
+      // Handle mapped enum names (PLAY_MONOPOLY -> PlayMonopoly, etc.)
+      const enumMap: {[key: string]: string[]} = {
+        'PLAY_MONOPOLY': ['PlayMonopoly'],
+        'PLAY_YEAR_OF_PLENTY': ['PlayYearOfPlenty'],
+        'PLAY_ROAD_BUILDING': ['PlayRoadBuilding'],
+        'PLAY_KNIGHT': ['PlayKnight'],
+        'BUY_DEVELOPMENT_CARD': ['BuyDevelopmentCard'],
+        'BUILD_CITY': ['BuildCity'],
+        'BUILD_SETTLEMENT': ['BuildSettlement'],
+        'BUILD_ROAD': ['BuildRoad'],
+        'MARITIME_TRADE': ['MaritimeTrade']
+      };
+      
+      const possibleEnumNames = enumMap[actionType] || [];
+      return possibleEnumNames.some(enumName => action.hasOwnProperty(enumName));
+    });
+  }
+  
+  getTradeDescription(tradeAction: PlayableAction): string {
+    // Extract trade description from action data
+    // This would need to be implemented based on the actual trade action format
+    return 'Maritime Trade'; // Placeholder
+  }
   
   onUseCard(cardType: string): void {
     this.useCard.emit(cardType);
