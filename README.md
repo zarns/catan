@@ -2,9 +2,9 @@
 
 ## front
 
-- from root dir
 - run `ng serve`
 - to deploy:
+  - from root dir
   - `ng build --configuration production` (builds with production settings)
   - `firebase login`
   - `firebase deploy`
