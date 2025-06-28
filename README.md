@@ -2,6 +2,7 @@
 
 ## front
 
+- from root dir
 - run `ng serve`
 - to deploy:
   - `ng build --configuration production` (builds with production settings)
@@ -10,6 +11,7 @@
 
 ## back
 
+- from back dir
 - run `shuttle run`
 - deploy `shuttle deploy`
 
@@ -41,18 +43,35 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 
 
 # TODO
-- hide mobile buttons after clicking
-- finish leftdrawer
-  - ✅ Add logging component below player-state-box
-  - clean up logging statements "You" "unknown"
+- ✅ hide mobile buttons after clicking
+- ✅ implement interactive node/edge clicking system
+  - ✅ Parse current_playable_actions from backend
+  - ✅ Replace offset node indicators with centered pulse animations
+  - ✅ Enable proper click handling for settlements, cities, and roads
+  - ✅ Connect frontend actions to backend via WebSocket
+  - ✅ Dynamic actions toolbar based on available actions
+  - ActionsToolbar buttons not clickable
+  - Hide actionsToolbar buttons if they are not valid playable_actions
+  - Robber getting moved after first turn to wood 10 tile every time?
+  - stop highlighting clickable nodes for bot players on bot turns
+- ✅ **COMPLETE: Interactive Human vs Bot Gameplay**
+  - ✅ Backend exposes current_playable_actions in legacy [player_color, action_type, action_data] format
+  - ✅ Frontend parses actions and enables proper node/edge clicking
+  - ✅ Full action flow: Frontend click → Backend action processing → State update → WebSocket response
+  - ✅ Bot player identification via bot_colors array
+  - ✅ Initial build phase support for settlement/road placement
+  - ✅ Actions toolbar dynamically enables/disables based on available actions
+  - ✅ Proper human player turn detection and UI state management
 - implement rightdrawer
   - backend mcts endpoint
-- Actions toolbar
-  - center actions buttons
-  - remove card numbers
 - GameBoard
-  - implement player interactivity so user can play against bots
+  - ✅ implement player interactivity so user can play against bots
   - Hide actionsToolbar buttons when bots are playing
 - Fix cargo test - failed tests
-- Tokio Dependabot vuln
 - Add play against catanatron buttons
+- Cleanup
+  - remove unnecessary logging from frontend & backend
+  - convert println statements to debug statements (or remove)
+  - Evaluate frontend conversion serialized enums and remove unnecessary conversions
+  - Attempt to remove node_coordinates.rs. Frontend should be responsible for this logic.
+- Build the greatest catan bot player of all time

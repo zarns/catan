@@ -1,8 +1,3 @@
-# Old project directories
-/rust/
-/ui/
-/exp/
-
 # Angular frontend
 /front/node_modules/
 /front/.angular/
@@ -40,6 +35,14 @@ Thumbs.db
 # Logs
 *.log
 .vercel
+
+# /zrust/
+# /zui/
+# /zexp/
+/zrust/target/
+/zui/node_modules/
+/zui/build/
+/zui/.yarn/
 
 # Firebase
 .firebase/
