@@ -257,6 +257,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     console.log('🎯 GameComponent: updateNodeActions() called');
     this.nodeActions = {};
     
+    // 🚨 CRITICAL FIX: Prevent node actions during bot turns (matches React pattern)
+    if (this.isBotTurn) {
+      console.log('🎯 GameComponent: Bot turn detected - no node actions for human');
+      return;
+    }
+    
     if (!this.gameState?.current_playable_actions) {
       console.log('🎯 GameComponent: No current_playable_actions found');
       return;
@@ -306,6 +312,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   updateEdgeActions(): void {
     console.log('🛣️ GameComponent: updateEdgeActions() called');
     this.edgeActions = {};
+    
+    // 🚨 CRITICAL FIX: Prevent edge actions during bot turns (matches React pattern)
+    if (this.isBotTurn) {
+      console.log('🛣️ GameComponent: Bot turn detected - no edge actions for human');
+      return;
+    }
     
     if (!this.gameState?.current_playable_actions) {
       console.log('🛣️ GameComponent: No current_playable_actions found');
@@ -358,6 +370,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   updateHexActions(): void {
     console.log('🔶 GameComponent: updateHexActions() called');
     this.hexActions = {};
+    
+    // 🚨 CRITICAL FIX: Prevent hex actions during bot turns (matches React pattern)
+    if (this.isBotTurn) {
+      console.log('🔶 GameComponent: Bot turn detected - no hex actions for human');
+      return;
+    }
     
     if (!this.gameState?.current_playable_actions) {
       console.log('🔶 GameComponent: No current_playable_actions found');
@@ -453,8 +471,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     // Check if we're in robber movement mode and there's a valid hex action
     if (this.isMovingRobber && this.gameState?.current_prompt === 'MOVE_ROBBER') {
-      const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
-      const hexAction = this.hexActions[hexKey];
+        const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
+        const hexAction = this.hexActions[hexKey];
       
       console.log(`🔶 Looking for hexAction with key: ${hexKey}`);
       console.log(`🔶 Available hexActions:`, Object.keys(this.hexActions));
