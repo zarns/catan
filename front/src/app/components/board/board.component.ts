@@ -28,7 +28,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [size]="size"
             [centerX]="centerX"
             [centerY]="centerY"
-            [flashing]="isMovingRobber"
+            [flashing]="isActionableHex(tile.coordinate)"
             [showDebugInfo]="debugMode"
             (onClick)="onTileClick(tile.coordinate)">
           </app-tile>
@@ -131,6 +131,15 @@ export class BoardComponent implements OnInit, AfterViewInit {
   }
   private _edgeActions: {[key: string]: any} = {};
   
+  @Input() set hexActions(value: {[key: string]: any}) {
+    this._hexActions = value;
+    console.log('🔶 BoardComponent received hexActions:', Object.keys(value).length, 'hexes', value);
+  }
+  get hexActions(): {[key: string]: any} {
+    return this._hexActions;
+  }
+  private _hexActions: {[key: string]: any} = {};
+  
   // Debug mode flag - can be controlled from parent component
   @Input() debugMode: boolean = false;
   
@@ -203,6 +212,11 @@ export class BoardComponent implements OnInit, AfterViewInit {
   
   isActionableEdge(edgeId: string): boolean {
     return !!this.edgeActions[edgeId];
+  }
+  
+  isActionableHex(coordinate: any): boolean {
+    const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
+    return !!this.hexActions[hexKey];
   }
   
   // Event emitters for user interactions

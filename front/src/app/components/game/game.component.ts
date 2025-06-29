@@ -78,6 +78,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   // Board interactions
   nodeActions: {[key: string]: any} = {};
   edgeActions: {[key: string]: any} = {};
+  hexActions: {[key: string]: any} = {};
   
   // Debug mode - can be toggled with 'D' key
   debugMode: boolean = false;
@@ -154,9 +155,10 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         this.error = null;       // Clear any previous errors
         
         // Update actions when game state changes
-        console.log('🎮 GameComponent: Updating node and edge actions...');
+        console.log('🎮 GameComponent: Updating node, edge, and hex actions...');
         this.updateNodeActions();
         this.updateEdgeActions();
+        this.updateHexActions();
       } else {
         console.log('🎮 GameComponent: No gameState in uiState');
       }
@@ -224,9 +226,10 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     // Don't update actions in watch-only mode
     if (!this.isWatchOnlyMode) {
-      // Update node and edge actions based on current state
+      // Update node, edge, and hex actions based on current state
       this.updateNodeActions();
       this.updateEdgeActions();
+      this.updateHexActions();
       
       // Update available trades
       this.updateTrades();
@@ -352,6 +355,38 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     // This would be populated from server data in a real implementation
   }
   
+  updateHexActions(): void {
+    console.log('🔶 GameComponent: updateHexActions() called');
+    this.hexActions = {};
+    
+    if (!this.gameState?.current_playable_actions) {
+      console.log('🔶 GameComponent: No current_playable_actions found');
+      return;
+    }
+    
+    console.log('🔶 GameComponent: Processing', this.gameState.current_playable_actions.length, 'playable actions for hex interactions');
+    
+    // Parse current_playable_actions for MoveRobber actions
+    this.gameState.current_playable_actions.forEach((action, index) => {
+      console.log(`🔶 GameComponent: Processing action ${index}:`, action);
+      
+      // Check if this is a MoveRobber action (Rust enum format)
+      if (action.hasOwnProperty('MoveRobber') && action.MoveRobber?.coordinate !== undefined) {
+        const coordinate = action.MoveRobber.coordinate;
+        const hexKey = `${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`;
+        console.log(`🔶 GameComponent: Found MoveRobber action for hex ${hexKey}:`, action);
+        this.hexActions[hexKey] = {
+          type: 'MOVE_ROBBER',
+          action: action,
+          coordinate: coordinate
+        };
+      }
+    });
+    
+    console.log('🔶 GameComponent: Final hexActions:', this.hexActions);
+    console.log('🔶 GameComponent: Number of actionable hexes:', Object.keys(this.hexActions).length);
+  }
+  
   // Action handlers
   
   onNodeClick(nodeId: string): void {
@@ -412,17 +447,26 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onHexClick(coordinate: Coordinate): void {
-    if (!this.gameId || !this.isMovingRobber || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode) return;
     
-    // Move the robber to the selected hex
-    this.gameService.moveRobberAction(this.gameId, coordinate).subscribe({
-      next: () => {
-        this.isMovingRobber = false;
-      },
-      error: (err: Error) => {
-        console.error('Error moving robber:', err);
+    // Check if we're in robber movement mode and there's a valid hex action
+    if (this.isMovingRobber && this.gameState?.current_prompt === 'MOVE_ROBBER') {
+      const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
+      const hexAction = this.hexActions[hexKey];
+      
+      if (!hexAction?.action) {
+        console.log(`Hex ${hexKey} clicked but no MoveRobber action available`);
+        return;
       }
-    });
+      
+      console.log(`🔶 Executing hex action for ${hexKey}:`, hexAction.action);
+      
+      // Send MoveRobber action via WebSocket
+      this.websocketService.sendPlayerAction(this.gameId, hexAction.action);
+      
+      // Disable robber movement mode
+      this.isMovingRobber = false;
+    }
   }
   
   onUseCard(cardType: string): void {
@@ -556,10 +600,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     } else if (this.gameState?.current_prompt === 'DISCARD') {
       // Handle discard logic - would open resource selector in full implementation
     } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
-      this.gameService.dispatch({
-        type: GameAction.SET_IS_MOVING_ROBBER,
-        payload: true
-      });
+      // Enable robber movement mode - hexes will become clickable
+      console.log('🔶 Enabling robber movement mode');
+      this.isMovingRobber = true;
     } else {
       this.endTurn();
     }
