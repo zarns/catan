@@ -14,12 +14,7 @@ export interface ResourceOption {
 @Component({
   selector: 'app-resource-selector',
   standalone: true,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatIconModule
-  ],
+  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule],
   template: `
     @if (open) {
       <div class="resource-selector-overlay">
@@ -32,14 +27,10 @@ export interface ResourceOption {
           </div>
           <div class="resource-selector-content">
             @if (mode === 'monopoly') {
-              <p>
-                Choose a resource type to take from all other players
-              </p>
+              <p>Choose a resource type to take from all other players</p>
             }
             @if (mode === 'yearOfPlenty') {
-              <p>
-                Choose 2 resources to take from the bank
-              </p>
+              <p>Choose 2 resources to take from the bank</p>
             }
             <div class="resource-options">
               @for (option of options; track option.type) {
@@ -47,15 +38,14 @@ export interface ResourceOption {
                   class="resource-option"
                   [ngClass]="option.type"
                   [disabled]="isDisabled(option)"
-                  (click)="selectResource(option)">
+                  (click)="selectResource(option)"
+                >
                   <div class="resource-icon">
                     <div class="resource-hex"></div>
                     <span class="resource-label">{{ option.label || option.type }}</span>
                   </div>
                   @if (option.count !== undefined) {
-                    <div class="resource-count">
-                      x{{ option.count }}
-                    </div>
+                    <div class="resource-count">x{{ option.count }}</div>
                   }
                 </button>
               }
@@ -67,7 +57,8 @@ export interface ResourceOption {
                 mat-raised-button
                 color="primary"
                 [disabled]="!canConfirm()"
-                (click)="confirmSelection()">
+                (click)="confirmSelection()"
+              >
                 Confirm
               </button>
             </div>
@@ -75,19 +66,19 @@ export interface ResourceOption {
         </div>
       </div>
     }
-    `,
-  styleUrls: ['./resource-selector.component.scss']
+  `,
+  styleUrls: ['./resource-selector.component.scss'],
 })
 export class ResourceSelectorComponent {
   @Input() open: boolean = false;
   @Input() options: ResourceOption[] = [];
   @Input() mode: 'monopoly' | 'yearOfPlenty' | 'discard' | 'trade' = 'monopoly';
-  
+
   @Output() onClose = new EventEmitter<void>();
   @Output() onSelect = new EventEmitter<any>();
-  
+
   selectedResources: ResourceOption[] = [];
-  
+
   getTitle(): string {
     switch (this.mode) {
       case 'monopoly':
@@ -102,7 +93,7 @@ export class ResourceSelectorComponent {
         return 'Select Resources';
     }
   }
-  
+
   selectResource(resource: ResourceOption): void {
     if (this.mode === 'monopoly') {
       this.onSelect.emit({ type: resource.type });
@@ -110,7 +101,7 @@ export class ResourceSelectorComponent {
     } else if (this.mode === 'yearOfPlenty') {
       // For yearOfPlenty, we need to select exactly 2 resources
       const existingIndex = this.selectedResources.findIndex(r => r.type === resource.type);
-      
+
       if (existingIndex >= 0) {
         // If already selected, remove it
         this.selectedResources.splice(existingIndex, 1);
@@ -123,12 +114,12 @@ export class ResourceSelectorComponent {
     } else if (this.mode === 'discard') {
       // Discard mode logic
       const existingIndex = this.selectedResources.findIndex(r => r.type === resource.type);
-      
+
       if (existingIndex >= 0) {
         // If already selected, increment count up to the available amount
         const currentCount = this.selectedResources[existingIndex].count || 1;
         const maxCount = resource.count || 1;
-        
+
         if (currentCount < maxCount) {
           this.selectedResources[existingIndex].count = currentCount + 1;
         } else {
@@ -141,26 +132,29 @@ export class ResourceSelectorComponent {
       }
     }
   }
-  
+
   isDisabled(option: ResourceOption): boolean {
     // Implement logic for when options should be disabled
-    if (this.mode === 'yearOfPlenty' && this.selectedResources.length >= 2 &&
-        !this.selectedResources.some(r => r.type === option.type)) {
+    if (
+      this.mode === 'yearOfPlenty' &&
+      this.selectedResources.length >= 2 &&
+      !this.selectedResources.some(r => r.type === option.type)
+    ) {
       return true;
     }
-    
+
     return false;
   }
-  
+
   isSelected(option: ResourceOption): boolean {
     return this.selectedResources.some(r => r.type === option.type);
   }
-  
+
   getSelectedCount(option: ResourceOption): number {
     const selected = this.selectedResources.find(r => r.type === option.type);
-    return selected ? (selected.count || 1) : 0;
+    return selected ? selected.count || 1 : 0;
   }
-  
+
   canConfirm(): boolean {
     if (this.mode === 'yearOfPlenty') {
       return this.selectedResources.length === 2;
@@ -170,23 +164,23 @@ export class ResourceSelectorComponent {
     }
     return false;
   }
-  
+
   confirmSelection(): void {
     if (this.canConfirm()) {
       if (this.mode === 'yearOfPlenty') {
         this.onSelect.emit({
-          resources: this.selectedResources.map(r => r.type)
+          resources: this.selectedResources.map(r => r.type),
         });
       } else if (this.mode === 'discard') {
         this.onSelect.emit({
           resources: this.selectedResources.reduce((acc: Record<string, number>, resource) => {
             acc[resource.type] = resource.count || 1;
             return acc;
-          }, {})
+          }, {}),
         });
       }
       this.selectedResources = [];
       this.onClose.emit();
     }
   }
-} 
+}

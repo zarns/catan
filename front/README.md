@@ -36,6 +36,21 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+## Code Formatting
+
+To automatically format and fix linting issues:
+
+```bash
+npm run format:fix
+```
+
+To check code formatting without fixing:
+
+```bash
+npm run format:check
+npm run lint:check
+```
+
 ## Running unit tests
 
 To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:

@@ -14,12 +14,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAnimations(),
     provideHttpClient(),
-    importProvidersFrom(
-      BrowserModule,
-      FormsModule,
-      ReactiveFormsModule
-    ),
+    importProvidersFrom(BrowserModule, FormsModule, ReactiveFormsModule),
     GameService,
-    WebsocketService
-  ]
+    WebsocketService,
+  ],
 };

@@ -1,4 +1,14 @@
-import { Component, Input, ElementRef, ViewChild, HostListener, OnInit, AfterViewInit, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  Input,
+  ElementRef,
+  ViewChild,
+  HostListener,
+  OnInit,
+  AfterViewInit,
+  Output,
+  EventEmitter,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TileComponent } from '../tile/tile.component';
 import { NodeComponent } from '../node/node.component';
@@ -9,15 +19,13 @@ import { Coordinate, GameBoard } from '../../services/game.service';
 @Component({
   selector: 'app-board',
   standalone: true,
-  imports: [
-    CommonModule,
-    TileComponent,
-    NodeComponent,
-    EdgeComponent,
-    RobberComponent
-  ],
+  imports: [CommonModule, TileComponent, NodeComponent, EdgeComponent, RobberComponent],
   template: `
-    <div class="board-container" #boardContainer [ngClass]="{'show': show, 'debug-mode': debugMode}">
+    <div
+      class="board-container"
+      #boardContainer
+      [ngClass]="{ show: show, 'debug-mode': debugMode }"
+    >
       @if (gameState) {
         <!-- Tiles -->
         @for (tile of getTiles(); track tile.coordinate) {
@@ -30,7 +38,8 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [centerY]="centerY"
             [flashing]="isActionableHex(tile.coordinate)"
             [showDebugInfo]="debugMode"
-            (onClick)="onTileClick(tile.coordinate)">
+            (onClick)="onTileClick(tile.coordinate)"
+          >
           </app-tile>
         }
         <!-- Port Tiles -->
@@ -46,7 +55,8 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [centerX]="centerX"
             [centerY]="centerY"
             [showDebugInfo]="debugMode"
-            (onClick)="onTileClick(port.coordinate)">
+            (onClick)="onTileClick(port.coordinate)"
+          >
           </app-tile>
         }
         <!-- Edges (Roads) -->
@@ -63,7 +73,8 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [centerX]="centerX"
             [centerY]="centerY"
             [showDebugInfo]="debugMode"
-            (onClick)="onEdgeClick(edge.id)">
+            (onClick)="onEdgeClick(edge.id)"
+          >
           </app-edge>
         }
         <!-- Nodes (Settlements/Cities) -->
@@ -80,7 +91,8 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [centerX]="centerX"
             [centerY]="centerY"
             [showDebugInfo]="debugMode"
-            (onClick)="onNodeClick(node.id)">
+            (onClick)="onNodeClick(node.id)"
+          >
           </app-node>
         }
         <!-- Robber -->
@@ -89,17 +101,18 @@ import { Coordinate, GameBoard } from '../../services/game.service';
             [coordinate]="gameState.robber_coordinate"
             [size]="size"
             [centerX]="centerX"
-            [centerY]="centerY">
+            [centerY]="centerY"
+          >
           </app-robber>
         }
       }
     </div>
-    `,
-  styleUrls: ['./board.component.scss']
+  `,
+  styleUrls: ['./board.component.scss'],
 })
 export class BoardComponent implements OnInit, AfterViewInit {
   @ViewChild('boardContainer') boardContainerRef!: ElementRef;
-  
+
   @Input() set gameState(value: GameBoard | null) {
     this._gameState = value;
     // Moved logging to ngAfterViewInit to avoid change detection issues
@@ -112,7 +125,9 @@ export class BoardComponent implements OnInit, AfterViewInit {
   @Input() height: number = 0;
   @Input() isMobile: boolean = false;
   @Input() set isMovingRobber(value: boolean) {
-    console.log(`🔶 BoardComponent: isMovingRobber changed from ${this._isMovingRobber} to ${value}`);
+    console.log(
+      `🔶 BoardComponent: isMovingRobber changed from ${this._isMovingRobber} to ${value}`
+    );
     this._isMovingRobber = value;
   }
   get isMovingRobber(): boolean {
@@ -120,92 +135,102 @@ export class BoardComponent implements OnInit, AfterViewInit {
   }
   private _isMovingRobber: boolean = false;
   @Input() show: boolean = true;
-  @Input() set nodeActions(value: {[key: string]: any}) {
+  @Input() set nodeActions(value: { [key: string]: any }) {
     this._nodeActions = value;
-    console.log('🎯 BoardComponent received nodeActions:', Object.keys(value).length, 'nodes', value);
+    console.log(
+      '🎯 BoardComponent received nodeActions:',
+      Object.keys(value).length,
+      'nodes',
+      value
+    );
   }
-  get nodeActions(): {[key: string]: any} {
+  get nodeActions(): { [key: string]: any } {
     return this._nodeActions;
   }
-  private _nodeActions: {[key: string]: any} = {};
-  
-  @Input() set edgeActions(value: {[key: string]: any}) {
+  private _nodeActions: { [key: string]: any } = {};
+
+  @Input() set edgeActions(value: { [key: string]: any }) {
     this._edgeActions = value;
-    console.log('🛣️ BoardComponent received edgeActions:', Object.keys(value).length, 'edges', value);
+    console.log(
+      '🛣️ BoardComponent received edgeActions:',
+      Object.keys(value).length,
+      'edges',
+      value
+    );
   }
-  get edgeActions(): {[key: string]: any} {
+  get edgeActions(): { [key: string]: any } {
     return this._edgeActions;
   }
-  private _edgeActions: {[key: string]: any} = {};
-  
-  @Input() set hexActions(value: {[key: string]: any}) {
+  private _edgeActions: { [key: string]: any } = {};
+
+  @Input() set hexActions(value: { [key: string]: any }) {
     this._hexActions = value;
     console.log('🔶 BoardComponent received hexActions:', Object.keys(value).length, 'hexes');
   }
-  get hexActions(): {[key: string]: any} {
+  get hexActions(): { [key: string]: any } {
     return this._hexActions;
   }
-  private _hexActions: {[key: string]: any} = {};
-  
+  private _hexActions: { [key: string]: any } = {};
+
   // Debug mode flag - can be controlled from parent component
   @Input() debugMode: boolean = false;
-  
+
   // Board properties
   size: number = 60;
   centerX: number = 0;
   centerY: number = 0;
-  
+
   // Constants
   readonly SQRT3 = 1.732;
-  
+
   // Safe accessor methods
   getTiles(): any[] {
     return this.gameState?.tiles || [];
   }
-  
+
   getPorts(): any[] {
     // This method is used to access port tiles
     return this.gameState?.ports || [];
   }
-  
+
   getNodes(): any[] {
     if (!this.gameState || !this.gameState.nodes) {
       return [];
     }
-    
+
     const nodes = Object.entries(this.gameState.nodes).map(([id, node]) => {
       return {
         ...node,
-        id
+        id,
       };
     });
-    
+
     // Removed excessive debugging logs
-    
+
     return nodes;
   }
-  
+
   getEdges(): any[] {
     if (!this.gameState || !this.gameState.edges) {
       return [];
     }
-    
+
     const edges = Object.entries(this.gameState.edges).map(([id, edge]) => ({
       ...edge,
-      id
+      id,
     }));
-    
+
     // Removed excessive edge debugging
-    
+
     return edges;
   }
-  
+
   isActionableNode(nodeId: string): boolean {
     // Try multiple ID formats to find a match
     let isActionable = !!this.nodeActions[nodeId];
     let actionData = this.nodeActions[nodeId];
     let mappedNodeId = nodeId;
-    
+
     // If direct match fails, try extracting numeric part from 'n7_NE' format
     if (!isActionable && nodeId.startsWith('n')) {
       const numericPart = nodeId.split('_')[0].substring(1); // Extract '7' from 'n7_NE'
@@ -213,27 +238,27 @@ export class BoardComponent implements OnInit, AfterViewInit {
       actionData = this.nodeActions[numericPart];
       mappedNodeId = numericPart;
     }
-    
+
     return isActionable;
   }
-  
+
   isActionableEdge(edgeId: string): boolean {
     return !!this.edgeActions[edgeId];
   }
-  
+
   isActionableHex(coordinate: any): boolean {
     const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
     return !!this.hexActions[hexKey];
   }
-  
+
   // Event emitters for user interactions
   @Output() nodeClick = new EventEmitter<string>();
   @Output() edgeClick = new EventEmitter<string>();
   @Output() hexClick = new EventEmitter<Coordinate>();
-  
+
   ngOnInit(): void {
     this.updateBoardSize();
-    
+
     // Debug: log port data if available
     // setTimeout(() => {
     //   if (this.gameState?.ports && this.gameState.ports.length > 0) {
@@ -241,8 +266,8 @@ export class BoardComponent implements OnInit, AfterViewInit {
     //     console.log('Number of ports:', this.gameState.ports.length);
     //     // Log each port separately for easier inspection
     //     this.gameState.ports.forEach((port, index) => {
-    //       console.log(`Port ${index + 1}:`, port.coordinate, 
-    //                  'Resource:', port.port.resource, 
+    //       console.log(`Port ${index + 1}:`, port.coordinate,
+    //                  'Resource:', port.port.resource,
     //                  'Ratio:', port.port.ratio,
     //                  'Direction:', port.port.direction);
     //     });
@@ -251,41 +276,41 @@ export class BoardComponent implements OnInit, AfterViewInit {
     //   }
     // }, 2000);
   }
-  
+
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.updateBoardCenter();
     }, 0);
   }
-  
+
   @HostListener('window:resize')
   onResize(): void {
     this.updateBoardSize();
     this.updateBoardCenter();
   }
-  
+
   // Compute the best size for the board
   updateBoardSize(): void {
     if (!this.width || !this.height) return;
-    
+
     // No need to subtract toolbar height as parent container already handles this with padding
     const containerHeight = this.height;
     const containerWidth = this.isMobile ? this.width - 280 : this.width;
-    
+
     this.size = this.computeDefaultSize(containerWidth, containerHeight);
-    
+
     // Board dimensions calculated
   }
-  
+
   // Update board center coordinates
   updateBoardCenter(): void {
     if (!this.boardContainerRef?.nativeElement) return;
-    
+
     const element = this.boardContainerRef.nativeElement;
     this.centerX = element.clientWidth / 2;
     this.centerY = element.clientHeight / 2;
   }
-  
+
   // Compute optimal hex size based on container dimensions
   // This matches the React implementation
   computeDefaultSize(divWidth: number, divHeight: number): number {
@@ -293,7 +318,7 @@ export class BoardComponent implements OnInit, AfterViewInit {
     // divHeight = numLevels * (3h/4) + (h/4), implies:
     const maxSizeThatRespectsHeight = (4 * divHeight) / (3 * numLevels + 1) / 2;
     const correspondingWidth = this.SQRT3 * maxSizeThatRespectsHeight;
-    
+
     let size;
     if (numLevels * correspondingWidth < divWidth) {
       // height is the limiting factor
@@ -303,15 +328,15 @@ export class BoardComponent implements OnInit, AfterViewInit {
       const maxSizeThatRespectsWidth = divWidth / numLevels / this.SQRT3;
       size = maxSizeThatRespectsWidth;
     }
-    
+
     return size;
   }
-  
+
   // Handle tile click (for robber movement)
   onTileClick(coordinate: any): void {
     console.log(`🔶 BoardComponent: onTileClick called with:`, coordinate);
     console.log(`🔶 BoardComponent: isMovingRobber =`, this.isMovingRobber);
-    
+
     if (this.isMovingRobber) {
       console.log(`🔶 BoardComponent: Emitting hexClick event`);
       this.hexClick.emit(coordinate);
@@ -319,18 +344,18 @@ export class BoardComponent implements OnInit, AfterViewInit {
       console.log(`🔶 BoardComponent: Not in robber movement mode, not emitting`);
     }
   }
-  
+
   // Handle node click (for building settlements/cities)
   onNodeClick(nodeId: string): void {
     if (this.isActionableNode(nodeId)) {
       this.nodeClick.emit(nodeId);
     }
   }
-  
+
   // Handle edge click (for building roads)
   onEdgeClick(edgeId: string): void {
     if (this.isActionableEdge(edgeId)) {
       this.edgeClick.emit(edgeId);
     }
   }
-} 
+}

@@ -9,8 +9,14 @@
     "test": "ng test",
     "serve:ssr:catan": "node dist/catan/server/server.mjs",
     "vercel-build": "ng build --configuration production",
-    "deploy:gh-pages": "ng build --configuration production --base-href=/catan/ && cp dist/catan/browser/index.html dist/catan/browser/404.html"
+    "deploy:gh-pages": "ng build --configuration production --base-href=/catan/ && cp dist/catan/browser/index.html dist/catan/browser/404.html",
+    "lint": "eslint src/**/*.{ts,html} --fix",
+    "lint:check": "eslint src/**/*.{ts,html}",
+    "format": "prettier --write src/**/*.{ts,html,scss,css,json}",
+    "format:check": "prettier --check src/**/*.{ts,html,scss,css,json}",
+    "format:fix": "npm run format && npm run lint"
   },
+  "type": "module",
   "private": true,
   "dependencies": {
     "@angular/animations": "^20.0.4",
@@ -31,18 +37,31 @@
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
+    "@angular-eslint/builder": "^20.1.1",
+    "@angular-eslint/eslint-plugin": "^20.1.1",
+    "@angular-eslint/eslint-plugin-template": "^20.1.1",
+    "@angular-eslint/schematics": "^20.1.1",
+    "@angular-eslint/template-parser": "^20.1.1",
     "@angular/build": "^20.0.3",
     "@angular/cli": "^20.0.3",
     "@angular/compiler-cli": "^20.0.4",
+    "@eslint/js": "^9.30.0",
     "@types/express": "^4.17.17",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^18.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
+    "globals": "^16.2.0",
     "jasmine-core": "~5.6.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "prettier": "^3.6.2",
     "sass": "^1.86.0",
     "typescript": "~5.8.3"
   }

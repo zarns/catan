@@ -28,11 +28,8 @@ import { routes } from './app.routes';
     HttpClientModule,
     FormsModule,
     ReactiveFormsModule,
-    RouterModule.forRoot(routes)
+    RouterModule.forRoot(routes),
   ],
-  providers: [
-    GameService,
-    WebsocketService
-  ]
+  providers: [GameService, WebsocketService],
 })
-export class AppModule { } 
+export class AppModule {}

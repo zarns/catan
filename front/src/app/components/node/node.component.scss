@@ -11,13 +11,13 @@
   cursor: pointer;
   pointer-events: auto;
   transform: translateY(-50%) translateX(-50%);
-  
+
   &:hover {
     z-index: 15;
     /* Temporary: make nodes more visible on hover */
     background-color: rgba(255, 255, 255, 0.2);
   }
-  
+
   // Debug styles
   .debug-label {
     position: absolute;
@@ -41,78 +41,84 @@
   border-radius: 4px;
   transition: all 0.2s ease;
   position: relative;
-  
+
   // Base settlement shape (always visible)
   &.settlement-base {
     border: 2px solid transparent;
   }
-  
+
   // Empty node state - much more subtle
   &.empty {
     background-color: rgba(255, 255, 255, 0.1); // Slightly more visible base
     border-color: rgba(255, 255, 255, 0.2); // Slightly more visible border
     border-width: 1px; // Thinner border
-    
+
     &:hover {
       background-color: rgba(255, 255, 255, 0.15); // Still subtle on hover
       border-color: rgba(255, 255, 255, 0.3);
       box-shadow: 0 0 3px rgba(255, 255, 255, 0.4); // Softer glow
     }
   }
-  
+
   // Occupied node state - more prominent
   &.occupied {
     border-color: #333;
     z-index: 12;
-    
+
     // Settlement size (larger and more prominent)
     &.settlement {
       width: 95%; // Increased from 80% to 95%
       height: 95%; // Much more prominent
       border-width: 3px; // Thicker border for better visibility
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.2); // Add subtle shadow and border
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(0, 0, 0, 0.2); // Add subtle shadow and border
     }
-    
+
     // City size (keep large with grey center)
     &.city {
       width: 100%;
       height: 100%;
       border-width: 4px;
       background-color: #333; // Grey center for cities
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.3); // Stronger shadow and border
+      box-shadow:
+        0 3px 6px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(0, 0, 0, 0.3); // Stronger shadow and border
     }
-    
+
     // Player colors for settlements (solid) and cities (grey center with colored border)
     &.red {
       border-color: vars.$player-red;
-      
+
       &.settlement {
         background-color: vars.$player-red; // Solid red for settlements
       }
       // Cities keep grey center, only border is colored
     }
-    
+
     &.blue {
       border-color: vars.$player-blue;
-      
+
       &.settlement {
         background-color: vars.$player-blue; // Solid blue for settlements
       }
     }
-    
+
     &.white {
       border-color: vars.$player-white;
-      
+
       &.settlement {
         background-color: vars.$player-white; // Solid white for settlements
         // White settlements need a darker border for visibility
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.4);
+        box-shadow:
+          0 2px 4px rgba(0, 0, 0, 0.3),
+          0 0 0 1px rgba(0, 0, 0, 0.4);
       }
     }
-    
+
     &.orange {
       border-color: vars.$player-orange;
-      
+
       &.settlement {
         background-color: vars.$player-orange; // Solid orange for settlements
       }
@@ -126,7 +132,8 @@
 }
 
 @keyframes node-brightness-pulse {
-  0%, 100% {
+  0%,
+  100% {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
   }
@@ -156,7 +163,7 @@
 // This can be toggled on/off or removed entirely in production
 .debug-mode .node {
   position: relative;
-  
+
   // Removed the debug circle - it was causing offset indicators
   // &::after {
   //   content: '';
@@ -170,15 +177,27 @@
   //   border-radius: 50%;
   //   z-index: 2;
   // }
-  
+
   // Color-code directions for debugging
-  &.NORTH::after { background-color: red; }
-  &.NORTHEAST::after { background-color: orange; }
-  &.SOUTHEAST::after { background-color: yellow; }
-  &.SOUTH::after { background-color: green; }
-  &.SOUTHWEST::after { background-color: blue; }
-  &.NORTHWEST::after { background-color: purple; }
-} 
+  &.NORTH::after {
+    background-color: red;
+  }
+  &.NORTHEAST::after {
+    background-color: orange;
+  }
+  &.SOUTHEAST::after {
+    background-color: yellow;
+  }
+  &.SOUTH::after {
+    background-color: green;
+  }
+  &.SOUTHWEST::after {
+    background-color: blue;
+  }
+  &.NORTHWEST::after {
+    background-color: purple;
+  }
+}
 
 // Debug overlay styles
 .debug-overlay {
@@ -196,17 +215,17 @@
   pointer-events: none;
   white-space: nowrap;
   margin-top: 2px;
-  
+
   .debug-id {
     color: #ffeb3b;
     font-weight: bold;
   }
-  
+
   .debug-direction {
     color: vars.$player-blue;
   }
-  
+
   .debug-building {
     color: vars.$player-orange;
   }
-} 
+}

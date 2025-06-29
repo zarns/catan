@@ -23,7 +23,7 @@
   margin-left: -60px;
   margin-top: -52px;
   transition: all 0.2s ease;
-  
+
   .tile-content {
     position: absolute;
     width: 100%;
@@ -34,7 +34,7 @@
     justify-content: center;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   }
-  
+
   .number-token {
     position: relative;
     z-index: 6;
@@ -49,7 +49,7 @@
     font-size: 22px;
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
     border: 2px solid #fff;
-    
+
     &.high-probability {
       color: #d32f2f;
       font-weight: 900;
@@ -63,7 +63,7 @@
   position: absolute;
   z-index: 15;
   pointer-events: auto;
-  
+
   &.buildable {
     cursor: pointer;
     animation: pulse 1.5s infinite;
@@ -76,21 +76,21 @@
   border: none;
   z-index: 4;
   pointer-events: auto;
-  
+
   &.buildable {
     cursor: pointer;
     animation: pulse 1.5s infinite;
     z-index: 10;
-    
+
     &:hover {
       transform: scale(1.1);
     }
   }
-  
+
   &.settlement {
     z-index: 15;
   }
-  
+
   &.city {
     z-index: 15;
   }
@@ -118,4 +118,4 @@
 .zoomed {
   transform-origin: center;
   transition: transform 0.3s ease-out;
-} 
+}

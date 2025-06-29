@@ -10,25 +10,25 @@
   padding: 10px;
   transition: transform 0.3s ease;
   color: #f0f0f0;
-  
+
   &.desktop {
     width: 300px;
     transform: translateX(0);
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
     z-index: 100;
-    
+
     &:not(.open) {
       transform: translateX(100%);
     }
   }
-  
+
   &.mobile {
     width: 100%;
     max-width: 350px;
     transform: translateX(100%);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
     z-index: 1000;
-    
+
     &.open {
       transform: translateX(0);
     }
@@ -59,11 +59,11 @@
     gap: 5px;
     background-color: #2d4e27;
     color: white;
-    
+
     &:hover {
       background-color: #376c30;
     }
-    
+
     &.loading {
       pointer-events: none;
     }
@@ -87,19 +87,17 @@
   display: flex;
   align-items: center;
   margin-bottom: 8px;
-  
+
   &.red .player-color,
   &.red .probability-value {
     color: vars.$player-red;
   }
-  
+
   &.blue .player-color,
   &.blue .probability-value {
     color: vars.$player-blue;
   }
-  
 
-  
   &.orange .player-color,
   &.orange .probability-value {
     color: vars.$player-orange;
@@ -118,21 +116,19 @@
   border-radius: 10px;
   overflow: hidden;
   margin: 0 10px;
-  
+
   .bar-fill {
     height: 100%;
     border-radius: 10px;
-    
+
     .red & {
       background-color: vars.$player-red;
     }
-    
+
     .blue & {
       background-color: vars.$player-blue;
     }
-    
 
-    
     .orange & {
       background-color: vars.$player-orange;
     }
@@ -157,18 +153,18 @@ mat-divider {
     margin-bottom: 10px;
     color: #f0f0f0;
   }
-  
+
   .info-row {
     display: flex;
     margin-bottom: 8px;
     font-size: 14px;
-    
+
     .info-label {
       flex: 0 0 120px;
       font-weight: 500;
       color: #aaa;
     }
-    
+
     .info-value {
       flex: 1;
       color: #f0f0f0;
@@ -191,4 +187,4 @@ mat-divider {
       transform: translateX(100%) !important;
     }
   }
-} 
+}

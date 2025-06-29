@@ -1,16 +1,14 @@
 <div class="game-container">
   <!-- Drawer components -->
-  <app-left-drawer
-    [gameState]="gameState"
-    [isOpen]="isLeftDrawerOpen"
-    [isMobile]="isMobileView">
+  <app-left-drawer [gameState]="gameState" [isOpen]="isLeftDrawerOpen" [isMobile]="isMobileView">
   </app-left-drawer>
 
   <app-right-drawer
     [gameState]="gameState"
     [gameId]="gameId"
     [isOpen]="isRightDrawerOpen"
-    [isMobile]="isMobileView">
+    [isMobile]="isMobileView"
+  >
   </app-right-drawer>
 
   <!-- Loading State -->
@@ -56,7 +54,8 @@
           [debugMode]="debugMode"
           (nodeClick)="onNodeClick($event)"
           (edgeClick)="onEdgeClick($event)"
-          (hexClick)="onHexClick($event)">
+          (hexClick)="onHexClick($event)"
+        >
         </app-board>
         <!-- Debug Mode Indicator -->
         @if (debugMode) {
@@ -77,25 +76,28 @@
           (build)="onBuild($event)"
           (trade)="onTrade($event)"
           (mainAction)="onMainAction()"
-          (setMovingRobber)="onSetMovingRobber()">
+          (setMovingRobber)="onSetMovingRobber()"
+        >
         </app-actions-toolbar>
-        
+
         <!-- Mobile Drawer Toggle Buttons -->
         @if (isMobileView && !isLeftDrawerOpen && !isRightDrawerOpen) {
           <div class="mobile-drawer-controls">
-            <button 
-              mat-raised-button 
+            <button
+              mat-raised-button
               class="drawer-toggle-btn left-toggle"
               (click)="toggleLeftDrawer()"
-              aria-label="Toggle player info">
+              aria-label="Toggle player info"
+            >
               <mat-icon>people</mat-icon>
             </button>
-            
-            <button 
-              mat-raised-button 
+
+            <button
+              mat-raised-button
               class="drawer-toggle-btn right-toggle"
               (click)="toggleRightDrawer()"
-              aria-label="Toggle game analysis">
+              aria-label="Toggle game analysis"
+            >
               <mat-icon>analytics</mat-icon>
             </button>
           </div>
@@ -108,8 +110,8 @@
   <div
     class="drawer-backdrop"
     [class.visible]="(isLeftDrawerOpen || isRightDrawerOpen) && isMobileView"
-    (click)="closeDrawers()">
-  </div>
+    (click)="closeDrawers()"
+  ></div>
 
   <!-- Resource Selector Dialog -->
   <app-resource-selector
@@ -117,6 +119,7 @@
     [options]="resourceSelectorOptions"
     [mode]="resourceSelectorMode"
     (onClose)="onResourceSelectorClose()"
-    (onSelect)="onResourceSelected($event)">
+    (onSelect)="onResourceSelected($event)"
+  >
   </app-resource-selector>
 </div>

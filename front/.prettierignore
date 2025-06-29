@@ -1,0 +1,35 @@
+# Build outputs
+dist/
+.angular/
+node_modules/
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+
+# Generated files
+*.d.ts
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Environment files
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package files
+package-lock.json
+yarn.lock
+
+# Angular specific
+.angular/cache/ 

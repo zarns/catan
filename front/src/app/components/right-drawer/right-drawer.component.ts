@@ -15,20 +15,25 @@ import { environment } from '../../../environments/environment';
     MatButtonModule,
     MatDividerModule,
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
   ],
   template: `
-    <div class="right-drawer" 
-         [class.mobile]="isMobile" 
-         [class.desktop]="!isMobile"
-         [class.open]="isOpen">
+    <div
+      class="right-drawer"
+      [class.mobile]="isMobile"
+      [class.desktop]="!isMobile"
+      [class.open]="isOpen"
+    >
       <div class="analysis-box">
         <div class="analysis-header">
           <h3>Win Probability Analysis</h3>
-          <button mat-raised-button color="primary"
+          <button
+            mat-raised-button
+            color="primary"
             (click)="handleAnalyzeClick()"
             [disabled]="loading || isGameOver"
-            [class.loading]="loading">
+            [class.loading]="loading"
+          >
             @if (!loading) {
               <mat-icon>assessment</mat-icon>
             }
@@ -38,19 +43,17 @@ import { environment } from '../../../environments/environment';
             {{ loading ? 'Analyzing...' : 'Analyze' }}
           </button>
         </div>
-    
+
         @if (error) {
           <div class="error-message">
             {{ error }}
           </div>
         }
-    
+
         @if (mctsResults && !loading && !error) {
           <div class="probability-bars">
             @for (result of getMctsResultsArray(); track result.color) {
-              <div
-                class="probability-row"
-                [ngClass]="result.color.toLowerCase()">
+              <div class="probability-row" [ngClass]="result.color.toLowerCase()">
                 <span class="player-color">{{ result.color }}</span>
                 <span class="probability-bar">
                   <div class="bar-fill" [style.width.%]="result.probability"></div>
@@ -60,9 +63,9 @@ import { environment } from '../../../environments/environment';
             }
           </div>
         }
-    
+
         <mat-divider></mat-divider>
-    
+
         @if (gameState && gameState.game) {
           <div class="game-info">
             <div class="info-header">Game Information</div>
@@ -83,8 +86,7 @@ import { environment } from '../../../environments/environment';
             @if (gameState.game.current_player_index !== undefined) {
               <div class="info-row">
                 <span class="info-label">Current Player:</span>
-                <span class="info-value"
-                  [ngStyle]="{'color': getCurrentPlayerColor()}">
+                <span class="info-value" [ngStyle]="{ color: getCurrentPlayerColor() }">
                   {{ getCurrentPlayerName() }}
                 </span>
               </div>
@@ -92,8 +94,10 @@ import { environment } from '../../../environments/environment';
             @if (gameState.winning_color) {
               <div class="info-row">
                 <span class="info-label">Winner:</span>
-                <span class="info-value"
-                  [ngStyle]="{'color': gameState.winning_color.toLowerCase()}">
+                <span
+                  class="info-value"
+                  [ngStyle]="{ color: gameState.winning_color.toLowerCase() }"
+                >
                   {{ gameState.winning_color }}
                 </span>
               </div>
@@ -102,8 +106,8 @@ import { environment } from '../../../environments/environment';
         }
       </div>
     </div>
-    `,
-  styleUrls: ['./right-drawer.component.scss']
+  `,
+  styleUrls: ['./right-drawer.component.scss'],
 })
 export class RightDrawerComponent implements OnInit {
   @Input() gameState: any;
@@ -117,8 +121,7 @@ export class RightDrawerComponent implements OnInit {
 
   constructor(private http: HttpClient) {}
 
-  ngOnInit(): void {
-  }
+  ngOnInit(): void {}
 
   get isGameOver(): boolean {
     return !!this.gameState?.winning_color;
@@ -133,47 +136,44 @@ export class RightDrawerComponent implements OnInit {
   getCurrentPlayerName(): string {
     if (!this.gameState || !this.gameState.game) return '';
     const currentPlayer = this.gameState.game.players[this.gameState.game.current_player_index];
-    return currentPlayer 
-      ? (currentPlayer.name || currentPlayer.color) 
-      : '';
+    return currentPlayer ? currentPlayer.name || currentPlayer.color : '';
   }
 
   handleAnalyzeClick(): void {
     if (!this.gameId || !this.gameState || this.isGameOver) {
       return;
     }
-    
+
     this.loading = true;
     this.error = null;
-    
-    this.http.get<any>(`${environment.apiUrl}/analysis/${this.gameId}`)
-      .subscribe({
-        next: (result) => {
-          if (result.success) {
-            this.mctsResults = result.probabilities;
-          } else {
-            this.error = result.error || 'Analysis failed';
-          }
-          this.loading = false;
-        },
-        error: (err) => {
-          console.error('MCTS Analysis failed:', err);
-          this.error = err.message || 'Analysis failed due to a network error';
-          this.loading = false;
+
+    this.http.get<any>(`${environment.apiUrl}/analysis/${this.gameId}`).subscribe({
+      next: result => {
+        if (result.success) {
+          this.mctsResults = result.probabilities;
+        } else {
+          this.error = result.error || 'Analysis failed';
         }
-      });
+        this.loading = false;
+      },
+      error: err => {
+        console.error('MCTS Analysis failed:', err);
+        this.error = err.message || 'Analysis failed due to a network error';
+        this.loading = false;
+      },
+    });
   }
 
-  getMctsResultsArray(): { color: string, probability: number }[] {
+  getMctsResultsArray(): { color: string; probability: number }[] {
     if (!this.mctsResults) {
       return [];
     }
-    
+
     return Object.entries(this.mctsResults)
       .map(([color, probability]) => ({
         color,
-        probability: Math.round(probability as number)
+        probability: Math.round(probability as number),
       }))
       .sort((a, b) => b.probability - a.probability);
   }
-} 
+}

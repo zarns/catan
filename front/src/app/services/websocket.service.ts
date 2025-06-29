@@ -2,7 +2,17 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type WsMessageType = 'game_state' | 'game_updated' | 'error' | 'greeting' | 'player_action' | 'get_game_state' | 'bot_thinking' | 'action_result' | 'create_game' | 'game_created';
+export type WsMessageType =
+  | 'game_state'
+  | 'game_updated'
+  | 'error'
+  | 'greeting'
+  | 'player_action'
+  | 'get_game_state'
+  | 'bot_thinking'
+  | 'action_result'
+  | 'create_game'
+  | 'game_created';
 
 export interface WsMessage {
   type: WsMessageType;
@@ -16,7 +26,7 @@ export interface WsMessage {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class WebsocketService {
   private socket: WebSocket | null = null;
@@ -37,7 +47,6 @@ export class WebsocketService {
 
     const wsUrl = `${environment.wsUrl}/games/${gameId}`;
 
-    
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {
@@ -45,35 +54,35 @@ export class WebsocketService {
       this.connectionStatusSubject.next(true);
     };
 
-    this.socket.onmessage = (event) => {
+    this.socket.onmessage = event => {
       try {
         const message = JSON.parse(event.data) as WsMessage;
         console.log('📨 Received WebSocket message:', message);
-        
+
         // Handle greeting messages specifically
         if (message.type === 'greeting') {
           this.lastGreeting.next(message.message || message.data);
         }
-        
+
         this.messagesSubject.next(message);
       } catch (error) {
         console.error('❌ Error parsing WebSocket message:', error);
       }
     };
 
-    this.socket.onclose = (event) => {
+    this.socket.onclose = event => {
       console.log('🔌 WebSocket connection closed. Code:', event.code, 'Reason:', event.reason);
       this.connectionStatusSubject.next(false);
     };
 
-    this.socket.onerror = (error) => {
+    this.socket.onerror = error => {
       console.error('🚫 WebSocket error:', error);
       this.connectionStatusSubject.next(false);
     };
 
     return this.connectionStatus$;
   }
-  
+
   public disconnect(): void {
     if (this.socket) {
       this.socket.close();
@@ -81,7 +90,7 @@ export class WebsocketService {
       this.connectionStatusSubject.next(false);
     }
   }
-  
+
   public sendMessage(message: any) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       console.debug('📤 Sending WebSocket message:', message.type);
@@ -95,7 +104,7 @@ export class WebsocketService {
   public sendPlayerAction(gameId: string, action: any): void {
     this.sendMessage({
       type: 'player_action',
-      action: action
+      action: action,
     });
   }
 
@@ -104,7 +113,7 @@ export class WebsocketService {
 
   public requestGameState(gameId: string): void {
     this.sendMessage({
-      type: 'get_game_state'
+      type: 'get_game_state',
     });
   }
 
@@ -112,7 +121,7 @@ export class WebsocketService {
     this.sendMessage({
       type: 'create_game',
       mode: mode,
-      num_players: numPlayers
+      num_players: numPlayers,
     });
   }
-} 
+}

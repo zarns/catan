@@ -19,7 +19,7 @@ $color-ore: #777777;
   transition: all 0.3s ease;
   z-index: 1;
   overflow: hidden;
-  
+
   // Comment out coordinate display in the pseudo-element
   /*
   &::after {
@@ -38,10 +38,10 @@ $color-ore: #777777;
     opacity: 0.7;
   }
   */
-  
+
   &:hover {
     filter: brightness(1.1);
-    
+
     // Comment out coordinates hover behavior
     /*
     &::after {
@@ -51,7 +51,7 @@ $color-ore: #777777;
     }
     */
   }
-  
+
   &.port-tile {
     z-index: 2;
   }
@@ -82,7 +82,7 @@ $color-ore: #777777;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
   border: 2px solid #fff;
   pointer-events: none;
-  
+
   .number {
     font-weight: bold;
     font-size: 1.3rem;
@@ -90,27 +90,27 @@ $color-ore: #777777;
     margin-bottom: 2px;
     color: #222;
   }
-  
+
   .pips {
     font-size: 0.9rem;
     line-height: 1;
     color: #222;
   }
-  
+
   &.high-probability {
     .number {
       color: #d32f2f;
       font-size: 1.4rem;
     }
-    
+
     .pips {
       color: #d32f2f;
     }
-    
+
     background-color: #fff9f9;
     box-shadow: 0 3px 7px rgba(0, 0, 0, 0.8);
   }
-  
+
   &.flashing {
     animation: pulse 1.5s infinite;
   }
@@ -129,9 +129,9 @@ $color-ore: #777777;
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.7);
   z-index: 7;
   border: 2px solid white;
-  
+
   transform-origin: center center;
-  
+
   .port-ratio {
     font-weight: bold;
     font-size: 1.2rem;
@@ -146,40 +146,40 @@ $color-ore: #777777;
     display: flex;
     align-items: center;
     justify-content: center;
-    
+
     .resource-icon {
       color: white;
       font-weight: bold;
       font-size: 1.1rem;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
     }
-    
+
     &.resource-wood {
       background-color: $color-wood;
     }
-    
+
     &.resource-brick {
       background-color: $color-brick;
     }
-    
+
     &.resource-sheep {
       background-color: $color-sheep;
-      
+
       .resource-icon {
         color: #333;
         text-shadow: none;
       }
     }
-    
+
     &.resource-wheat {
       background-color: $color-wheat;
-      
+
       .resource-icon {
         color: #333;
         text-shadow: none;
       }
     }
-    
+
     &.resource-ore {
       background-color: $color-ore;
     }
@@ -242,18 +242,18 @@ $color-ore: #777777;
   z-index: 20;
   pointer-events: none;
   line-height: 1.2;
-  
+
   .debug-coord {
     font-weight: bold;
     color: #ffeb3b;
   }
-  
+
   .debug-resource {
     color: #4caf50;
   }
-  
+
   .debug-number {
     color: #ff9800;
     font-weight: bold;
   }
-} 
+}

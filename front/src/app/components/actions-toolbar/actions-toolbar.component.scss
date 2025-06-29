@@ -17,28 +17,26 @@
   border-top: 1px solid #333;
 }
 
-
-
 .actions-toolbar {
   display: flex;
   gap: 10px;
   align-items: center;
-  
+
   .options-button {
     min-width: 80px;
     height: 40px;
     background-color: #2d4e27;
     color: white;
-    
+
     &:hover {
       background-color: #376c30;
     }
-    
+
     // When hidden, prevent interaction but maintain layout space
-    &[style*="visibility: hidden"] {
+    &[style*='visibility: hidden'] {
       pointer-events: none;
     }
-    
+
     mat-icon {
       margin-right: 6px;
       font-size: 20px;
@@ -47,17 +45,17 @@
       opacity: 1 !important;
     }
   }
-  
+
   .main-action-button {
     min-width: 100px;
     height: 40px;
     background-color: #1565c0;
     color: white;
-    
+
     &:hover {
       background-color: #1976d2;
     }
-    
+
     mat-icon {
       margin-right: 6px;
       font-size: 20px;
@@ -74,11 +72,11 @@
   margin-right: 16px;
   color: #aaa;
   font-size: 14px;
-  
+
   .dots {
     display: flex;
     margin-left: 6px;
-    
+
     .dot {
       width: 6px;
       height: 6px;
@@ -86,11 +84,11 @@
       background-color: #aaa;
       margin: 0 2px;
       animation: dot-flashing 1.4s infinite linear;
-      
+
       &:nth-child(2) {
         animation-delay: 0.2s;
       }
-      
+
       &:nth-child(3) {
         animation-delay: 0.4s;
       }
@@ -115,21 +113,21 @@
     height: auto;
     padding: 8px;
   }
-  
+
   .actions-toolbar {
     width: 100%;
     justify-content: center;
-    
+
     .options-button {
       min-width: 60px;
-      
+
       span {
         display: none;
       }
-      
+
       mat-icon {
         margin-right: 0;
       }
     }
   }
-} 
+}

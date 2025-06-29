@@ -35,7 +35,10 @@ export interface Edge {
 
 export interface GameBoard {
   tiles: TilePosition[];
-  ports: { coordinate: Coordinate, port: { resource: string | null, ratio: number, direction: string } }[];
+  ports: {
+    coordinate: Coordinate;
+    port: { resource: string | null; ratio: number; direction: string };
+  }[];
   nodes: { [nodeId: string]: Node };
   edges: { [edgeId: string]: Edge };
   robber_coordinate: Coordinate;
@@ -77,7 +80,7 @@ export interface PlayableAction {
   resource?: string;
   resources?: string[];
   target_player?: string;
-  
+
   // Rust enum format support
   BuildSettlement?: { node_id: number };
   BuildCity?: { node_id: number };
@@ -88,7 +91,7 @@ export interface PlayableAction {
   PlayKnight?: {};
   MoveRobber?: { coordinate: [number, number, number]; victim?: string };
   Discard?: { resources: string[] };
-  
+
   // Support for unknown properties from Rust enum variants
   [key: string]: any;
 }
@@ -138,7 +141,7 @@ export enum GameAction {
   SET_IS_PLAYING_YEAR_OF_PLENTY = 'SET_IS_PLAYING_YEAR_OF_PLENTY',
   CANCEL_YEAR_OF_PLENTY = 'CANCEL_YEAR_OF_PLENTY',
   PLAY_ROAD_BUILDING = 'PLAY_ROAD_BUILDING',
-  SET_IS_MOVING_ROBBER = 'SET_IS_MOVING_ROBBER'
+  SET_IS_MOVING_ROBBER = 'SET_IS_MOVING_ROBBER',
 }
 
 // State management
@@ -153,11 +156,11 @@ interface GameUIState {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class GameService {
   private apiUrl = environment.apiUrl;
-  
+
   // Game state with UI state similar to React Redux store
   private gameUIState = new BehaviorSubject<GameUIState>({
     gameState: null,
@@ -166,25 +169,26 @@ export class GameService {
     isBuildingCity: false,
     isPlayingMonopoly: false,
     isPlayingYearOfPlenty: false,
-    isMovingRobber: false
+    isMovingRobber: false,
   });
 
   // Expose as observable
   gameUIState$ = this.gameUIState.asObservable();
-  
+
   constructor(
     private http: HttpClient,
     private websocketService: WebsocketService
   ) {
     // Listen for WebSocket messages to update game state
-    this.websocketService.messages$.subscribe((message: any) => { // Changed WsMessage to any as WsMessage is removed
+    this.websocketService.messages$.subscribe((message: any) => {
+      // Changed WsMessage to any as WsMessage is removed
       console.debug('🎮 GameService processing WebSocket message:', message.type);
-      
+
       if (message.type === 'game_state' || message.type === 'game_updated') {
         // WebSocket sends {type: 'game_state', game: Game}, so message.game contains the Game object
         const game = message.game;
         console.log('🎲 Extracting game from message:', game);
-        
+
         if (game) {
           const gameState: GameState = {
             id: game.id,
@@ -193,15 +197,15 @@ export class GameService {
             current_playable_actions: game.current_playable_actions || [],
             current_color: game.current_color,
             current_prompt: game.current_prompt,
-            bot_colors: game.bot_colors || []
+            bot_colors: game.bot_colors || [],
           };
-          
+
           console.log('🔄 Dispatching SET_GAME_STATE with:', gameState);
           this.dispatch({
             type: GameAction.SET_GAME_STATE,
-            payload: gameState
+            payload: gameState,
           });
-          
+
           console.log('✅ Game state updated via WebSocket');
         } else {
           console.warn('⚠️ No game object found in WebSocket message');
@@ -214,7 +218,7 @@ export class GameService {
   }
 
   // Dispatch actions similar to Redux
-  dispatch(action: { type: GameAction, payload?: any }) {
+  dispatch(action: { type: GameAction; payload?: any }) {
     const currentState = this.gameUIState.getValue();
     let newState: GameUIState = { ...currentState };
 
@@ -266,11 +270,15 @@ export class GameService {
     return this.http.post<Game>(`${this.apiUrl}/games`, config).pipe(
       tap(game => {
         console.log('🌐 GameService: Game created successfully:', game);
-        console.log('🌐 GameService: Game has current_playable_actions:', game.current_playable_actions?.length || 0, 'actions');
+        console.log(
+          '🌐 GameService: Game has current_playable_actions:',
+          game.current_playable_actions?.length || 0,
+          'actions'
+        );
         console.log('🌐 GameService: Game bot_colors:', game.bot_colors);
         console.log('🌐 GameService: Game current_color:', game.current_color);
         console.log('🌐 GameService: Game is_initial_build_phase:', game.is_initial_build_phase);
-        
+
         // HTTP API returns Game object directly, wrap it as GameState
         const gameState: GameState = {
           id: game.id,
@@ -279,12 +287,12 @@ export class GameService {
           current_playable_actions: game.current_playable_actions || [],
           current_color: game.current_color,
           current_prompt: game.current_prompt,
-          bot_colors: game.bot_colors || []
+          bot_colors: game.bot_colors || [],
         };
         console.log('🌐 GameService: Dispatching SET_GAME_STATE with:', gameState);
         this.dispatch({
           type: GameAction.SET_GAME_STATE,
-          payload: gameState
+          payload: gameState,
         });
       }),
       map(game => ({
@@ -294,7 +302,7 @@ export class GameService {
         current_playable_actions: game.current_playable_actions,
         current_color: game.current_color,
         current_prompt: game.current_prompt,
-        bot_colors: game.bot_colors || []
+        bot_colors: game.bot_colors || [],
       })),
       catchError(error => {
         console.error('❌ GameService: Error creating game:', error);
@@ -303,7 +311,7 @@ export class GameService {
     );
   }
 
-  // ✅ REMOVED: getGameState() HTTP method  
+  // ✅ REMOVED: getGameState() HTTP method
   // Game state is now fetched via WebSocket using websocketService.requestGameState()
 
   // Build a road at an edge
@@ -316,8 +324,11 @@ export class GameService {
   // Core action method - sends actions via WebSocket using enum format
   postAction(gameId: string, action?: any): Observable<GameState> {
     return new Observable(observer => {
-      console.debug('🎮 GameService.postAction called with:', { gameId, action_type: action ? Object.keys(action)[0] : 'BOT_ACTION' });
-      
+      console.debug('🎮 GameService.postAction called with:', {
+        gameId,
+        action_type: action ? Object.keys(action)[0] : 'BOT_ACTION',
+      });
+
       if (!action) {
         // ✅ REMOVED: Bot action requests - bots should act automatically
         observer.error(new Error('Manual bot actions not supported - bots act automatically'));
@@ -327,17 +338,17 @@ export class GameService {
         console.debug('👤 Sending player action:', Object.keys(action)[0]);
         this.websocketService.sendPlayerAction(gameId, action);
       }
-      
+
       // Set up one-time listener for the response
       const subscription = this.websocketService.messages$.subscribe((message: any) => {
         console.debug('📨 GameService received WebSocket message:', message.type);
-        
+
         if (message.type === 'game_state' || message.type === 'game_updated') {
           // Extract game from message
           const game = message.game;
           if (game) {
             console.debug('🎲 Converting game to GameState');
-            
+
             const gameState: GameState = {
               id: game.id,
               status: 'in_progress',
@@ -345,19 +356,19 @@ export class GameService {
               current_playable_actions: game.current_playable_actions || [],
               current_color: game.current_color,
               current_prompt: game.current_prompt,
-              bot_colors: game.bot_colors || []
+              bot_colors: game.bot_colors || [],
             };
-            
+
             // Update internal state
             this.dispatch({
               type: GameAction.SET_GAME_STATE,
-              payload: gameState
+              payload: gameState,
             });
-            
+
             // Emit the response
             observer.next(gameState);
             observer.complete();
-            
+
             // Clean up subscription
             subscription.unsubscribe();
           }
@@ -370,7 +381,7 @@ export class GameService {
           subscription.unsubscribe();
         }
       });
-      
+
       // Set a timeout to avoid hanging forever
       setTimeout(() => {
         subscription.unsubscribe();
@@ -378,76 +389,82 @@ export class GameService {
       }, 10000); // 10 second timeout
     });
   }
-  
+
   // Method to directly update game state (useful for watch mode)
   updateGameState(gameState: GameState): void {
     this.dispatch({
       type: GameAction.SET_GAME_STATE,
-      payload: gameState
+      payload: gameState,
     });
   }
-  
+
   // Simplified helper methods using enum format
-  
+
   // Build a road using enum format
   buildRoadAction(gameId: string, edgeId: string): Observable<GameState> {
     return this.postAction(gameId, { BuildRoad: { edge_id: edgeId } });
   }
-  
+
   // Build a settlement using enum format
   buildSettlementAction(gameId: string, nodeId: string): Observable<GameState> {
     return this.postAction(gameId, { BuildSettlement: { node_id: nodeId } });
   }
-  
+
   // Build a city using enum format
   buildCityAction(gameId: string, nodeId: string): Observable<GameState> {
     return this.postAction(gameId, { BuildCity: { node_id: nodeId } });
   }
-  
+
   // Roll dice using enum format
   rollDiceAction(gameId: string): Observable<GameState> {
     return this.postAction(gameId, { Roll: {} });
   }
-  
+
   // End turn using enum format
   endTurnAction(gameId: string): Observable<GameState> {
     return this.postAction(gameId, { EndTurn: {} });
   }
-  
+
   // Move robber using enum format
-  moveRobberAction(gameId: string, coordinate: Coordinate, targetColor?: string): Observable<GameState> {
+  moveRobberAction(
+    gameId: string,
+    coordinate: Coordinate,
+    targetColor?: string
+  ): Observable<GameState> {
     const coordinateArray = [coordinate.x, coordinate.y, coordinate.z];
     if (targetColor) {
-      return this.postAction(gameId, { MoveRobber: { coordinate: coordinateArray, victim: targetColor } });
+      return this.postAction(gameId, {
+        MoveRobber: { coordinate: coordinateArray, victim: targetColor },
+      });
     } else {
       return this.postAction(gameId, { MoveRobber: { coordinate: coordinateArray, victim: null } });
     }
   }
-  
+
   // Play development cards using enum format
   playMonopolyAction(gameId: string, resource: string): Observable<GameState> {
     return this.postAction(gameId, { PlayMonopoly: { resource } });
   }
-  
+
   playYearOfPlentyAction(gameId: string, resources: string[]): Observable<GameState> {
     return this.postAction(gameId, { PlayYearOfPlenty: { resources } });
   }
-  
+
   playRoadBuildingAction(gameId: string): Observable<GameState> {
     return this.postAction(gameId, { PlayRoadBuilding: {} });
   }
-  
+
   playKnightAction(gameId: string): Observable<GameState> {
     return this.postAction(gameId, { PlayKnight: {} });
   }
-  
+
   // Buying development card
   buyDevelopmentCardAction(gameId: string): Observable<GameState> {
     return this.postAction(gameId, { BuyDevelopmentCard: {} });
   }
-  
+
   // Trading
   tradeWithBankAction(gameId: string, give: string, receive: string): Observable<GameState> {
     return this.postAction(gameId, { MaritimeTrade: { give, take: receive, ratio: 4 } });
   }
-} 
+}

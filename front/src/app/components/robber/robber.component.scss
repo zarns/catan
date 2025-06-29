@@ -13,16 +13,16 @@
   transform: translate(-50%, -50%);
   border: 2px solid rgba(255, 255, 255, 0.7);
   transition: all 0.3s ease;
-  
+
   &:hover {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.8);
     transform: translate(-50%, -50%) scale(1.1);
   }
-  
+
   .robber-icon {
     width: 18px;
     height: 18px;
     fill: #ffffff;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   }
-} 
+}

@@ -11,9 +11,7 @@ import { CommonModule } from '@angular/common';
       <div class="log-entries" #logEntries>
         @if (getDisplayActions().length > 0) {
           @for (action of getDisplayActions(); track $index) {
-            <div 
-              class="action-entry"
-              [ngClass]="action[0]?.toLowerCase()">
+            <div class="action-entry" [ngClass]="action[0]?.toLowerCase()">
               <div class="action-main">
                 <span class="action-text">{{ humanizeAction(action) }}</span>
               </div>
@@ -25,12 +23,12 @@ import { CommonModule } from '@angular/common';
       </div>
     </div>
   `,
-  styleUrls: ['./game-log.component.scss']
+  styleUrls: ['./game-log.component.scss'],
 })
 export class GameLogComponent implements AfterViewInit, OnDestroy {
   @Input() gameState: any;
   @ViewChild('logEntries', { static: false }) logEntries!: ElementRef<HTMLDivElement>;
-  
+
   private resizeObserver?: ResizeObserver;
   private resizeHandler = () => this.calculateDynamicHeight();
 
@@ -56,7 +54,7 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
     // Calculate the top position of the game-log relative to the viewport
     const rect = gameLogElement.getBoundingClientRect();
     const availableHeight = window.innerHeight - rect.top;
-    
+
     // Set the height to fill from current position to bottom of screen
     this.logEntries.nativeElement.style.height = `${availableHeight}px`; // 20px for margins
     this.logEntries.nativeElement.style.maxHeight = `${availableHeight}px`;
@@ -67,14 +65,14 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
       this.resizeObserver = new ResizeObserver(() => {
         this.calculateDynamicHeight();
       });
-      
+
       // Observe the parent drawer for size changes
       const drawerElement = this.logEntries.nativeElement.closest('.left-drawer');
       if (drawerElement) {
         this.resizeObserver.observe(drawerElement);
       }
     }
-    
+
     // Also listen for window resize
     window.addEventListener('resize', this.resizeHandler);
   }
@@ -83,7 +81,7 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
     if (!this.gameState?.game?.actions) {
       return [];
     }
-    
+
     // Return all actions (reversed for most recent first) to enable scrolling
     const actions = [...this.gameState.game.actions].reverse();
     return actions;
@@ -96,35 +94,35 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
 
     // Get player index from color
     const playerColor = action[0]?.toLowerCase();
-    const playerIndex = this.gameState?.game?.players?.findIndex((p: any) => 
-      p.color.toLowerCase() === playerColor
+    const playerIndex = this.gameState?.game?.players?.findIndex(
+      (p: any) => p.color.toLowerCase() === playerColor
     );
-    
+
     const player = playerIndex !== -1 ? `P${playerIndex + 1}` : action[0];
-    
+
     switch (action[1]) {
-      case "Roll":
+      case 'Roll':
         if (action[2] && typeof action[2] === 'number') {
           return `${player} ROLLED ${action[2]}`;
         }
         return `${player} ROLLED`;
-      case "Discard":
+      case 'Discard':
         return `${player} DISCARDED`;
-      case "BuyDevelopmentCard":
+      case 'BuyDevelopmentCard':
         return `${player} BOUGHT DEV CARD`;
-      case "BuildSettlement":
+      case 'BuildSettlement':
         return `${player} BUILT SETTLEMENT ${action[2] !== undefined ? `N${action[2]}` : ''}`;
-      case "BuildCity":
+      case 'BuildCity':
         return `${player} BUILT CITY ${action[2] !== undefined ? `N${action[2]}` : ''}`;
-      case "BuildRoad":
+      case 'BuildRoad':
         return `${player} BUILT ROAD ${action[2] !== undefined ? `E${action[2]}` : ''}`;
-      case "PlayKnight":
+      case 'PlayKnight':
         return `${player} PLAYED KNIGHT`;
-      case "PlayRoadBuilding":
+      case 'PlayRoadBuilding':
         return `${player} PLAYED ROAD BUILDING`;
-      case "PlayMonopoly":
+      case 'PlayMonopoly':
         return `${player} MONOPOLIZED ${action[2] || 'RESOURCE'}`;
-      case "PlayYearOfPlenty": {
+      case 'PlayYearOfPlenty': {
         const resources = action[2];
         if (Array.isArray(resources) && resources.length >= 2) {
           return `${player} PLAYED YEAR OF PLENTY: ${resources[0]} & ${resources[1]}`;
@@ -132,11 +130,11 @@ export class GameLogComponent implements AfterViewInit, OnDestroy {
           return `${player} PLAYED YEAR OF PLENTY: ${resources || 'RESOURCES'}`;
         }
       }
-      case "MoveRobber":
+      case 'MoveRobber':
         return `${player} MOVED ROBBER`;
-      case "MaritimeTrade":
+      case 'MaritimeTrade':
         return `${player} MARITIME TRADE`;
-      case "EndTurn":
+      case 'EndTurn':
         return `${player} ENDED TURN`;
       default:
         return `${player} ${action[1]}`;
