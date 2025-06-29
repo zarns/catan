@@ -82,3 +82,4 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - Robber getting moved after first turn to wood 10 tile every time?
 - stop highlighting clickable nodes for bot players on bot turns
 - Resource distribution mismatch between sheep/wood??
+- Can build settlements during other player's turn

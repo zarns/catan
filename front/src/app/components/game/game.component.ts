@@ -383,7 +383,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
     
-    console.log('🔶 GameComponent: Final hexActions:', this.hexActions);
     console.log('🔶 GameComponent: Number of actionable hexes:', Object.keys(this.hexActions).length);
   }
   
@@ -447,6 +446,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
   
   onHexClick(coordinate: Coordinate): void {
+    console.log(`🔶 onHexClick called with:`, coordinate);
+    console.log(`🔶 Current state - isMovingRobber: ${this.isMovingRobber}, current_prompt: ${this.gameState?.current_prompt}`);
+    
     if (!this.gameId || this.isWatchOnlyMode) return;
     
     // Check if we're in robber movement mode and there's a valid hex action
@@ -454,8 +456,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
       const hexAction = this.hexActions[hexKey];
       
+      console.log(`🔶 Looking for hexAction with key: ${hexKey}`);
+      console.log(`🔶 Available hexActions:`, Object.keys(this.hexActions));
+      
       if (!hexAction?.action) {
-        console.log(`Hex ${hexKey} clicked but no MoveRobber action available`);
+        console.log(`❌ Hex ${hexKey} clicked but no MoveRobber action available`);
         return;
       }
       
@@ -466,6 +471,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       
       // Disable robber movement mode
       this.isMovingRobber = false;
+      console.log(`🔶 Robber movement disabled`);
+    } else {
+      console.log(`🔶 Not in robber movement mode or wrong prompt`);
     }
   }
   
@@ -595,43 +603,41 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onMainAction(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
+    console.log(`🎮 onMainAction called - isRoll: ${this.isRoll}, current_prompt: ${this.gameState?.current_prompt}`);
+    
     if (this.isRoll) {
+      console.log('🎲 Rolling dice...');
       this.rollDice();
     } else if (this.gameState?.current_prompt === 'DISCARD') {
+      console.log('🗂️ Handling discard logic...');
       // Handle discard logic - would open resource selector in full implementation
-    } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
-      // Enable robber movement mode - hexes will become clickable
-      console.log('🔶 Enabling robber movement mode');
-      this.isMovingRobber = true;
     } else {
+      console.log('⏭️ Ending turn...');
       this.endTurn();
     }
+  }
+
+  onSetMovingRobber(): void {
+    console.log('🔶 GameComponent: onSetMovingRobber called - setting isMovingRobber to true');
+    this.isMovingRobber = true;
+    console.log('🔶 GameComponent: isMovingRobber set to:', this.isMovingRobber);
+    console.log('🔶 GameComponent: BoardComponent should now receive isMovingRobber =', this.isMovingRobber);
   }
   
   rollDice(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
-    this.gameService.rollDiceAction(this.gameId).subscribe({
-      next: () => {
-        // Dice rolled - state will update via WebSocket
-      },
-      error: (err: Error) => {
-        console.error('Error rolling dice:', err);
-      }
-    });
+    console.log('🎲 Sending Roll action via WebSocket');
+    // Use WebSocket instead of HTTP for consistent action handling
+    this.websocketService.sendPlayerAction(this.gameId, { Roll: {} });
   }
   
   endTurn(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
     
-    this.gameService.endTurnAction(this.gameId).subscribe({
-      next: () => {
-        // Turn ended - state will update via WebSocket
-      },
-      error: (err: Error) => {
-        console.error('Error ending turn:', err);
-      }
-    });
+    console.log('⏭️ Sending EndTurn action via WebSocket');
+    // Use WebSocket instead of HTTP for consistent action handling
+    this.websocketService.sendPlayerAction(this.gameId, { EndTurn: {} });
   }
   
   getCurrentPlayer(): ExtendedPlayer | null {
@@ -740,6 +746,16 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   canEndTurn(): boolean {
     return this.hasActionType('END_TURN');
   }
+
+  canMoveRobber(): boolean {
+    return this.gameState?.current_prompt === 'MOVE_ROBBER';
+  }
+
+  // Angular best practice: Use descriptive getter for complex UI state
+  get isMainActionEnabled(): boolean {
+    // Button should be enabled when any valid action is available
+    return this.canRollDice() || this.canEndTurn() || this.canMoveRobber();
+  }
   
   // Build and card action aggregation methods moved to ActionToolbar component
   
@@ -760,7 +776,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
           'PLAY_YEAR_OF_PLENTY': ['PlayYearOfPlenty'],
           'PLAY_ROAD_BUILDING': ['PlayRoadBuilding'],
           'PLAY_KNIGHT_CARD': ['PlayKnight'],
-          'PLAY_KNIGHT': ['PlayKnight']
+          'PLAY_KNIGHT': ['PlayKnight'],
+          'MOVE_ROBBER': ['MoveRobber']
         };
         
         const possibleEnumNames = enumMap[actionType] || [];
@@ -796,7 +813,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         'PLAY_YEAR_OF_PLENTY': ['PlayYearOfPlenty'],
         'PLAY_ROAD_BUILDING': ['PlayRoadBuilding'],
         'PLAY_KNIGHT_CARD': ['PlayKnight'],
-        'PLAY_KNIGHT': ['PlayKnight']
+        'PLAY_KNIGHT': ['PlayKnight'],
+        'MOVE_ROBBER': ['MoveRobber']
       };
       
       const possibleEnumNames = enumMap[actionType] || [];

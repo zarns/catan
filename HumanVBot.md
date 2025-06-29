@@ -2,7 +2,190 @@
 
 ## Executive Summary
 
-**Current Status**: Human vs Bot gameplay is **95% functional** with one remaining issue: ROLL vs END button detection. The WebSocket architecture is complete and working properly.
+**Current Status**: Human vs Bot gameplay has **critical game flow issues** that need immediate attention. The ROLL button works, but the game allows multiple rolls per turn and ROB functionality is broken.
+
+## 🚨 **CRITICAL ISSUES IDENTIFIED (December 2024)**
+
+### **🎲 Issue 1: Multiple Dice Rolls Per Turn**
+**Problem**: Player can roll dice multiple times in a single turn until they get a 7
+**Root Cause**: Backend is not properly transitioning game state after dice roll
+**Impact**: Breaks core Catan gameplay rules (one roll per turn)
+
+### **🎯 Issue 2: ROB Button Not Clickable**  
+**Problem**: When player rolls 7, ROB button appears but is not clickable
+**Root Cause**: Frontend not handling `MoveRobber` actions properly
+**Backend Logs Show**: 
+- ✅ Correct transition: `current_prompt: MOVE_ROBBER` 
+- ✅ 18 `MoveRobber` actions generated
+- ❌ Frontend not making hex tiles clickable
+
+### **🔄 Issue 3: Action Processing Mismatch**
+**Problem**: Frontend and backend have different action handling expectations
+**Root Cause**: No unified action system between frontend/backend
+**Evidence**: 
+- Backend sends `MoveRobber` actions
+- Frontend only processes `BuildSettlement`, `BuildCity`, `BuildRoad` actions
+- No hex tile click handling for robber movement
+
+### **📡 Issue 4: Communication Architecture Gaps**
+**Problem**: Multiple communication patterns causing inconsistency
+**Current State**: Mix of WebSocket actions, HTTP calls, and incomplete handlers
+**Need**: Single unified action API for all game interactions
+
+## 🛠️ **REVISED ROADMAP: Game Flow Fix**
+
+### **Phase 1: Backend State Management (Priority 1)**
+**Goal**: Fix game state transitions to prevent multiple rolls
+
+**Issues to Fix:**
+1. **Roll → End Turn**: After rolling (non-7), player should only have `EndTurn` actions
+2. **Roll → Robber**: After rolling 7, player should only have `MoveRobber` actions  
+3. **State Persistence**: Ensure `dice_rolled` flag properly prevents multiple rolls
+
+**Implementation:**
+```rust
+// Backend: Ensure proper state transitions
+fn apply_roll(&mut self, roll_result: u8) {
+    if roll_result == 7 {
+        self.current_prompt = ActionPrompt::MoveRobber;
+        // Only generate MoveRobber actions
+    } else {
+        self.dice_rolled = true;
+        self.current_prompt = ActionPrompt::PlayTurn;
+        // Generate building actions + EndTurn, but NO Roll
+    }
+}
+```
+
+### **Phase 2: Frontend Robber Handling (Priority 1)**
+**Goal**: Make ROB button clickable and hex tiles interactive
+
+**Issues to Fix:**
+1. **Hex Click Actions**: Add `hexActions` similar to `nodeActions`/`edgeActions`
+2. **MoveRobber Parsing**: Extract MoveRobber actions from backend
+3. **ROB Button Handler**: Connect button click to robber movement mode
+
+**Implementation:**
+```typescript
+// Frontend: Add hex action handling
+updateHexActions(): void {
+    this.hexActions = {};
+    
+    this.gameState.current_playable_actions.forEach(action => {
+        if (action.hasOwnProperty('MoveRobber')) {
+            const coordinate = action.MoveRobber.coordinate;
+            this.hexActions[`${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`] = action;
+        }
+    });
+}
+
+onMainAction(): void {
+    if (this.gameState.current_prompt === 'MOVE_ROBBER') {
+        // Enable robber movement mode
+        this.isMovingRobber = true;
+    }
+}
+```
+
+### **Phase 3: Unified Action API (Priority 2)**
+**Goal**: Create single action processing system for all interactions
+
+**Current Problems:**
+- Roll: Uses WebSocket
+- Build: Uses HTTP + WebSocket  
+- Robber: Uses separate HTTP endpoint
+- EndTurn: Uses WebSocket
+
+**Solution**: Single WebSocket action handler
+```typescript
+// Unified action sender
+sendAction(action: any): void {
+    this.websocketService.sendAction(this.gameId, action);
+}
+
+// All actions go through this single method
+performAction(action: any): void {
+    this.sendAction(action);
+}
+```
+
+### **Phase 4: Complete Action Coverage (Priority 2)**
+**Goal**: Ensure all Catan actions are supported
+
+**Missing Actions:**
+- ✅ Roll ✅ EndTurn ✅ BuildSettlement ✅ BuildCity ✅ BuildRoad
+- ❌ MoveRobber ❌ BuyDevelopmentCard ❌ PlayKnight ❌ PlayMonopoly
+- ❌ PlayYearOfPlenty ❌ PlayRoadBuilding ❌ MaritimeTrade
+
+## 🔍 **ROOT CAUSE ANALYSIS**
+
+### **Why Multiple Rolls Don't Make Sense**
+In Catan rules:
+1. **Start Turn** → Roll dice (mandatory, once per turn)
+2. **After Roll** → Resource collection + optional building/trading
+3. **End Turn** → Pass to next player
+
+**Current Backend Issue**: After rolling, the backend is still generating `Roll` actions instead of removing them.
+
+### **Why ROB Button Doesn't Work**
+The backend correctly generates `MoveRobber` actions:
+```rust
+MoveRobber { color: 0, coordinate: (0, -1, 1), victim_opt: None }
+```
+
+But the frontend:
+1. ❌ Doesn't parse `MoveRobber` actions in `updateNodeActions()`/`updateEdgeActions()`
+2. ❌ Doesn't have `updateHexActions()` method
+3. ❌ ROB button click doesn't enable robber movement mode
+4. ❌ Hex tiles aren't clickable during `MOVE_ROBBER` phase
+
+## 📋 **IMPLEMENTATION PLAN**
+
+### **Day 1: Fix Backend State Management**
+1. **Audit Roll Logic**: Ensure `dice_rolled` flag prevents multiple rolls
+2. **Fix State Transitions**: Roll → PlayTurn (no more rolls) or Roll → MoveRobber  
+3. **Test**: Verify only one roll per turn allowed
+
+### **Day 2: Implement Frontend Robber Handling**
+1. **Add `hexActions` tracking**: Similar to `nodeActions`/`edgeActions`
+2. **Parse MoveRobber actions**: Extract from `current_playable_actions`
+3. **Enable hex clicking**: Make tiles clickable during `MOVE_ROBBER` phase
+4. **Connect ROB button**: Enable robber movement mode on click
+
+### **Day 3: Unified Action System**
+1. **Single WebSocket handler**: All actions go through WebSocket
+2. **Remove HTTP calls**: Consolidate to WebSocket-only communication
+3. **Test all actions**: Roll, Build, Robber, EndTurn, DevCards
+
+### **Day 4: Complete Action Coverage**
+1. **Development cards**: BuyDevelopmentCard, PlayKnight, etc.
+2. **Trading**: MaritimeTrade actions
+3. **Edge cases**: Discard phase, longest road, etc.
+
+## 🎯 **SUCCESS CRITERIA**
+
+### **Immediate Fixes (This Week)**
+- ✅ One roll per turn (no multiple rolls)
+- ✅ ROB button clickable after rolling 7
+- ✅ Hex tiles clickable during robber movement
+- ✅ Proper game flow: Roll → Build/Trade → EndTurn
+
+### **Complete Implementation (Next Week)**
+- ✅ All Catan actions supported
+- ✅ Single unified WebSocket API
+- ✅ Proper state management
+- ✅ Full Human vs Bot gameplay
+
+## 🚀 **PATH FORWARD**
+
+**The core issue is that we have a communication/state management problem, not just a UI problem.**
+
+1. **Backend**: Fix state transitions to prevent multiple rolls
+2. **Frontend**: Add proper MoveRobber action handling  
+3. **Architecture**: Unified WebSocket action system
+4. **Testing**: Ensure complete Catan game flow works
+
+This is a **fundamental game logic issue** that needs to be fixed before any other features can be properly implemented.
 
 ## ✅ **COMPLETED: Core Infrastructure (December 2024)**
 
@@ -23,6 +206,13 @@
 - ✅ **Human vs Bot Turns** - Proper turn detection and bot automation ✅
 - ✅ **Node/Edge Interactions** - Click-to-build functionality ✅
 - ✅ **Real-Time Updates** - WebSocket state synchronization ✅
+
+### **✅ ActionToolbar React-Style Implementation**
+- ✅ Dynamic button filtering (only show enabled actions)
+- ✅ Player-specific roll detection (ROLL vs END button logic)
+- ✅ Fixed button layout (no horizontal shifting when buttons hide)
+- ✅ Proper material icons (dice for ROLL, skip for END)
+- ✅ Visibility-based hiding instead of conditional rendering
 
 ## 🔧 **CURRENT ISSUE: ROLL vs END Button Detection**
 

@@ -117,11 +117,12 @@ interface GameState {
               }
             </mat-menu>
             
-            <!-- Main action button - Roll/End -->
+            <!-- Main action button - Roll/Rob/End -->
             <button mat-raised-button color="primary"
               class="main-action-button"
               [disabled]="isMainActionDisabled"
-              (click)="onMainAction()">
+              (click)="onMainActionClick()"
+              (mouseenter)="onButtonHover()">
               <mat-icon>{{ mainActionIcon }}</mat-icon>
               {{ mainActionText }}
             </button>
@@ -144,6 +145,7 @@ export class ActionsToolbarComponent {
   @Output() build = new EventEmitter<string>();
   @Output() trade = new EventEmitter<any>();
   @Output() mainAction = new EventEmitter<void>();
+  @Output() setMovingRobber = new EventEmitter<void>();
   
   // Angular best practice: Use getters for computed properties
   get shouldShowActionButtons(): boolean {
@@ -273,7 +275,8 @@ export class ActionsToolbarComponent {
         'BUILD_CITY': ['BuildCity'],
         'BUILD_SETTLEMENT': ['BuildSettlement'],
         'BUILD_ROAD': ['BuildRoad'],
-        'MARITIME_TRADE': ['MaritimeTrade']
+        'MARITIME_TRADE': ['MaritimeTrade'],
+        'MOVE_ROBBER': ['MoveRobber']
       };
       
       const possibleEnumNames = enumMap[actionType] || [];
@@ -301,5 +304,33 @@ export class ActionsToolbarComponent {
   
   onMainAction(): void {
     this.mainAction.emit();
+  }
+
+  onMainActionClick(): void {
+    console.log('🔶 ActionToolbar: onMainActionClick called');
+    console.log('🔶 ActionToolbar: current_prompt =', this.gameState?.current_prompt);
+    console.log('🔶 ActionToolbar: button should show =', this.mainActionText);
+    
+    if (this.gameState?.current_prompt === 'DISCARD') {
+      // Handle discard logic - would emit discard event in full implementation
+      console.log('🔶 ActionToolbar: Emitting mainAction for DISCARD');
+      this.mainAction.emit();
+    } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
+      // Just set UI state for robber movement - don't send any backend action
+      console.log('🔶 ActionToolbar: ROB button clicked - emitting setMovingRobber');
+      this.setMovingRobber.emit();
+    } else {
+      // Roll dice or end turn
+      console.log('🔶 ActionToolbar: Emitting mainAction for ROLL/END');
+      this.mainAction.emit();
+    }
+  }
+
+  onButtonHover(): void {
+    console.log('🔶 ActionToolbar: Button hovered - button is responsive');
+    console.log('🔶 ActionToolbar: isMainActionDisabled =', this.isMainActionDisabled);
+    console.log('🔶 ActionToolbar: current_prompt =', this.gameState?.current_prompt);
+    console.log('🔶 ActionToolbar: mainActionText =', this.mainActionText);
+    console.log('🔶 ActionToolbar: Button should be', this.isMainActionDisabled ? 'DISABLED' : 'ENABLED');
   }
 } 

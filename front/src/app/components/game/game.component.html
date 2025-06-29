@@ -72,11 +72,12 @@
           [isBotTurn]="isBotTurn"
           [isGameOver]="isGameOver"
           [isRoll]="shouldShowRollButton()"
-          [isMainActionDisabled]="!(canRollDice() || canEndTurn())"
+          [isMainActionDisabled]="!isMainActionEnabled"
           (useCard)="onUseCard($event)"
           (build)="onBuild($event)"
           (trade)="onTrade($event)"
-          (mainAction)="onMainAction()">
+          (mainAction)="onMainAction()"
+          (setMovingRobber)="onSetMovingRobber()">
         </app-actions-toolbar>
         
         <!-- Mobile Drawer Toggle Buttons -->
