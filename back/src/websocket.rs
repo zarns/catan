@@ -22,15 +22,14 @@ pub enum WsMessage {
     GameUpdated { game: Game },
 
     #[serde(rename = "player_action")]
-    PlayerAction { 
-        action: PlayerAction  // Accept enum format directly: {Roll: {}}
+    PlayerAction {
+        action: PlayerAction, // Accept enum format directly: {Roll: {}}
     },
 
     #[serde(rename = "get_game_state")]
     GetGameState,
 
     // ✅ REMOVED: BotAction - Bot actions are now automatic, not triggered by frontend
-
     #[serde(rename = "action_result")]
     ActionResult {
         success: bool,
@@ -48,16 +47,13 @@ pub enum WsMessage {
     BotThinking { player_id: String },
 
     #[serde(rename = "create_game")]
-    CreateGame { 
+    CreateGame {
         mode: String, // 'HUMAN_VS_CATANATRON' | 'RANDOM_BOTS' | 'CATANATRON_BOTS'
-        num_players: u8 
+        num_players: u8,
     },
 
     #[serde(rename = "game_created")]
-    GameCreated { 
-        game_id: String,
-        game: Game 
-    },
+    GameCreated { game_id: String, game: Game },
 }
 
 /// Convert array action format to PlayerAction enum
@@ -329,7 +325,7 @@ impl WebSocketService {
     ) -> CatanResult<()> {
         // Debug: Log the exact message received
         log::debug!("🔍 WebSocket received raw message: {}", text);
-        
+
         // Try to parse as a generic JSON first to see the structure
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&text) {
             log::debug!("🔍 Parsed as JSON: {:#}", json_value);
@@ -337,26 +333,28 @@ impl WebSocketService {
                 log::debug!("🔍 Message type: {}", msg_type);
             }
         }
-        
+
         // Parse the incoming message
         let ws_message: WsMessage = serde_json::from_str(&text).map_err(|e| {
             log::error!("❌ Failed to deserialize WebSocket message: {}", e);
             log::error!("❌ Raw message was: {}", text);
-            
+
             // Try to give more specific error information
             if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&text) {
                 log::error!("❌ JSON structure: {:#}", json_value);
                 if let Some(msg_type) = json_value.get("type") {
                     log::error!("❌ Message type was: {}", msg_type);
                 }
-                
+
                 // Check if this looks like the old message format
                 if json_value.get("data").is_some() {
-                    log::error!("❌ This looks like the old WebSocket message format with 'data' field");
+                    log::error!(
+                        "❌ This looks like the old WebSocket message format with 'data' field"
+                    );
                     log::error!("❌ New format expects 'action' field for player_action messages");
                 }
             }
-            
+
             crate::errors::CatanError::Network(crate::errors::NetworkError::DeserializationFailed {
                 details: format!("Message deserialization failed: {}", e),
             })
@@ -365,50 +363,53 @@ impl WebSocketService {
         match ws_message {
             WsMessage::PlayerAction { action } => {
                 log::info!("🎯 Processing action for game {}: {:?}", game_id, action);
-                
+
                 // Use the PlayerAction enum directly - no conversion needed!
                 log::info!("✅ Received PlayerAction enum: {:?}", action);
-                
+
                 // Process the action through the game service (use game_id from function parameter)
                 match game_service
                     .process_action(game_id, "player_0", action)
                     .await
                 {
-                            Ok(events) => {
-                                log::info!("✅ Action processed successfully");
-                                
-                                // Send action result
-                                let result_msg = WsMessage::ActionResult {
-                                    success: true,
-                                    message: "Action processed".to_string(),
-                                    events: events.clone(),
-                                };
-                                let _ = broadcaster.send((game_id.to_string(), result_msg));
+                    Ok(events) => {
+                        log::info!("✅ Action processed successfully");
 
-                                // Send updated game state
-                                if let Ok(updated_game) = game_service.get_game(game_id).await {
-                                    let update_msg = WsMessage::GameUpdated { game: updated_game };
-                                    let _ = broadcaster.send((game_id.to_string(), update_msg));
-                                }
+                        // Send action result
+                        let result_msg = WsMessage::ActionResult {
+                            success: true,
+                            message: "Action processed".to_string(),
+                            events: events.clone(),
+                        };
+                        let _ = broadcaster.send((game_id.to_string(), result_msg));
 
-                                // Restart bot simulation after human action (only if connections exist)
-                                if service.has_active_connections(game_id).await {
-                                    log::debug!("🔄 Restarting bot simulation after human action for game {}", game_id);
-                                    service.start_bot_simulation(game_id).await;
-                                }
-                            }
-                            Err(e) => {
-                                log::error!("❌ Action processing failed: {}", e);
-                                let error_msg = WsMessage::Error {
-                                    message: format!("Action failed: {}", e),
-                                };
-                                let _ = broadcaster.send((game_id.to_string(), error_msg));
-                            }
+                        // Send updated game state
+                        if let Ok(updated_game) = game_service.get_game(game_id).await {
+                            let update_msg = WsMessage::GameUpdated { game: updated_game };
+                            let _ = broadcaster.send((game_id.to_string(), update_msg));
                         }
+
+                        // Restart bot simulation after human action (only if connections exist)
+                        if service.has_active_connections(game_id).await {
+                            log::debug!(
+                                "🔄 Restarting bot simulation after human action for game {}",
+                                game_id
+                            );
+                            service.start_bot_simulation(game_id).await;
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("❌ Action processing failed: {}", e);
+                        let error_msg = WsMessage::Error {
+                            message: format!("Action failed: {}", e),
+                        };
+                        let _ = broadcaster.send((game_id.to_string(), error_msg));
+                    }
+                }
             }
             WsMessage::GetGameState => {
                 log::info!("📡 Getting game state for game {}", game_id);
-                
+
                 match game_service.get_game(game_id).await {
                     Ok(game) => {
                         let state_msg = WsMessage::GameState { game };
@@ -416,8 +417,8 @@ impl WebSocketService {
                     }
                     Err(e) => {
                         log::error!("❌ Failed to get game state: {}", e);
-                        let error_msg = WsMessage::Error { 
-                            message: format!("Failed to get game: {}", e) 
+                        let error_msg = WsMessage::Error {
+                            message: format!("Failed to get game: {}", e),
                         };
                         let _ = broadcaster.send((game_id.to_string(), error_msg));
                     }
@@ -425,26 +426,30 @@ impl WebSocketService {
             }
             // ✅ REMOVED: BotAction handler - Bot actions are now automatic
             WsMessage::CreateGame { mode, num_players } => {
-                log::info!("🎮 Creating new game: mode={}, players={}", mode, num_players);
-                
+                log::info!(
+                    "🎮 Creating new game: mode={}, players={}",
+                    mode,
+                    num_players
+                );
+
                 // Determine bot type from mode
                 let bot_type = match mode.as_str() {
                     "HUMAN_VS_CATANATRON" => "mcts",
-                    "RANDOM_BOTS" => "random", 
+                    "RANDOM_BOTS" => "random",
                     "CATANATRON_BOTS" => "mcts",
-                    _ => "random"
+                    _ => "random",
                 };
-                
+
                 match game_service.create_game(num_players, bot_type).await {
                     Ok(new_game_id) => {
                         log::info!("✅ Game created successfully: {}", new_game_id);
-                        
+
                         // Get the created game
                         match game_service.get_game(&new_game_id).await {
                             Ok(game) => {
-                                let created_msg = WsMessage::GameCreated { 
+                                let created_msg = WsMessage::GameCreated {
                                     game_id: new_game_id.clone(),
-                                    game 
+                                    game,
                                 };
                                 let _ = broadcaster.send((new_game_id, created_msg));
                             }
@@ -541,7 +546,10 @@ impl WebSocketService {
                 }
                 Ok(None) => {
                     // No more bot moves needed - exit the loop instead of continuous polling
-                    log::debug!("🤖 No bot actions needed for game {}, ending bot simulation loop", game_id);
+                    log::debug!(
+                        "🤖 No bot actions needed for game {}, ending bot simulation loop",
+                        game_id
+                    );
                     break;
                 }
                 Err(e) => {

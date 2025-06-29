@@ -81,7 +81,10 @@ fn main() {
         }
         println!("Completed games: {}/{}", completed_games, num_games);
         if completed_games > 0 {
-            println!("Average turns per game: {:.1}", total_turns as f64 / completed_games as f64);
+            println!(
+                "Average turns per game: {:.1}",
+                total_turns as f64 / completed_games as f64
+            );
         }
     }
 }
@@ -89,7 +92,7 @@ fn main() {
 fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     // Create a real game with actual game logic
     let mut game = simulate_bot_game(num_players);
-    
+
     if verbose {
         println!(
             "✅ Created game with real State and {} players",
@@ -117,8 +120,10 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                 let settlements = state.get_settlements(color).len();
                 let cities = state.get_cities(color).len();
                 let roads = state.get_roads_by_color()[color as usize];
-                println!("   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})", 
-                    color, vp, settlements, cities, roads);
+                println!(
+                    "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
+                    color, vp, settlements, cities, roads
+                );
             }
         }
     }
@@ -145,8 +150,10 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                         let settlements = state.get_settlements(color).len();
                         let cities = state.get_cities(color).len();
                         let roads = state.get_roads_by_color()[color as usize];
-                        println!("   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})", 
-                            color, vp, settlements, cities, roads);
+                        println!(
+                            "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
+                            color, vp, settlements, cities, roads
+                        );
                     }
                 }
                 println!("✅ Game completed in {} turns", turn_count);
@@ -208,21 +215,23 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                 let settlements = state.get_settlements(current_player).len();
                 let cities = state.get_cities(current_player).len();
                 let roads = state.get_roads_by_color()[current_player as usize];
-                
+
                 // Log player's resources
                 let hand = state.get_player_hand(current_player);
                 println!(
                     "   📊 Player {} status: {} VP (settlements: {}, cities: {}, roads: {})",
                     current_player, vp, settlements, cities, roads
                 );
-                println!("   💰 Resources: Wood={}, Brick={}, Sheep={}, Wheat={}, Ore={}", 
-                    hand[0], hand[1], hand[2], hand[3], hand[4]);
+                println!(
+                    "   💰 Resources: Wood={}, Brick={}, Sheep={}, Wheat={}, Ore={}",
+                    hand[0], hand[1], hand[2], hand[3], hand[4]
+                );
             }
         }
 
         // Choose action: prioritize building actions over EndTurn for more interesting gameplay
         let action = choose_best_action(&available_actions);
-        
+
         if verbose && (turn_count % 10 == 0 || turn_count < 5) {
             println!("🤖 Player {} action: {:?}", current_player, action);
         }
@@ -233,11 +242,12 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         }
 
         // Log victory points every 20 turns or when something interesting happens
-        let should_log_vp = verbose && (turn_count % 20 == 0
-            || matches!(
-                action,
-                Action::BuildSettlement { .. } | Action::BuildCity { .. }
-            ));
+        let should_log_vp = verbose
+            && (turn_count % 20 == 0
+                || matches!(
+                    action,
+                    Action::BuildSettlement { .. } | Action::BuildCity { .. }
+                ));
 
         if should_log_vp && turn_count != last_vp_log {
             println!("📊 Victory Points Status (Turn {}):", turn_count + 1);
@@ -248,8 +258,10 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     let settlements = state.get_settlements(color).len();
                     let cities = state.get_cities(color).len();
                     let roads = state.get_roads_by_color()[color as usize];
-                    println!("   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})", 
-                        color, vp, settlements, cities, roads);
+                    println!(
+                        "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
+                        color, vp, settlements, cities, roads
+                    );
                 }
             }
             last_vp_log = turn_count;
@@ -277,13 +289,15 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     let settlements = state.get_settlements(color).len();
                     let cities = state.get_cities(color).len();
                     let roads = state.get_roads_by_color()[color as usize];
-                    println!("   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})", 
-                        color, vp, settlements, cities, roads);
+                    println!(
+                        "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
+                        color, vp, settlements, cities, roads
+                    );
                 }
             }
         }
     }
-    
+
     None
 }
 

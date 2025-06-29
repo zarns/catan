@@ -72,7 +72,10 @@ impl NodeDirection {
 }
 
 /// Calculate absolute coordinate for a node based on its tile and direction
-pub fn calculate_node_coordinate(tile_coord: CubeCoordinate, direction: NodeDirection) -> NodeCoordinate {
+pub fn calculate_node_coordinate(
+    tile_coord: CubeCoordinate,
+    direction: NodeDirection,
+) -> NodeCoordinate {
     // Convert cube coordinates to cartesian for the tile center
     let tile_x = tile_coord.0 as f64;
     let _tile_y = tile_coord.1 as f64; // Intentionally unused - keeping for coordinate completeness
@@ -107,7 +110,9 @@ pub fn calculate_node_coordinate(tile_coord: CubeCoordinate, direction: NodeDire
 /// Generate a canonical node numbering system starting from center tile (0,0,0)
 /// Node 0 will be at the North position of the center tile
 /// Nodes are numbered in expanding rings, clockwise within each ring
-pub fn generate_canonical_node_map(tile_map: &HashMap<CubeCoordinate, Vec<NodeDirection>>) -> HashMap<u8, NodeCoordinate> {
+pub fn generate_canonical_node_map(
+    tile_map: &HashMap<CubeCoordinate, Vec<NodeDirection>>,
+) -> HashMap<u8, NodeCoordinate> {
     let mut node_map = HashMap::new();
     let mut node_id: u8 = 0;
 
@@ -135,7 +140,7 @@ pub fn generate_canonical_node_map(tile_map: &HashMap<CubeCoordinate, Vec<NodeDi
     // Ring 1: Adjacent tiles to center
     let ring1_tiles = [
         (0, 1, -1), // NorthWest
-        (1, 0, -1), // NorthEast  
+        (1, 0, -1), // NorthEast
         (1, -1, 0), // East
         (0, -1, 1), // SouthEast
         (-1, 0, 1), // SouthWest
@@ -156,11 +161,11 @@ pub fn generate_canonical_node_map(tile_map: &HashMap<CubeCoordinate, Vec<NodeDi
 
             for &direction in &sorted_directions {
                 let node_coord = calculate_node_coordinate(tile_coord, direction);
-                
+
                 // Only add if this coordinate doesn't already exist
                 let exists = node_map.values().any(|existing| {
-                    (existing.x - node_coord.x).abs() < 0.001 && 
-                    (existing.y - node_coord.y).abs() < 0.001
+                    (existing.x - node_coord.x).abs() < 0.001
+                        && (existing.y - node_coord.y).abs() < 0.001
                 });
 
                 if !exists {
@@ -173,10 +178,18 @@ pub fn generate_canonical_node_map(tile_map: &HashMap<CubeCoordinate, Vec<NodeDi
 
     // Ring 2: Next outer ring (if needed)
     let ring2_tiles = [
-        (0, 2, -2), (-1, 2, -1), (-2, 2, 0), // North side
-        (1, 1, -2), (2, 0, -2), (2, -1, -1), // NorthEast side
-        (2, -2, 0), (1, -2, 1), (0, -2, 2), // Southeast side
-        (-1, -1, 2), (-2, 0, 2), (-2, 1, 1), // Southwest side
+        (0, 2, -2),
+        (-1, 2, -1),
+        (-2, 2, 0), // North side
+        (1, 1, -2),
+        (2, 0, -2),
+        (2, -1, -1), // NorthEast side
+        (2, -2, 0),
+        (1, -2, 1),
+        (0, -2, 2), // Southeast side
+        (-1, -1, 2),
+        (-2, 0, 2),
+        (-2, 1, 1), // Southwest side
         (-1, 1, 0), // West vertex (already covered)
     ];
 
@@ -194,11 +207,11 @@ pub fn generate_canonical_node_map(tile_map: &HashMap<CubeCoordinate, Vec<NodeDi
 
             for &direction in &sorted_directions {
                 let node_coord = calculate_node_coordinate(tile_coord, direction);
-                
+
                 // Only add if this coordinate doesn't already exist
                 let exists = node_map.values().any(|existing| {
-                    (existing.x - node_coord.x).abs() < 0.001 && 
-                    (existing.y - node_coord.y).abs() < 0.001
+                    (existing.x - node_coord.x).abs() < 0.001
+                        && (existing.y - node_coord.y).abs() < 0.001
                 });
 
                 if !exists {
@@ -219,7 +232,10 @@ mod tests {
     #[test]
     fn test_node_direction_angles() {
         assert_eq!(NodeDirection::North.angle_radians(), 0.0);
-        assert_eq!(NodeDirection::NorthEast.angle_radians(), std::f64::consts::PI / 3.0);
+        assert_eq!(
+            NodeDirection::NorthEast.angle_radians(),
+            std::f64::consts::PI / 3.0
+        );
         assert_eq!(NodeDirection::South.angle_radians(), std::f64::consts::PI);
     }
 
@@ -227,7 +243,7 @@ mod tests {
     fn test_calculate_node_coordinate() {
         let center_tile = (0, 0, 0);
         let north_node = calculate_node_coordinate(center_tile, NodeDirection::North);
-        
+
         // North node should be directly above center (y negative in screen coordinates)
         assert!((north_node.x - 0.0).abs() < 0.001);
         assert!(north_node.y < 0.0);
@@ -238,8 +254,14 @@ mod tests {
         // Test string to enum conversion
         assert_eq!(NodeDirection::from_str("N"), Some(NodeDirection::North));
         assert_eq!(NodeDirection::from_str("NORTH"), Some(NodeDirection::North));
-        assert_eq!(NodeDirection::from_str("NE"), Some(NodeDirection::NorthEast));
-        assert_eq!(NodeDirection::from_str("NORTHEAST"), Some(NodeDirection::NorthEast));
+        assert_eq!(
+            NodeDirection::from_str("NE"),
+            Some(NodeDirection::NorthEast)
+        );
+        assert_eq!(
+            NodeDirection::from_str("NORTHEAST"),
+            Some(NodeDirection::NorthEast)
+        );
         assert_eq!(NodeDirection::from_str("invalid"), None);
 
         // Test enum to string conversion
@@ -258,9 +280,10 @@ mod tests {
         let adjacent_south = calculate_node_coordinate(adjacent, NodeDirection::South);
 
         // These nodes should be at different positions
-        let distance = ((center_north.x - adjacent_south.x).powi(2) + 
-                       (center_north.y - adjacent_south.y).powi(2)).sqrt();
-        
+        let distance = ((center_north.x - adjacent_south.x).powi(2)
+            + (center_north.y - adjacent_south.y).powi(2))
+        .sqrt();
+
         // Distance should be greater than 0 (they're different positions)
         assert!(distance > 0.1);
     }
@@ -269,7 +292,14 @@ mod tests {
     fn test_canonical_node_numbering() {
         // Create a simple tile map with center tile
         let mut tile_map = HashMap::new();
-        tile_map.insert((0, 0, 0), vec![NodeDirection::North, NodeDirection::NorthEast, NodeDirection::SouthEast]);
+        tile_map.insert(
+            (0, 0, 0),
+            vec![
+                NodeDirection::North,
+                NodeDirection::NorthEast,
+                NodeDirection::SouthEast,
+            ],
+        );
 
         let node_map = generate_canonical_node_map(&tile_map);
 
@@ -297,7 +327,17 @@ mod tests {
         let diff_y = (center_ne.y - northeast_nw.y).abs();
 
         // Allow for small floating point differences
-        assert!(diff_x < 0.001, "X coordinates should match: {} vs {}", center_ne.x, northeast_nw.x);
-        assert!(diff_y < 0.001, "Y coordinates should match: {} vs {}", center_ne.y, northeast_nw.y);
+        assert!(
+            diff_x < 0.001,
+            "X coordinates should match: {} vs {}",
+            center_ne.x,
+            northeast_nw.x
+        );
+        assert!(
+            diff_y < 0.001,
+            "Y coordinates should match: {} vs {}",
+            center_ne.y,
+            northeast_nw.y
+        );
     }
-} 
+}

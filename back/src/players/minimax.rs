@@ -1,5 +1,5 @@
-use std::time::Instant;
 use std::f64;
+use std::time::Instant;
 
 use crate::enums::Action;
 use crate::state::State;
@@ -52,22 +52,22 @@ impl AlphaBetaPlayer {
     /// Get the relative evaluation (my score - average opponent score)
     fn evaluate_relative(&self, state: &State, my_color: u8) -> f64 {
         let my_score = self.evaluate_state(state, my_color);
-        
+
         let mut opponent_scores = 0.0;
         let num_players = 4; // Assume 4 players for now
-        
+
         for color in 0..num_players {
             if color != my_color {
                 opponent_scores += self.evaluate_state(state, color);
             }
         }
-        
+
         let avg_opponent_score = if num_players > 1 {
             opponent_scores / (num_players - 1) as f64
         } else {
             0.0
         };
-        
+
         my_score - avg_opponent_score
     }
 
@@ -91,7 +91,7 @@ impl AlphaBetaPlayer {
             new_state.apply_action(action);
             total_value += self.minimax(&new_state, depth - 1, my_color);
         }
-        
+
         total_value / actions_len as f64
     }
 }
@@ -104,16 +104,16 @@ impl BotPlayer for AlphaBetaPlayer {
 
         let start = Instant::now();
         let my_color = state.get_current_color();
-        
+
         let mut best_action = playable_actions[0].clone();
         let mut best_value = f64::NEG_INFINITY;
 
         for action in playable_actions {
             let mut new_state = state.clone();
             new_state.apply_action(action.clone());
-            
+
             let value = self.minimax(&new_state, self.depth - 1, my_color);
-            
+
             if value > best_value {
                 best_value = value;
                 best_action = action.clone();
@@ -135,6 +135,10 @@ impl BotPlayer for AlphaBetaPlayer {
 
 impl Default for AlphaBetaPlayer {
     fn default() -> Self {
-        Self::new("default".to_string(), "AlphaBeta Player".to_string(), "red".to_string())
+        Self::new(
+            "default".to_string(),
+            "AlphaBeta Player".to_string(),
+            "red".to_string(),
+        )
     }
 }

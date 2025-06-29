@@ -1,6 +1,6 @@
-use crate::player::Player;
 use crate::enums::Action;
 use crate::game::GameState;
+use crate::player::Player;
 use std::fmt;
 
 /// Human player implementation

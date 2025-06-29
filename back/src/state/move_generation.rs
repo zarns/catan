@@ -30,22 +30,27 @@ impl State {
     }
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
-        println!("🏘️  DEBUG settlement_possibilities: color {}, initial_phase: {}", color, is_initial_build_phase);
-        
+        println!(
+            "🏘️  DEBUG settlement_possibilities: color {}, initial_phase: {}",
+            color, is_initial_build_phase
+        );
+
         if is_initial_build_phase {
-            println!("  - Using initial build phase logic, {} buildable nodes", self.board_buildable_ids.len());
-            
+            println!(
+                "  - Using initial build phase logic, {} buildable nodes",
+                self.board_buildable_ids.len()
+            );
+
             // Use the maintained board_buildable_ids cache for initial build phase
-            let actions: Vec<Action> = self.board_buildable_ids
+            let actions: Vec<Action> = self
+                .board_buildable_ids
                 .iter()
-                .map(|node_id| {
-                    Action::BuildSettlement {
-                        color,
-                        node_id: *node_id,
-                    }
+                .map(|node_id| Action::BuildSettlement {
+                    color,
+                    node_id: *node_id,
                 })
                 .collect();
-                
+
             println!("  - Returning {} settlement actions", actions.len());
             actions
         } else {
@@ -53,14 +58,17 @@ impl State {
             let has_resources = freqdeck_contains(self.get_player_hand(color), &SETTLEMENT_COST);
             let settlements_used = self.get_settlements(color).len();
             let has_settlements_available = settlements_used < 5;
-            
-            println!("  - has_resources: {}, settlements_used: {}, has_settlements_available: {}", has_resources, settlements_used, has_settlements_available);
+
+            println!(
+                "  - has_resources: {}, settlements_used: {}, has_settlements_available: {}",
+                has_resources, settlements_used, has_settlements_available
+            );
 
             if has_resources && has_settlements_available {
                 // For non-initial phase, check road connectivity
                 let buildable_nodes = self.buildable_node_ids(color);
                 println!("  - {} buildable nodes found", buildable_nodes.len());
-                
+
                 let connected_nodes: Vec<u8> = buildable_nodes
                     .into_iter()
                     .filter(|&node_id| {
@@ -71,14 +79,14 @@ impl State {
                             .any(|&edge_id| self.roads.get(&edge_id) == Some(&color))
                     })
                     .collect();
-                    
+
                 println!("  - {} connected nodes found", connected_nodes.len());
-                    
+
                 let actions: Vec<Action> = connected_nodes
                     .into_iter()
                     .map(|node_id| Action::BuildSettlement { color, node_id })
                     .collect();
-                    
+
                 println!("  - Returning {} settlement actions", actions.len());
                 actions
             } else {
@@ -110,12 +118,13 @@ impl State {
 
         // BUGFIX: Don't rely on board_buildable_edges which uses connected_components cache
         // For initial build phase, just get edges adjacent to the last settlement
-        let buildable_edges: Vec<_> = self.map_instance
+        let buildable_edges: Vec<_> = self
+            .map_instance
             .get_neighbor_edges(last_node_id)
             .into_iter()
             .filter(|edge_id| !self.roads.contains_key(edge_id))
             .collect();
-            
+
         // DEBUG: Log what's being allowed for initial road building
         log::debug!(
             "🏗️  Initial road possibilities for player {}: last settlement at node {}, {} buildable edges: {:?}",
@@ -124,7 +133,7 @@ impl State {
             buildable_edges.len(),
             buildable_edges
         );
-            
+
         buildable_edges
             .into_iter()
             .map(|edge_id| Action::BuildRoad { color, edge_id })
@@ -818,14 +827,21 @@ mod tests {
 
         // Initially, player has no settlements or roads, so no roads should be buildable
         let actions = state.road_possibilities(color, false);
-        assert_eq!(actions.len(), 0, "No roads should be buildable without settlements");
+        assert_eq!(
+            actions.len(),
+            0,
+            "No roads should be buildable without settlements"
+        );
 
         // Build a settlement at node 0
         state.apply_action(Action::BuildSettlement { color, node_id: 0 });
 
         // Now roads adjacent to the settlement should be buildable
         let actions = state.road_possibilities(color, false);
-        assert!(actions.len() > 0, "Roads adjacent to settlement should be buildable");
+        assert!(
+            actions.len() > 0,
+            "Roads adjacent to settlement should be buildable"
+        );
 
         // Verify all buildable roads are actually adjacent to node 0
         let node_0_edges = state.map_instance.get_neighbor_edges(0);
@@ -834,7 +850,7 @@ mod tests {
             .iter()
             .map(|&edge| (edge.0.min(edge.1), edge.0.max(edge.1)))
             .collect();
-        
+
         for action in &actions {
             if let Action::BuildRoad { edge_id, .. } = action {
                 let normalized_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
@@ -848,20 +864,29 @@ mod tests {
 
         // Build the first road
         let first_road = actions[0];
-        if let Action::BuildRoad { edge_id: first_edge, .. } = first_road {
+        if let Action::BuildRoad {
+            edge_id: first_edge,
+            ..
+        } = first_road
+        {
             state.apply_action(first_road);
 
             // Now roads should be buildable adjacent to existing roads OR settlements
             let new_actions = state.road_possibilities(color, false);
-            assert!(new_actions.len() >= actions.len(), "Should have at least as many options after building first road");
+            assert!(
+                new_actions.len() >= actions.len(),
+                "Should have at least as many options after building first road"
+            );
 
             // Verify that each new road is adjacent to either the settlement or the existing road
             for action in &new_actions {
                 if let Action::BuildRoad { edge_id, .. } = action {
                     let is_adjacent_to_settlement = node_0_edges.contains(edge_id);
-                    let is_adjacent_to_first_road = edge_id.0 == first_edge.0 || edge_id.0 == first_edge.1 || 
-                                                    edge_id.1 == first_edge.0 || edge_id.1 == first_edge.1;
-                    
+                    let is_adjacent_to_first_road = edge_id.0 == first_edge.0
+                        || edge_id.0 == first_edge.1
+                        || edge_id.1 == first_edge.0
+                        || edge_id.1 == first_edge.1;
+
                     assert!(
                         is_adjacent_to_settlement || is_adjacent_to_first_road,
                         "Road {:?} should be adjacent to either settlement at node 0 or first road {:?}",

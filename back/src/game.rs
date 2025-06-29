@@ -4,7 +4,7 @@ use crate::enums::{
 use crate::global_state::GlobalState;
 use crate::map_instance::{Direction, EdgeRef, LandTile, MapInstance, NodeRef, PortTile, Tile};
 use crate::map_template::Coordinate as CubeCoordinate;
-use crate::node_coordinates::{calculate_node_coordinate, NodeDirection, NodeCoordinate};
+use crate::node_coordinates::{calculate_node_coordinate, NodeCoordinate, NodeDirection};
 use crate::state::{BuildingType, State};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -314,10 +314,20 @@ pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
                     let edge_id = format!("e{}_{}", node1.min(node2), node1.max(node2));
 
                     // Calculate absolute coordinates for the edge endpoints using actual node IDs
-                    let node1_abs = find_node_absolute_coordinate(node1, map_instance)
-                        .unwrap_or(NodeAbsoluteCoordinate { x: 0.0, y: 0.0, z: 0.0 });
-                    let node2_abs = find_node_absolute_coordinate(node2, map_instance)
-                        .unwrap_or(NodeAbsoluteCoordinate { x: 0.0, y: 0.0, z: 0.0 });
+                    let node1_abs = find_node_absolute_coordinate(node1, map_instance).unwrap_or(
+                        NodeAbsoluteCoordinate {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                    );
+                    let node2_abs = find_node_absolute_coordinate(node2, map_instance).unwrap_or(
+                        NodeAbsoluteCoordinate {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                    );
 
                     edges.insert(
                         edge_id,
@@ -438,39 +448,44 @@ pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
     println!("🎮 DEBUG start_human_vs_catanatron:");
     println!("  - Human name: {}", human_name);
     println!("  - Number of bots: {}", num_bots);
-    
+
     let mut player_names = vec![human_name.clone()];
 
     for i in 0..num_bots {
         player_names.push(format!("Bot {}", i + 1));
     }
-    
+
     println!("  - Player names: {:?}", player_names);
 
     let game_id = format!("hvs_{}", uuid::Uuid::new_v4());
     println!("  - Game ID: {}", game_id);
-    
+
     let mut game = Game::new(game_id, player_names);
-    
+
     // Set bot_colors - all players except the first one (human) are bots
-    game.bot_colors = game.players.iter()
+    game.bot_colors = game
+        .players
+        .iter()
         .skip(1) // Skip the first player (human)
         .map(|p| p.color.clone())
         .collect();
-    
+
     println!("  - Bot colors: {:?}", game.bot_colors);
     println!("  - All players:");
     for (i, player) in game.players.iter().enumerate() {
         let is_bot = game.bot_colors.contains(&player.color);
-        println!("    - Player {}: {} (color: {}, is_bot: {})", i, player.name, player.color, is_bot);
+        println!(
+            "    - Player {}: {} (color: {}, is_bot: {})",
+            i, player.name, player.color, is_bot
+        );
     }
-    
+
     // Update metadata from state
     println!("  - Calling update_metadata_from_state...");
     game.update_metadata_from_state();
-    
+
     println!("🎮 END start_human_vs_catanatron debug\n");
-    
+
     game
 }
 
@@ -550,7 +565,7 @@ impl Game {
 
         let player_index = player_index.unwrap();
         let _color_idx = player_index as u8; // Prefix with underscore to indicate it's unused
-        
+
         // Get player color for logging (clone to avoid borrowing issues)
         let player_color = self.players[player_index].color.clone();
 
@@ -588,18 +603,12 @@ impl Game {
                 EnumAction::BuildSettlement { node_id, .. } => {
                     ("BuildSettlement", serde_json::json!(node_id))
                 }
-                EnumAction::BuildCity { node_id, .. } => {
-                    ("BuildCity", serde_json::json!(node_id))
-                }
-                EnumAction::BuildRoad { edge_id, .. } => {
-                    ("BuildRoad", serde_json::json!(edge_id))
-                }
+                EnumAction::BuildCity { node_id, .. } => ("BuildCity", serde_json::json!(node_id)),
+                EnumAction::BuildRoad { edge_id, .. } => ("BuildRoad", serde_json::json!(edge_id)),
                 EnumAction::BuyDevelopmentCard { .. } => {
                     ("BuyDevelopmentCard", serde_json::Value::Null)
                 }
-                EnumAction::PlayKnight { .. } => {
-                    ("PlayKnight", serde_json::Value::Null)
-                }
+                EnumAction::PlayKnight { .. } => ("PlayKnight", serde_json::Value::Null),
                 EnumAction::PlayMonopoly { resource, .. } => {
                     ("PlayMonopoly", serde_json::json!(resource))
                 }
@@ -609,7 +618,11 @@ impl Game {
                 EnumAction::PlayRoadBuilding { .. } => {
                     ("PlayRoadBuilding", serde_json::Value::Null)
                 }
-                EnumAction::MoveRobber { coordinate, victim_opt, .. } => {
+                EnumAction::MoveRobber {
+                    coordinate,
+                    victim_opt,
+                    ..
+                } => {
                     let mut data = serde_json::json!([coordinate.0, coordinate.1, coordinate.2]);
                     if let Some(victim) = victim_opt {
                         if let serde_json::Value::Array(ref mut arr) = data {
@@ -618,12 +631,10 @@ impl Game {
                     }
                     ("MoveRobber", data)
                 }
-                EnumAction::MaritimeTrade { give, take, ratio, .. } => {
-                    ("MaritimeTrade", serde_json::json!([give, take, ratio]))
-                }
-                EnumAction::EndTurn { .. } => {
-                    ("EndTurn", serde_json::Value::Null)
-                }
+                EnumAction::MaritimeTrade {
+                    give, take, ratio, ..
+                } => ("MaritimeTrade", serde_json::json!([give, take, ratio])),
+                EnumAction::EndTurn { .. } => ("EndTurn", serde_json::Value::Null),
                 EnumAction::Roll { .. } => {
                     // Simple approach: get dice from state after action is applied
                     let dice_data = if let Some(ref state) = self.state {
@@ -638,9 +649,7 @@ impl Game {
                     };
                     ("Roll", dice_data)
                 }
-                EnumAction::Discard { .. } => {
-                    ("Discard", serde_json::Value::Null)
-                }
+                EnumAction::Discard { .. } => ("Discard", serde_json::Value::Null),
                 _ => ("Unknown", serde_json::Value::Null),
             };
 
@@ -709,28 +718,31 @@ impl Game {
             let current_color_index = state.get_current_color();
             let is_initial_phase = state.is_initial_build_phase();
             let action_prompt = state.get_action_prompt();
-            
+
             println!("🔍 DEBUG update_metadata_from_state:");
             println!("  - Current color index: {}", current_color_index);
             println!("  - Is initial build phase: {}", is_initial_phase);
             println!("  - Action prompt: {:?}", action_prompt);
-            
+
             // Update current_playable_actions
             let playable_actions = state.generate_playable_actions();
             println!("  - Generated {} playable actions", playable_actions.len());
-            
+
             // Debug: Log just the first action for verification
             if !playable_actions.is_empty() {
                 println!("    - First action: {:?}", playable_actions[0]);
             }
-            
+
             self.current_playable_actions = playable_actions
                 .iter()
                 .map(|action| crate::actions::PlayerAction::from(*action))
                 .collect();
-            
-            println!("  - Converted to {} PlayerActions", self.current_playable_actions.len());
-            
+
+            println!(
+                "  - Converted to {} PlayerActions",
+                self.current_playable_actions.len()
+            );
+
             // Update current_color
             self.current_color = Some(match current_color_index {
                 0 => "RED".to_string(),
@@ -739,10 +751,10 @@ impl Game {
                 3 => "ORANGE".to_string(),
                 _ => format!("PLAYER_{}", current_color_index),
             });
-            
+
             // Update is_initial_build_phase
             self.is_initial_build_phase = is_initial_phase;
-            
+
             // Update current_prompt based on action prompt
             use crate::enums::ActionPrompt;
             self.current_prompt = Some(match action_prompt {
@@ -754,8 +766,11 @@ impl Game {
                 ActionPrompt::DecideTrade => "DECIDE_TRADE".to_string(),
                 ActionPrompt::DecideAcceptees => "DECIDE_ACCEPTEES".to_string(),
             });
-            
-            println!("  - Current color: {:?}, Current prompt: {:?}", self.current_color, self.current_prompt);
+
+            println!(
+                "  - Current color: {:?}, Current prompt: {:?}",
+                self.current_color, self.current_prompt
+            );
             println!("🔍 END update_metadata_from_state debug\n");
         } else {
             println!("❌ update_metadata_from_state: No internal state available!");
@@ -784,7 +799,8 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     let mut robber_coordinate = None;
 
     // Collect all node information in a deterministic way
-    let mut node_info: std::collections::BTreeMap<u8, (Coordinate, String)> = std::collections::BTreeMap::new();
+    let mut node_info: std::collections::BTreeMap<u8, (Coordinate, String)> =
+        std::collections::BTreeMap::new();
 
     // Get robber position from state
     let robber_tile_id = state.get_robber_tile();
@@ -818,7 +834,10 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                             NodeRef::NorthWest => "NW",
                         };
 
-                        node_info.insert(node_id, (convert_coordinate(coordinate), direction.to_string()));
+                        node_info.insert(
+                            node_id,
+                            (convert_coordinate(coordinate), direction.to_string()),
+                        );
                     }
                 }
 
@@ -848,10 +867,20 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     });
 
                     // Calculate absolute coordinates for the edge endpoints using actual node IDs
-                    let node1_abs = find_node_absolute_coordinate(node1, map_instance)
-                        .unwrap_or(NodeAbsoluteCoordinate { x: 0.0, y: 0.0, z: 0.0 });
-                    let node2_abs = find_node_absolute_coordinate(node2, map_instance)
-                        .unwrap_or(NodeAbsoluteCoordinate { x: 0.0, y: 0.0, z: 0.0 });
+                    let node1_abs = find_node_absolute_coordinate(node1, map_instance).unwrap_or(
+                        NodeAbsoluteCoordinate {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                    );
+                    let node2_abs = find_node_absolute_coordinate(node2, map_instance).unwrap_or(
+                        NodeAbsoluteCoordinate {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                    );
 
                     edges.insert(
                         edge_id_str,
@@ -901,7 +930,11 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
         });
 
         // Calculate absolute coordinate for this node
-        let cube_coord = (tile_coordinate.x as i8, tile_coordinate.y as i8, tile_coordinate.z as i8);
+        let cube_coord = (
+            tile_coordinate.x as i8,
+            tile_coordinate.y as i8,
+            tile_coordinate.z as i8,
+        );
         let node_direction = NodeDirection::from_str(&direction).unwrap_or(NodeDirection::North);
         let absolute_coord = calculate_node_coordinate(cube_coord, node_direction);
 

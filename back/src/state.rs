@@ -56,7 +56,7 @@ pub struct State {
 
     // Cached winner to avoid recalculating every time
     cached_winner: Option<u8>,
-    
+
     // Store the last dice roll for logging purposes
     last_dice_roll: Option<(u8, u8)>,
 }
@@ -418,8 +418,6 @@ impl State {
             Some(node_owner_color) => node_owner_color != color, // It's an enemy if the owner is different
         }
     }
-
-
 
     fn dfs_longest_path(
         &self,

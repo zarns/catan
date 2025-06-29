@@ -205,7 +205,7 @@ impl State {
                 .entry(placing_color)
                 .or_default()
                 .push(component);
-            
+
             // During initial build phase, preserve existing longest road state
             return (self.longest_road_color, self.longest_road_length);
         } else {
@@ -287,9 +287,7 @@ impl State {
 
         // Return longest road information
         let new_longest_road_length = road_lengths.values().max().unwrap_or(&0);
-        
 
-        
         // Determine new longest road owner based on this implementation's rules:
         // 1. Need >= 5 roads to initially claim longest road
         // 2. Once you have it, you keep it unless someone else builds a longer road OR your road becomes < 5
@@ -297,7 +295,7 @@ impl State {
         let new_longest_road_color = if let Some(current_holder) = self.longest_road_color {
             // Someone currently holds longest road
             let current_holder_length = road_lengths.get(&current_holder).unwrap_or(&0);
-            
+
             // Current holder loses it if their road becomes < 5
             if *current_holder_length < 5 {
                 // Check if anyone else has >= 5 to claim it
@@ -314,10 +312,10 @@ impl State {
                 }
             } else {
                 // Current holder has >= 5, check if anyone else has longer
-                let someone_has_longer = road_lengths
-                    .iter()
-                    .any(|(&color, &length)| color != current_holder && length > *current_holder_length);
-                
+                let someone_has_longer = road_lengths.iter().any(|(&color, &length)| {
+                    color != current_holder && length > *current_holder_length
+                });
+
                 if someone_has_longer {
                     // Find who has the longest road now (deterministic)
                     let max_length = road_lengths.values().max().unwrap_or(&0);
@@ -345,10 +343,7 @@ impl State {
             None
         };
 
-        (
-            new_longest_road_color,
-            *new_longest_road_length,
-        )
+        (new_longest_road_color, *new_longest_road_length)
     }
 
     /// Helper method to get the current state of initial placement phase
@@ -381,7 +376,7 @@ impl State {
 
     fn build_road(&mut self, placing_color: u8, edge_id: EdgeId) -> (Option<u8>, u8) {
         let inverted_edge = (edge_id.1, edge_id.0);
-        
+
         // DEBUG: Log road building details
         log::debug!(
             "🛣️  Building road for player {} on edge ({}, {}) and inverted ({}, {})",
@@ -391,7 +386,7 @@ impl State {
             inverted_edge.0,
             inverted_edge.1
         );
-        
+
         // DEBUG: Log existing roads before insertion
         let existing_roads_count = self.roads.len() / 2; // Each road stored twice
         log::debug!(
@@ -399,11 +394,11 @@ impl State {
             existing_roads_count,
             placing_color
         );
-        
+
         self.roads.insert(edge_id, placing_color);
         self.roads.insert(inverted_edge, placing_color);
         self.roads_by_color[placing_color as usize] += 1;
-        
+
         // DEBUG: Log after insertion
         log::debug!(
             "📊 After insertion: {} roads in storage, player {} now has {} roads",
@@ -642,10 +637,10 @@ impl State {
             let mut rng = rand::thread_rng();
             (rng.gen_range(1..=6), rng.gen_range(1..=6))
         });
-        
+
         // Store the dice roll for logging purposes
         self.last_dice_roll = Some((die1, die2));
-        
+
         let total = die1 + die2;
 
         log::info!("🎲 Player {} rolled {} + {} = {}", color, die1, die2, total);
@@ -674,7 +669,10 @@ impl State {
         if should_enter_discard_phase {
             self.vector[IS_DISCARDING_INDEX] = 1;
             self.vector[CURRENT_TICK_SEAT_INDEX] = color;
-            log::info!("🎲 Rolling 7: Entering discard phase, original roller: {}", color);
+            log::info!(
+                "🎲 Rolling 7: Entering discard phase, original roller: {}",
+                color
+            );
         } else {
             self.vector[IS_MOVING_ROBBER_INDEX] = 1;
             self.vector[CURRENT_TICK_SEAT_INDEX] = color;

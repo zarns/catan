@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use std::time::Instant;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
+use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::enums::Action;
 use crate::state::State;
@@ -32,7 +32,12 @@ impl GreedyPlayer {
         }
     }
 
-    pub fn with_simulations(id: String, name: String, color: String, num_simulations_per_action: usize) -> Self {
+    pub fn with_simulations(
+        id: String,
+        name: String,
+        color: String,
+        num_simulations_per_action: usize,
+    ) -> Self {
         GreedyPlayer {
             id,
             name,
@@ -64,7 +69,7 @@ impl GreedyPlayer {
 
         state.winner()
     }
-    
+
     /// Sequential (original) implementation
     fn decide_sequential(&self, state: &State, playable_actions: &[Action]) -> Action {
         let start = Instant::now();
@@ -121,46 +126,46 @@ impl GreedyPlayer {
 
         best_action
     }
-    
+
     /// Parallel implementation
     fn decide_parallel(&self, state: &State, playable_actions: &[Action]) -> Action {
         let start = Instant::now();
         let my_color = state.get_current_color();
-        
+
         // Use parallel iterator to evaluate actions
         let results: Vec<(Action, f64)> = playable_actions
             .par_iter()
             .map(|action| {
                 let mut wins = 0;
-                
+
                 // Run simulations for this action
                 for _ in 0..self.num_simulations_per_action {
                     let mut state_copy = state.clone();
                     state_copy.apply_action(action.clone());
-                    
+
                     if let Some(winner) = Self::playout(state_copy) {
                         if winner == my_color {
                             wins += 1;
                         }
                     }
                 }
-                
+
                 let win_rate = wins as f64 / self.num_simulations_per_action as f64;
                 (action.clone(), win_rate)
             })
             .collect();
-        
+
         // Find the action with the highest win rate
         let mut best_action = playable_actions[0].clone();
         let mut best_win_rate = 0.0;
-        
+
         for (action, win_rate) in results {
             if win_rate > best_win_rate {
                 best_win_rate = win_rate;
                 best_action = action;
             }
         }
-        
+
         let duration = start.elapsed();
         println!(
             "Greedy took {:?} to make a decision among {} actions with win rate {:.2}% (parallel)",
@@ -168,7 +173,7 @@ impl GreedyPlayer {
             playable_actions.len(),
             best_win_rate * 100.0
         );
-        
+
         best_action
     }
 }
@@ -189,6 +194,10 @@ impl BotPlayer for GreedyPlayer {
 
 impl Default for GreedyPlayer {
     fn default() -> Self {
-        Self::new("default".to_string(), "Greedy Player".to_string(), "red".to_string())
+        Self::new(
+            "default".to_string(),
+            "Greedy Player".to_string(),
+            "red".to_string(),
+        )
     }
 }

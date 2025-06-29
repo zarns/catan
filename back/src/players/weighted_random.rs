@@ -26,10 +26,10 @@ impl WeightedRandomPlayer {
     /// Creates action weight map similar to Python version
     fn get_action_weights() -> HashMap<&'static str, u32> {
         let mut weights = HashMap::new();
-        weights.insert("BuildCity", 10);       // High priority for victory points
-        weights.insert("BuildSettlement", 8);  // High priority for victory points
+        weights.insert("BuildCity", 10); // High priority for victory points
+        weights.insert("BuildSettlement", 8); // High priority for victory points
         weights.insert("BuyDevelopmentCard", 5); // Medium priority
-        weights.insert("Other", 1);            // Low priority for other actions
+        weights.insert("Other", 1); // Low priority for other actions
         weights
     }
 }
@@ -77,6 +77,10 @@ impl BotPlayer for WeightedRandomPlayer {
 
 impl Default for WeightedRandomPlayer {
     fn default() -> Self {
-        Self::new("default".to_string(), "Weighted Random Player".to_string(), "red".to_string())
+        Self::new(
+            "default".to_string(),
+            "Weighted Random Player".to_string(),
+            "red".to_string(),
+        )
     }
 }

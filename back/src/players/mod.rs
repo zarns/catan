@@ -12,18 +12,18 @@ pub trait BotPlayer {
 }
 
 // Declare the player implementation modules
-pub mod human;
-pub mod random;
-pub mod minimax;
 pub mod greedy;
+pub mod human;
+pub mod minimax;
+pub mod random;
 pub mod weighted_random;
 // pub mod mcts;  // Keep disabled for now - may need fixes
 
 // Re-export player implementations for ease of use
-pub use self::human::HumanPlayer;
-pub use self::random::RandomPlayer;
-pub use self::minimax::AlphaBetaPlayer;
 pub use self::greedy::GreedyPlayer;
+pub use self::human::HumanPlayer;
+pub use self::minimax::AlphaBetaPlayer;
+pub use self::random::RandomPlayer;
 pub use self::weighted_random::WeightedRandomPlayer;
 
 // BotPlayer trait is defined above

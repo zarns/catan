@@ -37,7 +37,7 @@ impl GameService {
         println!("🏭 DEBUG GameService::create_game:");
         println!("  - num_players: {}", num_players);
         println!("  - bot_type: '{}'", bot_type);
-        
+
         let game_id = Uuid::new_v4().to_string();
         println!("  - Generated game_id: {}", game_id);
 
@@ -47,20 +47,19 @@ impl GameService {
                 println!("  - Creating human vs bots game");
                 // For human vs bots mode, use the specialized function
                 crate::game::start_human_vs_catanatron("Human".to_string(), num_players - 1)
-            },
+            }
             _ => {
                 println!("  - Creating all-bot game");
                 // For other modes, use the regular Game::new
-                let player_names: Vec<String> = (0..num_players)
-                    .map(|i| format!("Bot {}", i + 1))
-                    .collect();
+                let player_names: Vec<String> =
+                    (0..num_players).map(|i| format!("Bot {}", i + 1)).collect();
                 let mut game = Game::new(game_id.clone(), player_names);
-                
+
                 // For all-bot games, all players are bots
                 if bot_type == "random" {
                     game.bot_colors = game.players.iter().map(|p| p.color.clone()).collect();
                 }
-                
+
                 game
             }
         };
@@ -68,11 +67,14 @@ impl GameService {
         // Override the game ID with our generated one
         let mut game = game;
         game.id = game_id.clone();
-        
+
         println!("  - Game created with {} players", game.players.len());
         println!("  - Current color: {:?}", game.current_color);
         println!("  - Current prompt: {:?}", game.current_prompt);
-        println!("  - Available actions: {}", game.current_playable_actions.len());
+        println!(
+            "  - Available actions: {}",
+            game.current_playable_actions.len()
+        );
 
         // Create player instances using the simple player system
         let mut players = Vec::new();
@@ -105,7 +107,7 @@ impl GameService {
             let mut game_players = self.players.write().await;
             game_players.insert(game_id.clone(), players);
         }
-        
+
         println!("🏭 END GameService::create_game debug\n");
 
         Ok(game_id)
@@ -114,7 +116,7 @@ impl GameService {
     /// Get a game by ID
     pub async fn get_game(&self, game_id: &str) -> CatanResult<Game> {
         println!("📖 DEBUG GameService::get_game for game_id: {}", game_id);
-        
+
         let games = self.games.read().await;
 
         if let Some(game_arc) = games.get(game_id) {
@@ -122,14 +124,17 @@ impl GameService {
             println!("  - Found game, updating metadata...");
             // Update metadata before returning
             game.update_metadata_from_state();
-            
+
             println!("  - Final game state:");
             println!("    - Current color: {:?}", game.current_color);
             println!("    - Current prompt: {:?}", game.current_prompt);
-            println!("    - Available actions: {}", game.current_playable_actions.len());
+            println!(
+                "    - Available actions: {}",
+                game.current_playable_actions.len()
+            );
             println!("    - Bot colors: {:?}", game.bot_colors);
             println!("📖 END GameService::get_game debug\n");
-            
+
             Ok(game.clone())
         } else {
             println!("❌ Game not found: {}", game_id);
