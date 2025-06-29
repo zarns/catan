@@ -6,83 +6,171 @@
 
 ## 🚨 **CRITICAL ISSUES IDENTIFIED (December 2024)**
 
-### **🎲 Issue 1: Multiple Dice Rolls Per Turn**
+### **🎲 Issue 1: Multiple Dice Rolls Per Turn - CONFIRMED BUG**
 **Problem**: Player can roll dice multiple times in a single turn until they get a 7
-**Root Cause**: Backend is not properly transitioning game state after dice roll
+**Root Cause**: Backend state management not preventing multiple rolls after first roll
 **Impact**: Breaks core Catan gameplay rules (one roll per turn)
-
-### **🎯 Issue 2: ROB Button Not Clickable**  
-**Problem**: When player rolls 7, ROB button appears but is not clickable
-**Root Cause**: Frontend not handling `MoveRobber` actions properly
-**Backend Logs Show**: 
-- ✅ Correct transition: `current_prompt: MOVE_ROBBER` 
-- ✅ 18 `MoveRobber` actions generated
-- ❌ Frontend not making hex tiles clickable
-
-### **🔄 Issue 3: Action Processing Mismatch**
-**Problem**: Frontend and backend have different action handling expectations
-**Root Cause**: No unified action system between frontend/backend
+**Status**: ❌ **ACTIVE BUG** - Observed in live gameplay December 29, 2024
 **Evidence**: 
-- Backend sends `MoveRobber` actions
-- Frontend only processes `BuildSettlement`, `BuildCity`, `BuildRoad` actions
-- No hex tile click handling for robber movement
+- Backend logs show `current_prompt: PLAY_TURN` after robber movement
+- Frontend allows continuous rolling until 7 is rolled
+- No `HAS_ROLLED` flag preventing subsequent rolls
 
-### **📡 Issue 4: Communication Architecture Gaps**
+### **🔥 Issue 2: Hex Tile Premature Glow Bug - NEW**  
+**Problem**: Hex tiles glow/pulsate BEFORE clicking ROB button during MOVE_ROBBER phase
+**Root Cause**: Frontend hex action detection triggered by `current_prompt: MOVE_ROBBER` instead of `isMovingRobber` UI state
+**Impact**: Confusing UX - tiles appear clickable before user intends to move robber
+**Status**: ❌ **ACTIVE BUG** - Observed December 29, 2024
+**Expected Behavior**: Tiles should only glow AFTER clicking ROB button (when `isMovingRobber=true`)
+
+### **🎯 Issue 3: Action Toolbar Button Highlighting Broken**  
+**Problem**: BUILD button doesn't highlight when build actions are available
+**Root Cause**: Frontend not implementing React-style dynamic button highlighting logic
+**Impact**: Poor UX - users can't see when actions are available
+**Status**: ❌ **ACTIVE BUG** - Button highlighting completely non-functional
+**Evidence**: 
+- User had resources to build roads
+- Roads became directly clickable (bypassing BUILD button)
+- BUILD button never highlighted despite available actions
+
+### **🛣️ Issue 4: Road Building Flow Bypass - NEW**
+**Problem**: Roads become clickable directly without using BUILD button flow
+**Root Cause**: Edge actions processed independently of action toolbar state
+**Impact**: Inconsistent UI flow - bypasses intended button-based interaction
+**Status**: ❌ **ACTIVE BUG** - Observed December 29, 2024
+**Expected Flow**: Click BUILD → Select Road → Click edge to place
+
+### **🤖 Issue 5: Human Can Interact During Bot Turn - CRITICAL NEW**
+**Problem**: Human player can see and click highlighted nodes/edges during bot's turn
+**Root Cause**: Frontend shows interactive elements regardless of whose turn it is
+**Impact**: ⚠️ **GAME-BREAKING** - Human can interfere with bot placement during initial build phase
+**Status**: ❌ **CRITICAL BUG** - Observed December 29, 2024
+**Evidence**: 
+- Nodes and edges highlighted during bot's initial settlement/road placement
+- Human can click and place during bot turn (backend accepts without validation)
+- Breaks turn-based game flow and fairness
+**Expected Behavior**: No interactive elements visible/clickable during bot turns
+**Fix Approach**: Frontend conditional check `if (isHumanTurn)` before showing node/edge actions
+
+### **📡 Issue 6: Communication Architecture Gaps**
 **Problem**: Multiple communication patterns causing inconsistency
 **Current State**: Mix of WebSocket actions, HTTP calls, and incomplete handlers
 **Need**: Single unified action API for all game interactions
 
-## 🛠️ **REVISED ROADMAP: Game Flow Fix**
+## 🛠️ **REVISED ROADMAP: Critical Bug Fixes (December 2024)**
 
-### **Phase 1: Backend State Management (Priority 1)**
-**Goal**: Fix game state transitions to prevent multiple rolls
+### **Phase 1: Backend Multiple Roll Prevention (Priority 1)**
+**Goal**: Fix backend state management to enforce one roll per turn
+**Root Issue**: `HAS_ROLLED` flag not preventing subsequent roll actions
 
-**Issues to Fix:**
-1. **Roll → End Turn**: After rolling (non-7), player should only have `EndTurn` actions
-2. **Roll → Robber**: After rolling 7, player should only have `MoveRobber` actions  
-3. **State Persistence**: Ensure `dice_rolled` flag properly prevents multiple rolls
+**Analysis Required:**
+1. **Examine `/back/src/state/move_application.rs`** - `roll_dice()` method
+2. **Examine `/back/src/game.rs`** - Action generation after roll
+3. **Check state vector management** - Ensure `HAS_ROLLED_INDEX` is properly set/checked
+
+**Expected Fix:**
+```rust
+// In move_generation.rs - prevent Roll actions after dice rolled
+if state.current_player_rolled() && action_type == "ROLL" {
+    return Vec::new(); // No roll actions if already rolled
+}
+
+// In move_application.rs - ensure state flag is set
+fn roll_dice(&mut self, color: u8, dice_opt: Option<(u8, u8)>) {
+    self.vector[HAS_ROLLED_INDEX] = 1; // Critical flag
+    // ... rest of roll logic
+}
+```
+
+### **Phase 2: Fix Hex Tile Premature Glow (Priority 1)**
+**Goal**: Hex tiles should only glow AFTER clicking ROB button
+
+**Root Issue**: Hex actions triggered by `current_prompt` instead of UI state
+**Current Bug**: Tiles glow immediately when `current_prompt: MOVE_ROBBER`
+**Expected Behavior**: Tiles glow only when `isMovingRobber = true`
 
 **Implementation:**
-```rust
-// Backend: Ensure proper state transitions
-fn apply_roll(&mut self, roll_result: u8) {
-    if roll_result == 7 {
-        self.current_prompt = ActionPrompt::MoveRobber;
-        // Only generate MoveRobber actions
-    } else {
-        self.dice_rolled = true;
-        self.current_prompt = ActionPrompt::PlayTurn;
-        // Generate building actions + EndTurn, but NO Roll
+```typescript
+// Fix in GameComponent.updateHexActions()
+updateHexActions(): void {
+    this.hexActions = {};
+    
+    // ONLY populate hex actions when user has clicked ROB button
+    if (this.isMovingRobber && this.gameState?.current_prompt === 'MOVE_ROBBER') {
+        this.gameState.current_playable_actions.forEach(action => {
+            if (action.hasOwnProperty('MoveRobber')) {
+                const coordinate = action.MoveRobber.coordinate;
+                this.hexActions[`${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`] = action;
+            }
+        });
     }
 }
 ```
 
-### **Phase 2: Frontend Robber Handling (Priority 1)**
-**Goal**: Make ROB button clickable and hex tiles interactive
+### **Phase 3: Fix Action Toolbar Button Highlighting (Priority 1)**
+**Goal**: Implement React-style dynamic button highlighting based on available actions
 
-**Issues to Fix:**
-1. **Hex Click Actions**: Add `hexActions` similar to `nodeActions`/`edgeActions`
-2. **MoveRobber Parsing**: Extract MoveRobber actions from backend
-3. **ROB Button Handler**: Connect button click to robber movement mode
+**Analysis of React Implementation (`/zui/src/pages/ActionsToolbar.js`):**
+```javascript
+// React working logic - STUDY THIS PATTERN
+const buildActionTypes = new Set(
+  state.gameState.current_playable_actions
+    .filter((action) => action[1].startsWith("BUY") || action[1].startsWith("BUILD"))
+    .map((a) => a[1])
+);
+
+// Button visibility based on action availability
+<OptionsButton disabled={buildActionTypes.size === 0} />
+```
+
+**Angular Implementation Required:**
+```typescript
+// In ActionsToolbarComponent - ADD THESE GETTERS
+get buildActionTypes(): Set<string> {
+  return new Set(
+    this.gameState?.current_playable_actions
+      ?.filter(action => this.hasActionType(action, 'BUILD') || this.hasActionType(action, 'BUY'))
+      ?.map(action => this.getActionType(action)) || []
+  );
+}
+
+get shouldHighlightBuildButton(): boolean {
+  return this.buildActionTypes.size > 0;
+}
+```
+
+### **Phase 4: Fix Road Building Flow Bypass (Priority 2)**
+**Goal**: Prevent direct edge clicking, enforce BUILD button flow
+
+**Current Bug**: Roads clickable directly without BUILD button interaction
+**Expected Flow**: BUILD button → Road option → Edge selection
 
 **Implementation:**
 ```typescript
-// Frontend: Add hex action handling
-updateHexActions(): void {
-    this.hexActions = {};
-    
-    this.gameState.current_playable_actions.forEach(action => {
-        if (action.hasOwnProperty('MoveRobber')) {
-            const coordinate = action.MoveRobber.coordinate;
-            this.hexActions[`${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`] = action;
-        }
-    });
+// Add state management for building mode
+isBuildingModeActive = false;
+selectedBuildType: string | null = null;
+
+onBuild(buildType: string): void {
+    if (buildType === 'ROAD') {
+        this.isBuildingModeActive = true;
+        this.selectedBuildType = 'ROAD';
+        // Now edges should become clickable
+    }
 }
 
-onMainAction(): void {
-    if (this.gameState.current_prompt === 'MOVE_ROBBER') {
-        // Enable robber movement mode
-        this.isMovingRobber = true;
+// In updateEdgeActions() - only allow edge clicks when in building mode
+updateEdgeActions(): void {
+    this.edgeActions = {};
+    
+    if (this.isBuildingModeActive && this.selectedBuildType === 'ROAD') {
+        // Enable edge actions only when building mode is active
+        this.gameState?.current_playable_actions?.forEach(action => {
+            if (action.hasOwnProperty('BuildRoad')) {
+                const edgeId = action.BuildRoad.edge_id;
+                this.edgeActions[`${edgeId[0]}_${edgeId[1]}`] = action;
+            }
+        });
     }
 }
 ```
@@ -117,75 +205,228 @@ performAction(action: any): void {
 - ❌ MoveRobber ❌ BuyDevelopmentCard ❌ PlayKnight ❌ PlayMonopoly
 - ❌ PlayYearOfPlenty ❌ PlayRoadBuilding ❌ MaritimeTrade
 
-## 🔍 **ROOT CAUSE ANALYSIS**
+## 🔍 **ROOT CAUSE ANALYSIS - UPDATED (December 2024)**
 
-### **Why Multiple Rolls Don't Make Sense**
-In Catan rules:
+### **Issue 1: Multiple Dice Rolls - Backend State Management**
+**Confirmed Root Cause**: `HAS_ROLLED` flag not checked during action generation
+**Evidence from Logs**:
+- Backend shows `current_prompt: PLAY_TURN` after robber movement
+- No prevention of `Roll` actions after initial roll
+- State vector `HAS_ROLLED_INDEX` either not set or not checked
+
+**Expected Catan Flow**:
 1. **Start Turn** → Roll dice (mandatory, once per turn)
 2. **After Roll** → Resource collection + optional building/trading
 3. **End Turn** → Pass to next player
 
-**Current Backend Issue**: After rolling, the backend is still generating `Roll` actions instead of removing them.
+**Current Broken Flow**:
+1. **Start Turn** → Roll dice ✅
+2. **After Roll** → ❌ Can roll again infinitely
+3. **Roll 7** → Discard/Robber phase ✅
+4. **After Robber** → ❌ Can roll again infinitely
 
-### **Why ROB Button Doesn't Work**
-The backend correctly generates `MoveRobber` actions:
-```rust
-MoveRobber { color: 0, coordinate: (0, -1, 1), victim_opt: None }
+### **Issue 2: Hex Tile Premature Glow - Frontend UI State**
+**Root Cause**: Hex actions populated immediately on `current_prompt: MOVE_ROBBER`
+**Expected Behavior**: Hex actions only populated when `isMovingRobber = true`
+**Current Bug**: Tiles glow before user clicks ROB button
+
+### **Issue 3: Button Highlighting - Missing React Pattern**
+**Root Cause**: Angular missing React's dynamic action set logic
+**React Pattern**: Build action sets from `current_playable_actions`, highlight when size > 0
+**Angular Issue**: No implementation of action set filtering and button state management
+
+### **Issue 4: Road Building Bypass - Missing UI State Management**
+**Root Cause**: Edge actions processed independently of toolbar interaction
+**Expected Flow**: BUILD button → Building mode → Edge selection
+**Current Bug**: Edges clickable directly when resources available
+
+### **Issue 5: Bot Turn Interference - Missing Turn Validation**
+**Root Cause**: Frontend shows interactive elements regardless of current player
+**Expected Behavior**: No interactive elements during bot turns
+**Current Bug**: Human can see and click nodes/edges during bot's turn
+**Game Impact**: Breaks turn-based gameplay, allows cheating/interference
+
+## 📋 **IMPLEMENTATION PLAN - CRITICAL BUG FIXES (December 2024)**
+
+### **IMMEDIATE (Day 1): Backend Multiple Roll Fix**
+**Priority**: 🚨 **CRITICAL** - Breaks core Catan rules
+**Files to Examine**: 
+- `/back/src/state/move_application.rs` - `roll_dice()` method
+- `/back/src/state/move_generation.rs` - Roll action generation logic
+- State vector management for `HAS_ROLLED_INDEX`
+
+**Tasks**:
+1. **Debug roll state management**: Add logging to trace `HAS_ROLLED_INDEX` 
+2. **Fix action generation**: Prevent `Roll` actions when `current_player_rolled() == true`
+3. **Test one-roll-per-turn**: Verify fix with live gameplay
+4. **Validate state transitions**: Ensure proper Roll → PlayTurn → EndTurn flow
+
+### **Day 2: Fix Bot Turn Interference (CRITICAL)**
+**Priority**: 🚨 **GAME-BREAKING** - Human can interfere with bot turns
+
+**Tasks**:
+1. **Add turn validation to action methods**: Check if it's human's turn before showing interactions
+2. **Prevent node/edge highlighting during bot turns**: No clickable elements when bot is active
+3. **Test initial build phase**: Ensure human can't click during bot placement
+
+**Implementation:**
+```typescript
+// Add to GameComponent - turn validation for all interaction methods
+get isHumanTurn(): boolean {
+    return this.gameState?.current_color === 'RED' && !this.isBotTurn;
+}
+
+updateNodeActions(): void {
+    this.nodeActions = {};
+    
+    // ONLY show interactive nodes when it's human's turn
+    if (!this.isHumanTurn) {
+        return; // No node actions during bot turns
+    }
+    
+    // ... existing node action logic
+}
+
+updateEdgeActions(): void {
+    this.edgeActions = {};
+    
+    // ONLY show interactive edges when it's human's turn  
+    if (!this.isHumanTurn) {
+        return; // No edge actions during bot turns
+    }
+    
+    // ... existing edge action logic
+}
 ```
 
-But the frontend:
-1. ❌ Doesn't parse `MoveRobber` actions in `updateNodeActions()`/`updateEdgeActions()`
-2. ❌ Doesn't have `updateHexActions()` method
-3. ❌ ROB button click doesn't enable robber movement mode
-4. ❌ Hex tiles aren't clickable during `MOVE_ROBBER` phase
+### **Day 3: Frontend Hex Glow & Button Highlighting**
+**Priority**: 🔥 **HIGH** - Poor UX, confusing interface
 
-## 📋 **IMPLEMENTATION PLAN**
+**Part A: Fix Hex Premature Glow**
+```typescript
+// Fix GameComponent.updateHexActions() - only populate when UI state allows
+updateHexActions(): void {
+    if (this.isHumanTurn && this.isMovingRobber && this.gameState?.current_prompt === 'MOVE_ROBBER') {
+        // Populate hex actions only when user clicked ROB AND it's human's turn
+    }
+}
+```
 
-### **Day 1: Fix Backend State Management**
-1. **Audit Roll Logic**: Ensure `dice_rolled` flag prevents multiple rolls
-2. **Fix State Transitions**: Roll → PlayTurn (no more rolls) or Roll → MoveRobber  
-3. **Test**: Verify only one roll per turn allowed
+**Part B: Implement Button Highlighting**
+```typescript
+// Add to ActionsToolbarComponent - React pattern implementation
+get buildActionTypes(): Set<string> { /* filter build actions */ }
+get shouldHighlightBuildButton(): boolean { return this.buildActionTypes.size > 0; }
+```
 
-### **Day 2: Implement Frontend Robber Handling**
-1. **Add `hexActions` tracking**: Similar to `nodeActions`/`edgeActions`
-2. **Parse MoveRobber actions**: Extract from `current_playable_actions`
-3. **Enable hex clicking**: Make tiles clickable during `MOVE_ROBBER` phase
-4. **Connect ROB button**: Enable robber movement mode on click
+### **Day 4: Fix Road Building Flow**
+**Priority**: 🎯 **MEDIUM** - UX consistency issue
 
-### **Day 3: Unified Action System**
-1. **Single WebSocket handler**: All actions go through WebSocket
-2. **Remove HTTP calls**: Consolidate to WebSocket-only communication
-3. **Test all actions**: Roll, Build, Robber, EndTurn, DevCards
+**Tasks**:
+1. **Add building mode state**: Track when BUILD button clicked
+2. **Modify edge action logic**: Only populate when in building mode AND human's turn
+3. **Test full flow**: BUILD → Road → Edge click → Place road
+4. **Ensure consistency**: All building actions follow same pattern
 
-### **Day 4: Complete Action Coverage**
-1. **Development cards**: BuyDevelopmentCard, PlayKnight, etc.
-2. **Trading**: MaritimeTrade actions
-3. **Edge cases**: Discard phase, longest road, etc.
+### **Day 5: Comprehensive Testing & Polish**
+**Priority**: ✅ **VALIDATION** - Ensure all fixes work together
 
-## 🎯 **SUCCESS CRITERIA**
+**Tasks**:
+1. **Full gameplay test**: Complete Human vs Bot game
+2. **Turn isolation testing**: Verify human can't interfere during bot turns
+3. **Edge case testing**: Multiple scenarios (7 rolls, building, robber movement)
+4. **UX validation**: Button highlighting, tile glowing, action flows
+5. **Performance check**: No regressions in WebSocket communication
 
-### **Immediate Fixes (This Week)**
-- ✅ One roll per turn (no multiple rolls)
-- ✅ ROB button clickable after rolling 7
-- ✅ Hex tiles clickable during robber movement
-- ✅ Proper game flow: Roll → Build/Trade → EndTurn
+## 🎯 **SUCCESS CRITERIA - UPDATED (December 2024)**
 
-### **Complete Implementation (Next Week)**
-- ✅ All Catan actions supported
-- ✅ Single unified WebSocket API
-- ✅ Proper state management
-- ✅ Full Human vs Bot gameplay
+### **Critical Bug Fixes (This Week)**
+- ❌ **One roll per turn**: Backend prevents multiple rolls (**CRITICAL**)
+- ❌ **Bot turn interference**: Human cannot interact during bot turns (**GAME-BREAKING**)
+- ❌ **Hex tile glow timing**: Tiles only glow after ROB button click (**HIGH**)
+- ❌ **Button highlighting**: BUILD button highlights when actions available (**HIGH**)
+- ❌ **Road building flow**: Must use BUILD button, no direct edge clicking (**MEDIUM**)
 
-## 🚀 **PATH FORWARD**
+### **Validation Criteria (After Fixes)**
+- ✅ **Complete turn flow**: Roll → Build/Trade → EndTurn (one cycle only)
+- ✅ **Turn isolation**: Human cannot interact during bot turns (no clickable elements)
+- ✅ **Robber interaction**: ROB button → Hex selection → Place robber
+- ✅ **Building interaction**: BUILD button → Action selection → Placement  
+- ✅ **Visual feedback**: Proper button highlighting and tile glowing
 
-**The core issue is that we have a communication/state management problem, not just a UI problem.**
+### **Long-term Implementation (Future)**
+- 🔄 All Catan actions supported
+- 🔄 Single unified WebSocket API  
+- 🔄 Proper state management
+- 🔄 Full Human vs Bot gameplay
 
-1. **Backend**: Fix state transitions to prevent multiple rolls
-2. **Frontend**: Add proper MoveRobber action handling  
-3. **Architecture**: Unified WebSocket action system
-4. **Testing**: Ensure complete Catan game flow works
+## 📋 **REACT IMPLEMENTATION ANALYSIS**
 
-This is a **fundamental game logic issue** that needs to be fixed before any other features can be properly implemented.
+### **Study `/zui/src/pages/ActionsToolbar.js` for Button Highlighting Pattern**
+
+**Working React Logic to Replicate in Angular:**
+```javascript
+// React builds action sets dynamically
+const buildActionTypes = new Set(
+  state.gameState.current_playable_actions
+    .filter((action) => action[1].startsWith("BUY") || action[1].startsWith("BUILD"))
+    .map((a) => a[1])
+);
+
+const playableDevCardTypes = new Set(
+  gameState.current_playable_actions
+    .filter((action) => action[1].startsWith("PLAY"))
+    .map((action) => action[1])
+);
+
+// Button disabled state based on action availability
+disabled={buildActionTypes.size === 0}
+disabled={playableDevCardTypes.size === 0}
+
+// Button visibility/highlighting
+<OptionsButton 
+  disabled={buildActionTypes.size === 0}
+  onClick={() => showBuildMenu()}
+>
+  Build
+</OptionsButton>
+```
+
+**Key React Patterns Angular Must Implement:**
+1. **Dynamic Action Sets**: Filter actions by type prefix (`BUILD*`, `PLAY*`, etc.)
+2. **Button State Management**: Disabled when action set is empty
+3. **Visual Feedback**: Highlight/enable buttons when actions available
+4. **Menu Population**: Submenu items based on available action types
+
+### **Building Flow Analysis (React Working Pattern):**
+```javascript
+// React build flow
+1. Check buildActionTypes.size > 0 → Enable BUILD button
+2. Click BUILD button → Show submenu (Road, Settlement, City, etc.)
+3. Click Road → Set building mode, enable edge clicking
+4. Click edge → Send BuildRoad action via WebSocket
+```
+
+## 🚀 **PATH FORWARD - UPDATED (December 2024)**
+
+**These are now confirmed as fundamental game logic and UX issues that break core functionality.**
+
+### **Immediate Priority (This Week)**
+1. **Backend Roll Fix**: Prevent multiple rolls per turn (breaks Catan rules)
+2. **Frontend UX Fixes**: Hex glow timing, button highlighting, building flows
+3. **React Pattern Implementation**: Study and replicate working button logic
+
+### **Root Issues Identified**
+1. **Backend State Management**: `HAS_ROLLED` flag not preventing roll actions
+2. **Frontend UI State**: Actions triggered by backend state instead of user interaction
+3. **Missing React Patterns**: Angular missing dynamic action set filtering logic
+
+### **Validation Approach**
+1. **Fix → Test → Verify**: Each fix tested immediately with live gameplay
+2. **Pattern Matching**: Ensure Angular behavior matches React reference implementation
+3. **Complete Flow Testing**: Full Human vs Bot game completion
+
+**These are critical blocking issues for Human vs Bot gameplay functionality.**
 
 ## ✅ **COMPLETED: Core Infrastructure (December 2024)**
 

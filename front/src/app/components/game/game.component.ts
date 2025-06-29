@@ -605,12 +605,13 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     
     console.log(`🎮 onMainAction called - isRoll: ${this.isRoll}, current_prompt: ${this.gameState?.current_prompt}`);
     
-    if (this.isRoll) {
+    // Check special prompts first, then fall back to normal turn logic
+    if (this.gameState?.current_prompt === 'DISCARD') {
+      console.log('🗂️ Processing discard - backend handles automatically...');
+      this.proceedWithDiscard();
+    } else if (this.isRoll) {
       console.log('🎲 Rolling dice...');
       this.rollDice();
-    } else if (this.gameState?.current_prompt === 'DISCARD') {
-      console.log('🗂️ Handling discard logic...');
-      // Handle discard logic - would open resource selector in full implementation
     } else {
       console.log('⏭️ Ending turn...');
       this.endTurn();
@@ -622,6 +623,24 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isMovingRobber = true;
     console.log('🔶 GameComponent: isMovingRobber set to:', this.isMovingRobber);
     console.log('🔶 GameComponent: BoardComponent should now receive isMovingRobber =', this.isMovingRobber);
+  }
+
+  proceedWithDiscard(): void {
+    if (!this.gameId || this.isWatchOnlyMode) return;
+    
+    console.log('🗂️ Looking for DISCARD action with proper resources field...');
+    
+    // Find the actual DISCARD action from current_playable_actions (includes required resources field)
+    const discardAction = this.gameState?.current_playable_actions?.find((action: any) => {
+      return action.hasOwnProperty('Discard');
+    });
+    
+    if (discardAction) {
+      console.log('🗂️ Found DISCARD action with resources:', discardAction);
+      this.websocketService.sendPlayerAction(this.gameId, discardAction);
+    } else {
+      console.error('❌ No DISCARD action found in current_playable_actions - backend should provide this');
+    }
   }
   
   rollDice(): void {
@@ -754,7 +773,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   // Angular best practice: Use descriptive getter for complex UI state
   get isMainActionEnabled(): boolean {
     // Button should be enabled when any valid action is available
-    return this.canRollDice() || this.canEndTurn() || this.canMoveRobber();
+    return this.canRollDice() || this.canEndTurn() || this.canMoveRobber() || this.canDiscard();
+  }
+
+  canDiscard(): boolean {
+    return this.gameState?.current_prompt === 'DISCARD';
   }
   
   // Build and card action aggregation methods moved to ActionToolbar component

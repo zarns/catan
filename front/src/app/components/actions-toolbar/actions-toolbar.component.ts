@@ -312,8 +312,8 @@ export class ActionsToolbarComponent {
     console.log('🔶 ActionToolbar: button should show =', this.mainActionText);
     
     if (this.gameState?.current_prompt === 'DISCARD') {
-      // Handle discard logic - would emit discard event in full implementation
-      console.log('🔶 ActionToolbar: Emitting mainAction for DISCARD');
+      // DISCARD is automatic - backend handles everything when we proceed
+      console.log('🔶 ActionToolbar: DISCARD button clicked - emitting mainAction (automatic discard)');
       this.mainAction.emit();
     } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
       // Just set UI state for robber movement - don't send any backend action
