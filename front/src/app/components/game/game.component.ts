@@ -144,7 +144,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Get the game ID from the route
     const gameIdParam = this.route.snapshot.paramMap.get('id');
-    console.log('🎮 GameComponent: Game ID from route:', gameIdParam);
 
     if (!gameIdParam) {
       console.error('❌ GameComponent: No game ID found in route');
@@ -156,30 +155,21 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Subscribe to game state changes
     this.gameService.gameUIState$.subscribe(uiState => {
-      console.log('🎮 GameComponent: Received gameUIState update:', uiState);
-
       if (uiState.gameState) {
-        console.log('🎮 GameComponent: Setting gameState:', uiState.gameState);
-        console.log(
-          '🎮 GameComponent: Game has current_playable_actions:',
-          uiState.gameState.current_playable_actions?.length || 0,
-          'actions'
-        );
-        console.log('🎮 GameComponent: Game bot_colors:', uiState.gameState.bot_colors);
-        console.log('🎮 GameComponent: Game current_color:', uiState.gameState.current_color);
-        console.log('🎮 GameComponent: Game current_prompt:', uiState.gameState.current_prompt);
-
         this.gameState = uiState.gameState;
-        this.isLoading = false; // Stop loading when we have game state
-        this.error = null; // Clear any previous errors
+        this.isLoading = false;
+        this.error = null;
+
+        // 🎯 SINGLE DEBUG LOG: Show current playable actions for debugging
+        console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
+        console.log('🎯 CURRENT_PROMPT:', this.gameState.current_prompt);
+        console.log('🎯 ROLL_AVAILABLE:', this.canRollDice());
+        console.log('🎯 END_AVAILABLE:', this.canEndTurn());
 
         // Update actions when game state changes
-        console.log('🎮 GameComponent: Updating node, edge, and hex actions...');
         this.updateNodeActions();
         this.updateEdgeActions();
         this.updateHexActions();
-      } else {
-        console.log('🎮 GameComponent: No gameState in uiState');
       }
 
       // Update UI state flags
@@ -192,7 +182,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     // Load the initial game state from the API
-    console.log('🎮 GameComponent: Loading initial game state...');
     this.loadGameState();
   }
 
@@ -271,38 +260,21 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   updateNodeActions(): void {
-    console.log('🎯 GameComponent: updateNodeActions() called');
     this.nodeActions = {};
 
-    // 🚨 CRITICAL FIX: Prevent node actions during bot turns (matches React pattern)
-    if (this.isBotTurn) {
-      console.log('🎯 GameComponent: Bot turn detected - no node actions for human');
-      return;
-    }
+    // Prevent node actions during bot turns
+    if (this.isBotTurn) return;
 
-    if (!this.gameState?.current_playable_actions) {
-      console.log('🎯 GameComponent: No current_playable_actions found');
-      return;
-    }
-
-    console.log(
-      '🎯 GameComponent: Processing',
-      this.gameState.current_playable_actions.length,
-      'playable actions:',
-      this.gameState.current_playable_actions
-    );
+    if (!this.gameState?.current_playable_actions) return;
 
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
-    this.gameState.current_playable_actions.forEach((action, index) => {
-      console.log(`🎯 GameComponent: Processing action ${index}:`, action);
-
+    this.gameState.current_playable_actions.forEach((action) => {
       // Check if this is a BuildSettlement action (Rust enum format)
       if (
         action.hasOwnProperty('BuildSettlement') &&
         action.BuildSettlement?.node_id !== undefined
       ) {
         const nodeId = action.BuildSettlement.node_id;
-        console.log(`🎯 GameComponent: Found BuildSettlement action for node ${nodeId}:`, action);
         this.nodeActions[nodeId.toString()] = {
           type: 'BUILD_SETTLEMENT',
           action: action,
@@ -312,7 +284,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       // Check if this is a BuildCity action (Rust enum format)
       else if (action.hasOwnProperty('BuildCity') && action.BuildCity?.node_id !== undefined) {
         const nodeId = action.BuildCity.node_id;
-        console.log(`🎯 GameComponent: Found BuildCity action for node ${nodeId}:`, action);
         this.nodeActions[nodeId.toString()] = {
           type: 'BUILD_CITY',
           action: action,
@@ -324,10 +295,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         (action.action_type === 'BUILD_SETTLEMENT' || action.action_type === 'BUILD_CITY') &&
         action.node_id !== undefined
       ) {
-        console.log(
-          `🎯 GameComponent: Found flat object action for node ${action.node_id}:`,
-          action
-        );
         this.nodeActions[action.node_id.toString()] = {
           type: action.action_type,
           action: action,
@@ -335,47 +302,22 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         };
       }
     });
-
-    console.log('🎯 GameComponent: Final nodeActions:', this.nodeActions);
-    console.log(
-      '🎯 GameComponent: Number of actionable nodes:',
-      Object.keys(this.nodeActions).length
-    );
   }
 
   updateEdgeActions(): void {
-    console.log('🛣️ GameComponent: updateEdgeActions() called');
     this.edgeActions = {};
 
-    // 🚨 CRITICAL FIX: Prevent edge actions during bot turns (matches React pattern)
-    if (this.isBotTurn) {
-      console.log('🛣️ GameComponent: Bot turn detected - no edge actions for human');
-      return;
-    }
+    // Prevent edge actions during bot turns
+    if (this.isBotTurn) return;
 
-    if (!this.gameState?.current_playable_actions) {
-      console.log('🛣️ GameComponent: No current_playable_actions found');
-      return;
-    }
-
-    console.log(
-      '🛣️ GameComponent: Processing',
-      this.gameState.current_playable_actions.length,
-      'playable actions for edges'
-    );
+    if (!this.gameState?.current_playable_actions) return;
 
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
-    this.gameState.current_playable_actions.forEach((action, index) => {
-      console.log(`🛣️ GameComponent: Processing action ${index}:`, action);
-
+    this.gameState.current_playable_actions.forEach((action) => {
       // Check if this is a BuildRoad action (Rust enum format)
       if (action.hasOwnProperty('BuildRoad') && action.BuildRoad?.edge_id !== undefined) {
         const [node1, node2] = action.BuildRoad.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
-        console.log(
-          `🛣️ GameComponent: Found BuildRoad action for edge ${edgeKey} (nodes ${node1}-${node2}):`,
-          action
-        );
         this.edgeActions[edgeKey] = {
           type: 'BUILD_ROAD',
           action: action,
@@ -386,10 +328,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       else if (action.action_type === 'BUILD_ROAD' && action.edge_id !== undefined) {
         const [node1, node2] = action.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
-        console.log(
-          `🛣️ GameComponent: Found flat object BUILD_ROAD action for edge ${edgeKey} (nodes ${node1}-${node2}):`,
-          action
-        );
         this.edgeActions[edgeKey] = {
           type: action.action_type,
           action: action,
@@ -397,12 +335,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         };
       }
     });
-
-    console.log('🛣️ GameComponent: Final edgeActions:', this.edgeActions);
-    console.log(
-      '🛣️ GameComponent: Number of actionable edges:',
-      Object.keys(this.edgeActions).length
-    );
   }
 
   updateTrades(): void {
@@ -415,35 +347,19 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   updateHexActions(): void {
-    console.log('🔶 GameComponent: updateHexActions() called');
     this.hexActions = {};
 
-    // 🚨 CRITICAL FIX: Prevent hex actions during bot turns (matches React pattern)
-    if (this.isBotTurn) {
-      console.log('🔶 GameComponent: Bot turn detected - no hex actions for human');
-      return;
-    }
+    // Prevent hex actions during bot turns
+    if (this.isBotTurn) return;
 
-    if (!this.gameState?.current_playable_actions) {
-      console.log('🔶 GameComponent: No current_playable_actions found');
-      return;
-    }
-
-    console.log(
-      '🔶 GameComponent: Processing',
-      this.gameState.current_playable_actions.length,
-      'playable actions for hex interactions'
-    );
+    if (!this.gameState?.current_playable_actions) return;
 
     // Parse current_playable_actions for MoveRobber actions
-    this.gameState.current_playable_actions.forEach((action, index) => {
-      console.log(`🔶 GameComponent: Processing action ${index}:`, action);
-
+    this.gameState.current_playable_actions.forEach((action) => {
       // Check if this is a MoveRobber action (Rust enum format)
       if (action.hasOwnProperty('MoveRobber') && action.MoveRobber?.coordinate !== undefined) {
         const coordinate = action.MoveRobber.coordinate;
         const hexKey = `${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`;
-        console.log(`🔶 GameComponent: Found MoveRobber action for hex ${hexKey}:`, action);
         this.hexActions[hexKey] = {
           type: 'MOVE_ROBBER',
           action: action,
@@ -451,11 +367,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         };
       }
     });
-
-    console.log(
-      '🔶 GameComponent: Number of actionable hexes:',
-      Object.keys(this.hexActions).length
-    );
   }
 
   // Action handlers
@@ -474,20 +385,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       mappedNodeId = numericPart;
     }
 
-    if (!nodeAction?.action) {
-      console.log(`Node ${nodeId} clicked but no action available`);
-      return;
-    }
-
-    console.log(
-      `🎯 Executing node action for ${nodeId} (mapped to ${mappedNodeId}):`,
-      nodeAction.action
-    );
+    if (!nodeAction?.action) return;
 
     // Pass the enum format directly - no conversion needed!
     this.gameService.postAction(this.gameId, nodeAction.action).subscribe({
       next: gameState => {
-        console.log('✅ Node action completed successfully');
         // State will be updated via WebSocket, no need for manual UI state changes
       },
       error: (err: Error) => {
@@ -694,15 +596,19 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onMainAction(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
 
-    console.log(
-      `🎮 onMainAction called - isRoll: ${this.isRoll}, current_prompt: ${this.gameState?.current_prompt}`
-    );
+    // 🔍 DEBUG: Log the main action decision process
+    console.log('🔍 MAIN_ACTION_DEBUG:', {
+      isRoll: this.shouldShowRollButton(),
+      current_prompt: this.gameState?.current_prompt,
+      canRollDice: this.canRollDice(),
+      canEndTurn: this.canEndTurn(),
+      playable_actions: this.gameState?.current_playable_actions
+    });
 
     // Check special prompts first, then fall back to normal turn logic
     if (this.gameState?.current_prompt === 'DISCARD') {
-      console.log('🗂️ Processing discard - backend handles automatically...');
       this.proceedWithDiscard();
-    } else if (this.isRoll) {
+    } else if (this.shouldShowRollButton()) {
       console.log('🎲 Rolling dice...');
       this.rollDice();
     } else {

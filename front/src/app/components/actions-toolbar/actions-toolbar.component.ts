@@ -138,7 +138,6 @@ interface GameState {
               class="main-action-button"
               [disabled]="isMainActionDisabled"
               (click)="onMainActionClick()"
-              (mouseenter)="onButtonHover()"
             >
               <mat-icon>{{ mainActionIcon }}</mat-icon>
               {{ mainActionText }}
@@ -327,35 +326,15 @@ export class ActionsToolbarComponent {
   }
 
   onMainActionClick(): void {
-    console.log('🔶 ActionToolbar: onMainActionClick called');
-    console.log('🔶 ActionToolbar: current_prompt =', this.gameState?.current_prompt);
-    console.log('🔶 ActionToolbar: button should show =', this.mainActionText);
-
     if (this.gameState?.current_prompt === 'DISCARD') {
       // DISCARD is automatic - backend handles everything when we proceed
-      console.log(
-        '🔶 ActionToolbar: DISCARD button clicked - emitting mainAction (automatic discard)'
-      );
       this.mainAction.emit();
     } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
       // Just set UI state for robber movement - don't send any backend action
-      console.log('🔶 ActionToolbar: ROB button clicked - emitting setMovingRobber');
       this.setMovingRobber.emit();
     } else {
       // Roll dice or end turn
-      console.log('🔶 ActionToolbar: Emitting mainAction for ROLL/END');
       this.mainAction.emit();
     }
-  }
-
-  onButtonHover(): void {
-    console.log('🔶 ActionToolbar: Button hovered - button is responsive');
-    console.log('🔶 ActionToolbar: isMainActionDisabled =', this.isMainActionDisabled);
-    console.log('🔶 ActionToolbar: current_prompt =', this.gameState?.current_prompt);
-    console.log('🔶 ActionToolbar: mainActionText =', this.mainActionText);
-    console.log(
-      '🔶 ActionToolbar: Button should be',
-      this.isMainActionDisabled ? 'DISABLED' : 'ENABLED'
-    );
   }
 }
