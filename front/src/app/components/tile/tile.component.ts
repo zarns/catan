@@ -122,7 +122,7 @@ export class TileComponent implements OnInit {
     const [x, y] = this.tilePixelVector();
     
     // Make port tiles smaller (60% of normal size)
-    const scale = this.isPort ? 0.6 : 1.0;
+    const scale = this.isPort ? 0.58 : 1.0;
     
     // For port tiles, apply both translation and scaling
     let transform = 'none';
