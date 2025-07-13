@@ -50,7 +50,6 @@
           [nodeActions]="nodeActions"
           [edgeActions]="edgeActions"
           [hexActions]="hexActions"
-          [isMovingRobber]="isMovingRobber"
           [debugMode]="debugMode"
           (nodeClick)="onNodeClick($event)"
           (edgeClick)="onEdgeClick($event)"
@@ -76,7 +75,6 @@
           (build)="onBuild($event)"
           (trade)="onTrade($event)"
           (mainAction)="onMainAction()"
-          (setMovingRobber)="onSetMovingRobber()"
         >
         </app-actions-toolbar>
 

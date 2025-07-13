@@ -123,16 +123,6 @@ export class BoardComponent implements OnInit, AfterViewInit {
   @Input() width: number = 0;
   @Input() height: number = 0;
   @Input() isMobile: boolean = false;
-  @Input() set isMovingRobber(value: boolean) {
-    console.log(
-      `🔶 BoardComponent: isMovingRobber changed from ${this._isMovingRobber} to ${value}`
-    );
-    this._isMovingRobber = value;
-  }
-  get isMovingRobber(): boolean {
-    return this._isMovingRobber;
-  }
-  private _isMovingRobber: boolean = false;
   @Input() show: boolean = true;
   @Input() set nodeActions(value: { [key: string]: any }) {
     this._nodeActions = value;
@@ -331,17 +321,11 @@ export class BoardComponent implements OnInit, AfterViewInit {
     return size;
   }
 
-  // Handle tile click (for robber movement)
+  // Handle tile click - always emit and let parent (game component) decide what to do
   onTileClick(coordinate: any): void {
     console.log(`🔶 BoardComponent: onTileClick called with:`, coordinate);
-    console.log(`🔶 BoardComponent: isMovingRobber =`, this.isMovingRobber);
-
-    if (this.isMovingRobber) {
-      console.log(`🔶 BoardComponent: Emitting hexClick event`);
-      this.hexClick.emit(coordinate);
-    } else {
-      console.log(`🔶 BoardComponent: Not in robber movement mode, not emitting`);
-    }
+    console.log(`🔶 BoardComponent: Emitting hexClick event to parent`);
+    this.hexClick.emit(coordinate);
   }
 
   // Handle node click (for building settlements/cities)

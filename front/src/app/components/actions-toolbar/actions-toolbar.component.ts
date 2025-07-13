@@ -161,12 +161,14 @@ export class ActionsToolbarComponent {
   @Output() build = new EventEmitter<string>();
   @Output() trade = new EventEmitter<any>();
   @Output() mainAction = new EventEmitter<void>();
-  @Output() setMovingRobber = new EventEmitter<void>();
 
   // Angular best practice: Use getters for computed properties
   get shouldShowActionButtons(): boolean {
-    // Don't show action buttons during initial build phase or if no game state
-    return !this.gameState?.game?.is_initial_build_phase && !!this.gameState;
+    if (!this.gameState) return false;
+    
+    // Show action buttons during regular play and discard, but hide during robber movement (direct tile clicking)
+    return this.gameState.current_prompt === 'PLAY_TURN' || 
+           this.gameState.current_prompt === 'DISCARD';
   }
 
   get buildActionTypes(): Set<string> {
@@ -263,7 +265,8 @@ export class ActionsToolbarComponent {
     if (action.action_type?.startsWith(prefix)) return true;
 
     // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
-    return Object.keys(action).some(key => key.startsWith(prefix));
+    // Case-insensitive check for Rust enum keys
+    return Object.keys(action).some(key => key.toLowerCase().startsWith(prefix.toLowerCase()));
   }
 
   private getActionType(action: PlayableAction): string {
@@ -326,15 +329,7 @@ export class ActionsToolbarComponent {
   }
 
   onMainActionClick(): void {
-    if (this.gameState?.current_prompt === 'DISCARD') {
-      // DISCARD is automatic - backend handles everything when we proceed
-      this.mainAction.emit();
-    } else if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
-      // Just set UI state for robber movement - don't send any backend action
-      this.setMovingRobber.emit();
-    } else {
-      // Roll dice or end turn
-      this.mainAction.emit();
-    }
+    // Always emit main action - robber movement handled directly in game component
+    this.mainAction.emit();
   }
 }

@@ -72,7 +72,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   isBuildingRoad = false;
   isBuildingSettlement = false;
   isBuildingCity = false;
-  isMovingRobber = false;
   isRoll = true;
   isPlayingMonopoly = false;
   isPlayingYearOfPlenty = false;
@@ -176,7 +175,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isBuildingCity = uiState.isBuildingCity;
       this.isPlayingMonopoly = uiState.isPlayingMonopoly;
       this.isPlayingYearOfPlenty = uiState.isPlayingYearOfPlenty;
-      this.isMovingRobber = uiState.isMovingRobber;
     });
 
     // Load the initial game state from the API
@@ -423,14 +421,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onHexClick(coordinate: Coordinate): void {
     console.log(`🔶 onHexClick called with:`, coordinate);
-    console.log(
-      `🔶 Current state - isMovingRobber: ${this.isMovingRobber}, current_prompt: ${this.gameState?.current_prompt}`
-    );
+    console.log(`🔶 Current state - current_prompt: ${this.gameState?.current_prompt}`);
 
     if (!this.gameId || this.isWatchOnlyMode) return;
 
-    // Check if we're in robber movement mode and there's a valid hex action
-    if (this.isMovingRobber && this.gameState?.current_prompt === 'MOVE_ROBBER') {
+    // Auto-enable robber movement when it's time to move robber - no button click needed
+    if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
       const hexKey = `${coordinate.x}_${coordinate.y}_${coordinate.z}`;
       const hexAction = this.hexActions[hexKey];
 
@@ -447,11 +443,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       // Send MoveRobber action via WebSocket
       this.websocketService.sendPlayerAction(this.gameId, hexAction.action);
 
-      // Disable robber movement mode
-      this.isMovingRobber = false;
-      console.log(`🔶 Robber movement disabled`);
+      console.log(`🔶 MoveRobber action sent for ${hexKey}`);
     } else {
-      console.log(`🔶 Not in robber movement mode or wrong prompt`);
+      console.log(`🔶 Not in MOVE_ROBBER prompt or no valid hex action available`);
     }
   }
 
@@ -607,15 +601,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  onSetMovingRobber(): void {
-    console.log('🔶 GameComponent: onSetMovingRobber called - setting isMovingRobber to true');
-    this.isMovingRobber = true;
-    console.log('🔶 GameComponent: isMovingRobber set to:', this.isMovingRobber);
-    console.log(
-      '🔶 GameComponent: BoardComponent should now receive isMovingRobber =',
-      this.isMovingRobber
-    );
-  }
 
   proceedWithDiscard(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
