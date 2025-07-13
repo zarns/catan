@@ -970,10 +970,10 @@ fn update_players_from_state(players: &mut [Player], state: &State) {
             player.resources.clear();
             player
                 .resources
-                .insert(EnumResource::Brick, player_hand[0] as u32);
+                .insert(EnumResource::Wood, player_hand[0] as u32);
             player
                 .resources
-                .insert(EnumResource::Wood, player_hand[1] as u32);
+                .insert(EnumResource::Brick, player_hand[1] as u32);
             player
                 .resources
                 .insert(EnumResource::Sheep, player_hand[2] as u32);
