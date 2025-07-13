@@ -280,23 +280,33 @@ pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
                         NodeRef::NorthWest => "NW",
                     };
 
-                    // Use a more compact node ID format: n{id}_{direction}
-                    let node_id_str = format!("n{}_{}", node_id, direction);
+                    // Use just the node ID - no duplicate entries per tile
+                    let node_id_str = node_id.to_string();
 
-                    // Calculate absolute coordinate for this node
-                    let node_direction = node_ref_to_direction(node_ref);
-                    let absolute_coord = calculate_node_coordinate(coordinate, node_direction);
+                    // Only add this node if we haven't seen it before
+                    if !nodes.contains_key(&node_id_str) {
+                        // Calculate absolute coordinate using canonical positioning
+                        let absolute_coord = find_node_absolute_coordinate(node_id, map_instance)
+                            .unwrap_or_else(|| {
+                                // Fallback: calculate from this tile's perspective
+                                let node_direction = node_ref_to_direction(node_ref);
+                                node_coordinate_to_absolute(calculate_node_coordinate(
+                                    coordinate,
+                                    node_direction,
+                                ))
+                            });
 
-                    nodes.insert(
-                        node_id_str,
-                        Node {
-                            building: None,
-                            color: None,
-                            tile_coordinate: convert_coordinate(coordinate),
-                            direction: direction.to_string(),
-                            absolute_coordinate: node_coordinate_to_absolute(absolute_coord),
-                        },
-                    );
+                        nodes.insert(
+                            node_id_str,
+                            Node {
+                                building: None,
+                                color: None,
+                                tile_coordinate: convert_coordinate(coordinate),
+                                direction: direction.to_string(),
+                                absolute_coordinate: absolute_coord,
+                            },
+                        );
+                    }
                 }
 
                 // Generate edges for this tile
@@ -690,16 +700,9 @@ impl Game {
     // Update the game board from the current state
     pub fn update_board(&mut self) {
         if let Some(state) = &self.state {
-            // Get the map instance
-            let global_state = GlobalState::new();
-            let map_instance = MapInstance::new(
-                &global_state.base_map_template,
-                &global_state.dice_probas,
-                0, // Use a fixed seed for predictable board generation
-            );
-
-            // Update the board with buildings, roads, and robber
-            self.board = generate_board_from_state(state, &map_instance);
+            // Use the map instance from state
+            self.board = generate_board_from_state(state, state.get_map_instance());
+        } else {
         }
     }
 
@@ -787,6 +790,56 @@ impl Game {
             (GameState::Finished { .. }, Some(state)) => state.winner().is_some(),
             _ => false, // Inconsistent if no internal state
         }
+    }
+
+    /// Get all adjacent tiles for a specific node ID using backend's authoritative adjacency calculation
+    pub fn get_node_adjacent_tiles(
+        &self,
+        node_id: u8,
+    ) -> Option<Vec<(u8, Option<String>, Option<u8>)>> {
+        if let Some(state) = &self.state {
+            let map_instance = state.get_map_instance();
+            if let Some(adjacent_tiles) = map_instance.get_adjacent_tiles(node_id) {
+                let result: Vec<(u8, Option<String>, Option<u8>)> = adjacent_tiles
+                    .iter()
+                    .map(|tile| {
+                        let resource_str = tile.resource.map(|r| match r {
+                            crate::enums::Resource::Wood => "wood".to_string(),
+                            crate::enums::Resource::Brick => "brick".to_string(),
+                            crate::enums::Resource::Sheep => "sheep".to_string(),
+                            crate::enums::Resource::Wheat => "wheat".to_string(),
+                            crate::enums::Resource::Ore => "ore".to_string(),
+                        });
+                        (tile.id, resource_str, tile.number)
+                    })
+                    .collect();
+                Some(result)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Get complete node-to-tile adjacency mapping for all nodes using backend's authoritative calculations
+    /// Returns HashMap<NodeId, Vec<(TileId, Resource, Number)>>
+    pub fn get_all_node_tile_adjacencies(
+        &self,
+    ) -> HashMap<u8, Vec<(u8, Option<String>, Option<u8>)>> {
+        let mut adjacencies = HashMap::new();
+
+        if let Some(state) = &self.state {
+            let map_instance = state.get_map_instance();
+            // Iterate through all land nodes to build complete mapping
+            for &node_id in map_instance.land_nodes() {
+                if let Some(adjacent_tiles) = self.get_node_adjacent_tiles(node_id) {
+                    adjacencies.insert(node_id, adjacent_tiles);
+                }
+            }
+        }
+
+        adjacencies
     }
 }
 
@@ -970,10 +1023,10 @@ fn update_players_from_state(players: &mut [Player], state: &State) {
             player.resources.clear();
             player
                 .resources
-                .insert(EnumResource::Brick, player_hand[0] as u32);
+                .insert(EnumResource::Wood, player_hand[0] as u32);
             player
                 .resources
-                .insert(EnumResource::Wood, player_hand[1] as u32);
+                .insert(EnumResource::Brick, player_hand[1] as u32);
             player
                 .resources
                 .insert(EnumResource::Sheep, player_hand[2] as u32);

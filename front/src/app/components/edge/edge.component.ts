@@ -63,7 +63,7 @@ export class EdgeComponent {
   @Output() onClick = new EventEmitter<string>();
 
   // Constants
-  readonly SQRT3 = 1.732;
+  readonly SQRT3 = 1.732050807568877;
 
   get edgeStyle() {
     // Use absolute coordinates if available, otherwise fall back to tile-relative positioning
@@ -158,12 +158,17 @@ export class EdgeComponent {
 
     const { x, y, z } = this.coordinate;
     const size = this.size;
-    const width = this.SQRT3 * size;
-    const height = 2 * size;
-
-    // Convert cube coordinates to pixel coordinates
-    const pixelX = this.centerX + width * (x + y / 2);
-    const pixelY = this.centerY + height * (3 / 4) * y;
+    
+    // Use backend's coordinate conversion: axial coordinates (q, r) = (x, z)
+    const q = x;
+    const r = z;
+    
+    // Match backend's tile center calculation exactly
+    const tile_center_x = size * (this.SQRT3 * q + this.SQRT3 / 2.0 * r);
+    const tile_center_y = size * (3.0 / 2.0 * r);
+    
+    const pixelX = this.centerX + tile_center_x;
+    const pixelY = this.centerY + tile_center_y;
 
     return [pixelX, pixelY];
   }

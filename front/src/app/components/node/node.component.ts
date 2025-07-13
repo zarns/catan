@@ -1,11 +1,5 @@
-import { Component, Input, EventEmitter, Output } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-interface NodeCoordinate {
-  x: number;
-  y: number;
-  z: number;
-}
 
 interface NodeAbsoluteCoordinate {
   x: number;
@@ -53,8 +47,7 @@ interface NodeAbsoluteCoordinate {
 })
 export class NodeComponent {
   @Input() id: string = '';
-  @Input() coordinate!: NodeCoordinate; // DEPRECATED: For backward compatibility
-  @Input() absoluteCoordinate?: NodeAbsoluteCoordinate; // NEW: Absolute positioning
+  @Input() absoluteCoordinate?: NodeAbsoluteCoordinate; // Absolute positioning coordinates
   @Input() direction: string = '';
   @Input() building: string | null = null;
   @Input() color: string | null = null;
@@ -103,15 +96,14 @@ export class NodeComponent {
   get nodeStyle() {
     let x: number, y: number;
 
-    // Use absolute coordinates if available, otherwise fall back to tile-relative positioning
+    // Always use absolute coordinates for consistent positioning
     if (this.absoluteCoordinate) {
       [x, y] = this.absolutePixelVector();
     } else {
-      // Legacy positioning for backward compatibility
-      const [tileX, tileY] = this.tilePixelVector();
-      const [deltaX, deltaY] = this.getNodeDelta();
-      x = tileX + deltaX;
-      y = tileY + deltaY;
+      // Log error and fallback to center if no absolute coordinate is provided
+      console.error(`Node ${this.id} has no absolute coordinate - using center position`);
+      x = this.centerX;
+      y = this.centerY;
     }
 
     return {
@@ -122,24 +114,6 @@ export class NodeComponent {
       transform: 'translateY(-50%) translateX(-50%)',
       'z-index': this.building ? 13 : 3,
     };
-  }
-
-  // Convert cube coordinates to pixel coordinates
-  tilePixelVector(): [number, number] {
-    if (!this.coordinate) {
-      return [0, 0];
-    }
-
-    const { x, y, z } = this.coordinate;
-    const size = this.size;
-    const width = this.SQRT3 * size;
-    const height = 2 * size;
-
-    // Convert cube coordinates to pixel coordinates
-    const pixelX = this.centerX + width * (x + y / 2);
-    const pixelY = this.centerY + height * (3 / 4) * y;
-
-    return [pixelX, pixelY];
   }
 
   // Convert absolute coordinates to pixel coordinates
@@ -197,10 +171,10 @@ export class NodeComponent {
   }
 
   getCoordinateString(): string {
-    if (!this.coordinate) {
+    if (!this.absoluteCoordinate) {
       return '';
     }
-    return `${this.coordinate.x},${this.coordinate.y},${this.coordinate.z}`;
+    return `${this.absoluteCoordinate.x},${this.absoluteCoordinate.y},${this.absoluteCoordinate.z}`;
   }
 
   getDebugTitle(): string {

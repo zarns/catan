@@ -1,10 +1,9 @@
+use crate::enums::Resource;
+use crate::map_template::{add_coordinates, Coordinate, MapTemplate, TileSlot};
 use rand::rngs::StdRng;
 use rand::{seq::SliceRandom, SeedableRng};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-
-use crate::enums::Resource;
-use crate::map_template::{add_coordinates, Coordinate, MapTemplate, TileSlot};
 
 pub type NodeId = u8;
 pub type EdgeId = (NodeId, NodeId);
@@ -61,11 +60,11 @@ pub enum Direction {
 
 const DIRECTIONS: [Direction; 6] = [
     Direction::NorthEast,
+    Direction::East,
     Direction::SouthEast,
     Direction::SouthWest,
+    Direction::West,
     Direction::NorthWest,
-    Direction::North,
-    Direction::South,
 ];
 
 fn get_unit_vector(direction: Direction) -> (i8, i8, i8) {
@@ -76,8 +75,9 @@ fn get_unit_vector(direction: Direction) -> (i8, i8, i8) {
         Direction::SouthWest => (-1, 0, 1),
         Direction::West => (-1, 1, 0),
         Direction::NorthWest => (0, 1, -1),
-        Direction::North => (1, -1, 0),
-        Direction::South => (-1, 1, 0),
+        // These should not be used in proper hexagonal grid, but keeping for compatibility
+        Direction::North => (0, 1, -1), // Same as NorthWest
+        Direction::South => (0, -1, 1), // Same as SouthEast
     }
 }
 
@@ -273,6 +273,7 @@ impl MapInstance {
 
             hexagons.insert(coordinate, hexagon);
         }
+
         tiles
     }
 
@@ -291,8 +292,10 @@ impl MapInstance {
             if let Tile::Land(land_tile) = tile {
                 land_tiles.insert(coordinate, land_tile.clone());
                 let is_desert = land_tile.resource.is_none();
+
                 land_tile.hexagon.nodes.values().for_each(|&node_id| {
                     land_nodes.insert(node_id);
+
                     adjacent_land_tiles
                         .entry(node_id)
                         .or_default()
@@ -384,87 +387,70 @@ fn get_nodes_edges(
             (direction, add_coordinates(coordinate, unit_vector))
         })
         .collect::<Vec<(Direction, Coordinate)>>();
+
     for (neighbor_direction, neighbor_coordinate) in neighbor_hexagons {
         if hexagons.contains_key(&neighbor_coordinate) {
             let neighbor_hexagon = hexagons.get(&neighbor_coordinate).unwrap();
 
-            if neighbor_direction == Direction::North {
-                nodes.insert(
-                    NodeRef::NorthEast,
-                    *neighbor_hexagon.nodes.get(&NodeRef::NorthWest).unwrap(),
+            if neighbor_direction == Direction::NorthEast {
+                let north_node = *neighbor_hexagon.nodes.get(&NodeRef::SouthWest).unwrap();
+                let northeast_node = *neighbor_hexagon.nodes.get(&NodeRef::South).unwrap();
+                nodes.insert(NodeRef::North, north_node);
+                nodes.insert(NodeRef::NorthEast, northeast_node);
+
+                edges.insert(
+                    EdgeRef::NorthEast,
+                    *neighbor_hexagon.edges.get(&EdgeRef::SouthWest).unwrap(),
                 );
-                nodes.insert(
-                    NodeRef::SouthEast,
-                    *neighbor_hexagon.nodes.get(&NodeRef::SouthWest).unwrap(),
-                );
+            } else if neighbor_direction == Direction::East {
+                let northeast_node = *neighbor_hexagon.nodes.get(&NodeRef::NorthWest).unwrap();
+                let southeast_node = *neighbor_hexagon.nodes.get(&NodeRef::SouthWest).unwrap();
+                nodes.insert(NodeRef::NorthEast, northeast_node);
+                nodes.insert(NodeRef::SouthEast, southeast_node);
+
                 edges.insert(
                     EdgeRef::North,
                     *neighbor_hexagon.edges.get(&EdgeRef::South).unwrap(),
                 );
             } else if neighbor_direction == Direction::SouthEast {
-                nodes.insert(
-                    NodeRef::South,
-                    *neighbor_hexagon.nodes.get(&NodeRef::NorthWest).unwrap(),
-                );
-                nodes.insert(
-                    NodeRef::SouthEast,
-                    *neighbor_hexagon.nodes.get(&NodeRef::North).unwrap(),
-                );
+                let south_node = *neighbor_hexagon.nodes.get(&NodeRef::NorthWest).unwrap();
+                let southeast_node = *neighbor_hexagon.nodes.get(&NodeRef::North).unwrap();
+                nodes.insert(NodeRef::South, south_node);
+                nodes.insert(NodeRef::SouthEast, southeast_node);
+
                 edges.insert(
                     EdgeRef::SouthEast,
                     *neighbor_hexagon.edges.get(&EdgeRef::NorthWest).unwrap(),
                 );
             } else if neighbor_direction == Direction::SouthWest {
-                nodes.insert(
-                    NodeRef::South,
-                    *neighbor_hexagon.nodes.get(&NodeRef::NorthEast).unwrap(),
-                );
-                nodes.insert(
-                    NodeRef::SouthWest,
-                    *neighbor_hexagon.nodes.get(&NodeRef::North).unwrap(),
-                );
+                let south_node = *neighbor_hexagon.nodes.get(&NodeRef::NorthEast).unwrap();
+                let southwest_node = *neighbor_hexagon.nodes.get(&NodeRef::North).unwrap();
+                nodes.insert(NodeRef::South, south_node);
+                nodes.insert(NodeRef::SouthWest, southwest_node);
+
                 edges.insert(
                     EdgeRef::SouthWest,
                     *neighbor_hexagon.edges.get(&EdgeRef::NorthEast).unwrap(),
                 );
-            } else if neighbor_direction == Direction::South {
-                nodes.insert(
-                    NodeRef::NorthWest,
-                    *neighbor_hexagon.nodes.get(&NodeRef::NorthEast).unwrap(),
-                );
-                nodes.insert(
-                    NodeRef::SouthWest,
-                    *neighbor_hexagon.nodes.get(&NodeRef::SouthEast).unwrap(),
-                );
+            } else if neighbor_direction == Direction::West {
+                let northwest_node = *neighbor_hexagon.nodes.get(&NodeRef::NorthEast).unwrap();
+                let southwest_node = *neighbor_hexagon.nodes.get(&NodeRef::SouthEast).unwrap();
+                nodes.insert(NodeRef::NorthWest, northwest_node);
+                nodes.insert(NodeRef::SouthWest, southwest_node);
+
                 edges.insert(
                     EdgeRef::South,
                     *neighbor_hexagon.edges.get(&EdgeRef::North).unwrap(),
                 );
             } else if neighbor_direction == Direction::NorthWest {
-                nodes.insert(
-                    NodeRef::North,
-                    *neighbor_hexagon.nodes.get(&NodeRef::SouthEast).unwrap(),
-                );
-                nodes.insert(
-                    NodeRef::NorthWest,
-                    *neighbor_hexagon.nodes.get(&NodeRef::South).unwrap(),
-                );
+                let north_node = *neighbor_hexagon.nodes.get(&NodeRef::SouthEast).unwrap();
+                let northwest_node = *neighbor_hexagon.nodes.get(&NodeRef::South).unwrap();
+                nodes.insert(NodeRef::North, north_node);
+                nodes.insert(NodeRef::NorthWest, northwest_node);
+
                 edges.insert(
                     EdgeRef::NorthWest,
                     *neighbor_hexagon.edges.get(&EdgeRef::SouthEast).unwrap(),
-                );
-            } else if neighbor_direction == Direction::NorthEast {
-                nodes.insert(
-                    NodeRef::North,
-                    *neighbor_hexagon.nodes.get(&NodeRef::SouthWest).unwrap(),
-                );
-                nodes.insert(
-                    NodeRef::NorthEast,
-                    *neighbor_hexagon.nodes.get(&NodeRef::South).unwrap(),
-                );
-                edges.insert(
-                    EdgeRef::NorthEast,
-                    *neighbor_hexagon.edges.get(&EdgeRef::SouthWest).unwrap(),
                 );
             } else {
                 panic!("Something went wrong");
@@ -479,6 +465,7 @@ fn get_nodes_edges(
             node_autoinc += 1;
         }
     }
+
     for edgeref in EDGE_REFS {
         edges.entry(edgeref).or_insert_with(|| {
             let (a_noderef, b_noderef) = get_noderefs(edgeref);

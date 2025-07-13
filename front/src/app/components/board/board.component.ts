@@ -81,7 +81,6 @@ import { Coordinate, GameBoard } from '../../services/game.service';
         @for (node of getNodes(); track node.id) {
           <app-node
             [id]="node.id"
-            [coordinate]="node.tile_coordinate"
             [absoluteCoordinate]="node.absolute_coordinate"
             [direction]="node.direction"
             [building]="node.building"

@@ -99,21 +99,21 @@ impl GlobalState {
         topology.insert((2, 0, -2), TileSlot::Land);
         topology.insert((2, -1, -1), TileSlot::Land);
         // third layer (outer water/port ring)
-        topology.insert((3, -3, 0), TileSlot::SWPort);
+        topology.insert((3, -3, 0), TileSlot::WPort);
         topology.insert((2, -3, 1), TileSlot::Water);
-        topology.insert((1, -3, 2), TileSlot::SEPort);
+        topology.insert((1, -3, 2), TileSlot::WPort);
         topology.insert((0, -3, 3), TileSlot::Water);
-        topology.insert((-1, -2, 3), TileSlot::SEPort);
+        topology.insert((-1, -2, 3), TileSlot::NWPort);
         topology.insert((-2, -1, 3), TileSlot::Water);
-        topology.insert((-3, 0, 3), TileSlot::EPort);
+        topology.insert((-3, 0, 3), TileSlot::NEPort);
         topology.insert((-3, 1, 2), TileSlot::Water);
         topology.insert((-3, 2, 1), TileSlot::EPort);
         topology.insert((-3, 3, 0), TileSlot::Water);
-        topology.insert((-2, 3, -1), TileSlot::NEPort);
+        topology.insert((-2, 3, -1), TileSlot::EPort);
         topology.insert((-1, 3, -2), TileSlot::Water);
-        topology.insert((0, 3, -3), TileSlot::NWPort);
+        topology.insert((0, 3, -3), TileSlot::SEPort);
         topology.insert((1, 2, -3), TileSlot::Water);
-        topology.insert((2, 1, -3), TileSlot::WPort);
+        topology.insert((2, 1, -3), TileSlot::SWPort);
         topology.insert((3, 0, -3), TileSlot::Water);
         topology.insert((3, -1, -2), TileSlot::SWPort);
         topology.insert((3, -2, -1), TileSlot::Water);
@@ -121,14 +121,12 @@ impl GlobalState {
         let base_map_template = MapTemplate {
             numbers: vec![2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
             ports: vec![
-                // These are 2:1 ports
                 Some(Resource::Wood),
-                Some(Resource::Brick),
+                None,
                 Some(Resource::Sheep),
                 Some(Resource::Wheat),
                 Some(Resource::Ore),
-                // These represet 3:1 ports
-                None,
+                Some(Resource::Brick),
                 None,
                 None,
                 None,

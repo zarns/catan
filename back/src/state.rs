@@ -142,6 +142,10 @@ impl State {
         self.vector[IS_DISCARDING_INDEX] == 1
     }
 
+    pub fn get_map_instance(&self) -> &Arc<MapInstance> {
+        &self.map_instance
+    }
+
     fn is_road_building(&self) -> bool {
         self.vector[IS_INITIAL_BUILD_PHASE_INDEX] == 1
             && self.vector[FREE_ROADS_AVAILABLE_INDEX] == 1
