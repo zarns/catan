@@ -121,12 +121,11 @@ pub struct Player {
 pub type ActionLog = Vec<serde_json::Value>;
 
 // The unified Game struct that replaces both Game enum and GameView
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Game {
     pub id: String,
     pub players: Vec<Player>,
     pub game_state: GameState,
-    pub board: GameBoard,
     pub current_player_index: usize,
     pub dice_rolled: bool,
     pub turns: u32,
@@ -249,128 +248,6 @@ fn convert_port_tile(coord: CubeCoordinate, port_tile: &PortTile) -> PortPositio
     }
 }
 
-// Generate a serializable game board from the MapInstance
-pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
-    let mut tiles = Vec::new();
-    let mut ports = Vec::new();
-    let mut nodes = HashMap::new();
-    let mut edges = HashMap::new();
-    let mut robber_coordinate = None;
-
-    // Process all tiles
-    for (&coordinate, tile) in &map_instance.tiles {
-        match tile {
-            Tile::Land(land_tile) => {
-                // Convert land tile to frontend format
-                tiles.push(convert_land_tile(coordinate, land_tile));
-
-                // Track the robber location (desert tile or first tile)
-                if land_tile.resource.is_none() || robber_coordinate.is_none() {
-                    robber_coordinate = Some(convert_coordinate(coordinate));
-                }
-
-                // Generate nodes for this tile
-                for (&node_ref, &node_id) in &land_tile.hexagon.nodes {
-                    let direction = match node_ref {
-                        NodeRef::North => "N",
-                        NodeRef::NorthEast => "NE",
-                        NodeRef::SouthEast => "SE",
-                        NodeRef::South => "S",
-                        NodeRef::SouthWest => "SW",
-                        NodeRef::NorthWest => "NW",
-                    };
-
-                    // Use just the node ID - no duplicate entries per tile
-                    let node_id_str = node_id.to_string();
-
-                    // Only add this node if we haven't seen it before
-                    if !nodes.contains_key(&node_id_str) {
-                        // Calculate absolute coordinate using canonical positioning
-                        let absolute_coord = find_node_absolute_coordinate(node_id, map_instance)
-                            .unwrap_or_else(|| {
-                                // Fallback: calculate from this tile's perspective
-                                let node_direction = node_ref_to_direction(node_ref);
-                                node_coordinate_to_absolute(calculate_node_coordinate(
-                                    coordinate,
-                                    node_direction,
-                                ))
-                            });
-
-                        nodes.insert(
-                            node_id_str,
-                            Node {
-                                building: None,
-                                color: None,
-                                tile_coordinate: convert_coordinate(coordinate),
-                                direction: direction.to_string(),
-                                absolute_coordinate: absolute_coord,
-                            },
-                        );
-                    }
-                }
-
-                // Generate edges for this tile
-                for (&edge_ref, &(node1, node2)) in &land_tile.hexagon.edges {
-                    let direction = match edge_ref {
-                        EdgeRef::North => "N",
-                        EdgeRef::SouthEast => "SE",
-                        EdgeRef::SouthWest => "SW",
-                        EdgeRef::South => "S",
-                        EdgeRef::NorthWest => "NW",
-                        EdgeRef::NorthEast => "NE",
-                    };
-
-                    // Use edge ID format that shows both connected nodes
-                    let edge_id = format!("e{}_{}", node1.min(node2), node1.max(node2));
-
-                    // Calculate absolute coordinates for the edge endpoints using actual node IDs
-                    let node1_abs = find_node_absolute_coordinate(node1, map_instance).unwrap_or(
-                        NodeAbsoluteCoordinate {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 0.0,
-                        },
-                    );
-                    let node2_abs = find_node_absolute_coordinate(node2, map_instance).unwrap_or(
-                        NodeAbsoluteCoordinate {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 0.0,
-                        },
-                    );
-
-                    edges.insert(
-                        edge_id,
-                        Edge {
-                            color: None,
-                            node1_id: node1,
-                            node2_id: node2,
-                            tile_coordinate: convert_coordinate(coordinate),
-                            direction: direction.to_string(),
-                            node1_absolute_coordinate: node1_abs,
-                            node2_absolute_coordinate: node2_abs,
-                        },
-                    );
-                }
-            }
-            Tile::Port(port_tile) => {
-                // Convert port tile to frontend format
-                ports.push(convert_port_tile(coordinate, port_tile));
-            }
-            Tile::Water(_) => {
-                // Skip water tiles - we don't need to send them to the frontend
-            }
-        }
-    }
-
-    GameBoard {
-        tiles,
-        ports,
-        nodes,
-        edges,
-        robber_coordinate,
-    }
-}
 
 // Create a new Player struct from the given information
 pub fn create_player(id: String, name: String, color: String) -> Player {
@@ -418,15 +295,14 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
         0, // Use a fixed seed for predictable board generation
     );
 
-    // Create the State object
-    let state = State::new(Arc::new(config), Arc::new(map_instance.clone()));
+    // Create the State object first (it owns the canonical map)
+    let state = State::new(Arc::new(config), Arc::new(map_instance));
 
-    // Create the Game object
+    // Create the Game object (board is generated on-demand via get_board())
     let mut game = Game {
         id,
         players,
         game_state: GameState::Setup,
-        board: generate_board_from_template(&map_instance),
         current_player_index: 0,
         dice_rolled: false,
         turns: 0,
@@ -530,15 +406,14 @@ impl Game {
             0, // Use a fixed seed for predictable board generation
         );
 
-        // Create the State object
-        let state = State::new(Arc::new(config), Arc::new(map_instance.clone()));
+        // Create the State object first (it owns the canonical map)
+        let state = State::new(Arc::new(config), Arc::new(map_instance));
 
-        // Create the Game object
+        // Create the Game object (board is generated on-demand via get_board())
         let mut game = Game {
             id,
             players,
             game_state: GameState::Setup,
-            board: generate_board_from_template(&map_instance),
             current_player_index: 0,
             dice_rolled: false,
             turns: 0,
@@ -556,6 +431,22 @@ impl Game {
         game.update_metadata_from_state();
 
         game
+    }
+
+    /// Generate board data on-demand from the current state
+    pub fn get_board(&self) -> GameBoard {
+        if let Some(state) = &self.state {
+            generate_board_from_state(state, state.get_map_instance())
+        } else {
+            // Fallback empty board if no state (shouldn't happen)
+            GameBoard {
+                tiles: Vec::new(),
+                ports: Vec::new(),
+                nodes: HashMap::new(),
+                edges: HashMap::new(),
+                robber_coordinate: None,
+            }
+        }
     }
 
     // Process an action on the game
@@ -604,8 +495,7 @@ impl Game {
         self.current_player_index = new_current_player;
         self.dice_rolled = new_dice_rolled;
 
-        // Update the board representation to reflect the new state
-        self.update_board();
+        // Board representation is generated on-demand via get_board() - no update needed
 
         // Log the action for the game log - format: [player_color, action_type, action_data]
         let action_log_entry = {
@@ -695,15 +585,6 @@ impl Game {
         }
 
         Ok(())
-    }
-
-    // Update the game board from the current state
-    pub fn update_board(&mut self) {
-        if let Some(state) = &self.state {
-            // Use the map instance from state
-            self.board = generate_board_from_state(state, state.get_map_instance());
-        } else {
-        }
     }
 
     /// Check if the game is in the initial build phase from the internal state
@@ -840,6 +721,37 @@ impl Game {
         }
 
         adjacencies
+    }
+}
+
+// Custom Serialize implementation to include board field generated on-demand
+impl Serialize for Game {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        
+        let mut state = serializer.serialize_struct("Game", 14)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("players", &self.players)?;
+        state.serialize_field("game_state", &self.game_state)?;
+        state.serialize_field("current_player_index", &self.current_player_index)?;
+        state.serialize_field("dice_rolled", &self.dice_rolled)?;
+        state.serialize_field("turns", &self.turns)?;
+        state.serialize_field("current_dice_roll", &self.current_dice_roll)?;
+        state.serialize_field("actions", &self.actions)?;
+        state.serialize_field("current_playable_actions", &self.current_playable_actions)?;
+        state.serialize_field("is_initial_build_phase", &self.is_initial_build_phase)?;
+        state.serialize_field("current_color", &self.current_color)?;
+        state.serialize_field("current_prompt", &self.current_prompt)?;
+        state.serialize_field("bot_colors", &self.bot_colors)?;
+        
+        // Generate board on-demand during serialization
+        let board = self.get_board();
+        state.serialize_field("board", &board)?;
+        
+        state.end()
     }
 }
 
