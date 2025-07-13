@@ -64,7 +64,8 @@ export class PlayerStateBoxComponent {
   @Input() isCurrentPlayer: boolean = false;
   @Input() isBot: boolean = false;
 
-  resourceTypes = ['WOOD', 'BRICK', 'SHEEP', 'WHEAT', 'ORE'];
+  // Use backend resource strings to ensure correct mapping
+  resourceTypes = ['Wood', 'Brick', 'Sheep', 'Wheat', 'Ore'];
   developmentCardTypes = ['VICTORY_POINT', 'KNIGHT', 'MONOPOLY', 'YEAR_OF_PLENTY', 'ROAD_BUILDING'];
 
   getPlayerClasses(): string {
@@ -111,17 +112,9 @@ export class PlayerStateBoxComponent {
       );
 
       if (player && player.resources) {
-        // Map resource types to the backend format
-        const resourceMap: any = {
-          WOOD: 'Wood',
-          BRICK: 'Brick',
-          SHEEP: 'Sheep',
-          WHEAT: 'Wheat',
-          ORE: 'Ore',
-        };
-
-        if (resourceMap[card] && player.resources[resourceMap[card]]) {
-          return player.resources[resourceMap[card]];
+        // Use backend resource strings directly - no mapping needed
+        if (player.resources[card]) {
+          return player.resources[card];
         }
       }
     }

@@ -91,6 +91,23 @@ async fn get_game(
     }
 }
 
+// Get node adjacency data for a specific game
+async fn get_node_adjacencies(
+    State(state): State<Arc<AppState>>,
+    Path(game_id): Path<String>,
+) -> Result<Json<std::collections::HashMap<u8, Vec<(u8, Option<String>, Option<u8>)>>>, StatusCode> {
+    log::info!("Getting node adjacencies for game: {}", game_id);
+
+    // Delegate to game service
+    match state.game_service.get_game(&game_id).await {
+        Ok(game) => {
+            let adjacencies = game.get_all_node_tile_adjacencies();
+            Ok(Json(adjacencies))
+        },
+        Err(_) => Err(StatusCode::NOT_FOUND),
+    }
+}
+
 // WebSocket handler for game updates
 async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -135,6 +152,7 @@ async fn main() -> shuttle_axum::ShuttleAxum {
         .route("/", get(hello_world))
         .route("/games", post(create_game))
         .route("/games/{game_id}", get(get_game))
+        .route("/games/{game_id}/node-adjacencies", get(get_node_adjacencies))
         .route("/ws/games/{game_id}", get(ws_handler))
         .with_state(state)
         .layer(cors);

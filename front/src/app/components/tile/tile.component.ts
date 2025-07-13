@@ -161,12 +161,18 @@ export class TileComponent implements OnInit {
 
     const { x, y, z } = this.coordinate;
     const size = this.size;
-    const width = this.SQRT3 * size;
-    const height = 2 * size;
-
-    // Convert cube coordinates to pixel coordinates
-    const pixelX = this.centerX + width * (x + y / 2);
-    const pixelY = this.centerY + height * (3 / 4) * y;
+    const SQRT3 = 1.732050807568877; // Use exact same constant as backend
+    
+    // Use backend's coordinate conversion: axial coordinates (q, r) = (x, z)
+    const q = x;
+    const r = z;
+    
+    // Match backend's tile center calculation exactly
+    const tile_center_x = size * (SQRT3 * q + SQRT3 / 2.0 * r);
+    const tile_center_y = size * (3.0 / 2.0 * r);
+    
+    const pixelX = this.centerX + tile_center_x;
+    const pixelY = this.centerY + tile_center_y;
 
     return [pixelX, pixelY];
   }

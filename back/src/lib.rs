@@ -50,6 +50,10 @@ pub type PlayerColor = String;
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// Test modules
+#[cfg(test)]
+pub mod tests;
+
 // Create a new game instance with the given configuration
 pub fn create_game(config: GameConfiguration) -> CatanResult<Game> {
     Ok(Game::new(

@@ -22,10 +22,19 @@ export interface TilePosition {
   tile: Tile;
 }
 
+export interface NodeAbsoluteCoordinate {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface Node {
   id: string;
   building?: string; // 'settlement' or 'city'
   color?: string;
+  tile_coordinate?: Coordinate; // DEPRECATED: Keep for backward compatibility
+  direction?: string;
+  absolute_coordinate?: NodeAbsoluteCoordinate; // NEW: Absolute coordinates for deterministic positioning
 }
 
 export interface Edge {
@@ -466,5 +475,19 @@ export class GameService {
   // Trading
   tradeWithBankAction(gameId: string, give: string, receive: string): Observable<GameState> {
     return this.postAction(gameId, { MaritimeTrade: { give, take: receive, ratio: 4 } });
+  }
+
+  // Fetch authoritative node adjacency data from backend
+  getNodeAdjacencies(gameId: string): Observable<{[nodeId: number]: Array<[number, string | null, number | null]>}> {
+    console.log('🌐 GameService: Fetching node adjacencies for game:', gameId);
+    return this.http.get<{[nodeId: number]: Array<[number, string | null, number | null]>}>(`${this.apiUrl}/games/${gameId}/node-adjacencies`).pipe(
+      tap(adjacencies => {
+        console.log('🌐 GameService: Node adjacencies fetched successfully:', adjacencies);
+      }),
+      catchError(error => {
+        console.error('❌ GameService: Error fetching node adjacencies:', error);
+        return throwError(() => new Error('Failed to fetch node adjacencies'));
+      })
+    );
   }
 }

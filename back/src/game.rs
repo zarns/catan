@@ -204,6 +204,7 @@ fn convert_land_tile(coord: CubeCoordinate, land_tile: &LandTile) -> TilePositio
         Some(EnumResource::Ore) => Some("ore".to_string()),
         None => None,
     };
+    
 
     TilePosition {
         coordinate: convert_coordinate(coord),
@@ -256,20 +257,24 @@ pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
     let mut nodes = HashMap::new();
     let mut edges = HashMap::new();
     let mut robber_coordinate = None;
+    
 
     // Process all tiles
     for (&coordinate, tile) in &map_instance.tiles {
         match tile {
             Tile::Land(land_tile) => {
+                
                 // Convert land tile to frontend format
                 tiles.push(convert_land_tile(coordinate, land_tile));
 
-                // Track the robber location (desert tile or first tile)
-                if land_tile.resource.is_none() || robber_coordinate.is_none() {
+                // Track the robber location (desert tile only, with fallback)
+                if land_tile.resource.is_none() {
+                    robber_coordinate = Some(convert_coordinate(coordinate));
+                } else if robber_coordinate.is_none() {
                     robber_coordinate = Some(convert_coordinate(coordinate));
                 }
 
-                // Generate nodes for this tile
+                // Generate nodes for this tile (only add if not already present)
                 for (&node_ref, &node_id) in &land_tile.hexagon.nodes {
                     let direction = match node_ref {
                         NodeRef::North => "N",
@@ -280,23 +285,31 @@ pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
                         NodeRef::NorthWest => "NW",
                     };
 
-                    // Use a more compact node ID format: n{id}_{direction}
-                    let node_id_str = format!("n{}_{}", node_id, direction);
 
-                    // Calculate absolute coordinate for this node
-                    let node_direction = node_ref_to_direction(node_ref);
-                    let absolute_coord = calculate_node_coordinate(coordinate, node_direction);
+                    // Use just the node ID - no duplicate entries per tile
+                    let node_id_str = node_id.to_string();
 
-                    nodes.insert(
-                        node_id_str,
-                        Node {
-                            building: None,
-                            color: None,
-                            tile_coordinate: convert_coordinate(coordinate),
-                            direction: direction.to_string(),
-                            absolute_coordinate: node_coordinate_to_absolute(absolute_coord),
-                        },
-                    );
+                    // Only add this node if we haven't seen it before
+                    if !nodes.contains_key(&node_id_str) {
+                        // Calculate absolute coordinate using canonical positioning
+                        let absolute_coord = find_node_absolute_coordinate(node_id, map_instance).unwrap_or_else(|| {
+                            // Fallback: calculate from this tile's perspective
+                            let node_direction = node_ref_to_direction(node_ref);
+                            node_coordinate_to_absolute(calculate_node_coordinate(coordinate, node_direction))
+                        });
+
+
+                        nodes.insert(
+                            node_id_str,
+                            Node {
+                                building: None,
+                                color: None,
+                                tile_coordinate: convert_coordinate(coordinate),
+                                direction: direction.to_string(),
+                                absolute_coordinate: absolute_coord,
+                            },
+                        );
+                    }
                 }
 
                 // Generate edges for this tile
@@ -352,6 +365,8 @@ pub fn generate_board_from_template(map_instance: &MapInstance) -> GameBoard {
             }
         }
     }
+    
+
 
     GameBoard {
         tiles,
@@ -428,6 +443,7 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
         current_prompt: None,
         bot_colors: Vec::new(),
         state: Some(state),
+        map_instance: Some(Arc::new(map_instance.clone())), // Store original map instance
     };
 
     // Update metadata from the initial state
@@ -540,6 +556,7 @@ impl Game {
             current_prompt: None,
             bot_colors: Vec::new(),
             state: Some(state),
+            map_instance: Some(Arc::new(map_instance.clone())), // Store original map instance
         };
 
         // Update metadata from the initial state
@@ -689,17 +706,10 @@ impl Game {
 
     // Update the game board from the current state
     pub fn update_board(&mut self) {
-        if let Some(state) = &self.state {
-            // Get the map instance
-            let global_state = GlobalState::new();
-            let map_instance = MapInstance::new(
-                &global_state.base_map_template,
-                &global_state.dice_probas,
-                0, // Use a fixed seed for predictable board generation
-            );
-
-            // Update the board with buildings, roads, and robber
-            self.board = generate_board_from_state(state, &map_instance);
+        if let (Some(state), Some(map_instance)) = (&self.state, &self.map_instance) {
+            // Use the STORED map instance instead of creating a new one
+            self.board = generate_board_from_state(state, map_instance);
+        } else {
         }
     }
 
@@ -788,6 +798,49 @@ impl Game {
             _ => false, // Inconsistent if no internal state
         }
     }
+
+    /// Get all adjacent tiles for a specific node ID using backend's authoritative adjacency calculation
+    pub fn get_node_adjacent_tiles(&self, node_id: u8) -> Option<Vec<(u8, Option<String>, Option<u8>)>> {
+        if let Some(map_instance) = &self.map_instance {
+            if let Some(adjacent_tiles) = map_instance.get_adjacent_tiles(node_id) {
+                let result: Vec<(u8, Option<String>, Option<u8>)> = adjacent_tiles
+                    .iter()
+                    .map(|tile| {
+                        let resource_str = tile.resource.map(|r| match r {
+                            crate::enums::Resource::Wood => "wood".to_string(),
+                            crate::enums::Resource::Brick => "brick".to_string(),
+                            crate::enums::Resource::Sheep => "sheep".to_string(),
+                            crate::enums::Resource::Wheat => "wheat".to_string(),
+                            crate::enums::Resource::Ore => "ore".to_string(),
+                        });
+                        (tile.id, resource_str, tile.number)
+                    })
+                    .collect();
+                Some(result)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Get complete node-to-tile adjacency mapping for all nodes using backend's authoritative calculations
+    /// Returns HashMap<NodeId, Vec<(TileId, Resource, Number)>>
+    pub fn get_all_node_tile_adjacencies(&self) -> HashMap<u8, Vec<(u8, Option<String>, Option<u8>)>> {
+        let mut adjacencies = HashMap::new();
+        
+        if let Some(map_instance) = &self.map_instance {
+            // Iterate through all land nodes to build complete mapping
+            for &node_id in map_instance.land_nodes() {
+                if let Some(adjacent_tiles) = self.get_node_adjacent_tiles(node_id) {
+                    adjacencies.insert(node_id, adjacent_tiles);
+                }
+            }
+        }
+        
+        adjacencies
+    }
 }
 
 // Generate a serializable game board from the State and MapInstance
@@ -797,6 +850,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     let mut nodes = HashMap::new();
     let mut edges = HashMap::new();
     let mut robber_coordinate = None;
+    
 
     // Collect all node information in a deterministic way
     let mut node_info: std::collections::BTreeMap<u8, (Coordinate, String)> =
@@ -808,11 +862,13 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     // BUGFIX: Sort tiles by coordinate for deterministic iteration
     let mut sorted_tiles: Vec<_> = map_instance.tiles.iter().collect();
     sorted_tiles.sort_by_key(|(coord, _)| (coord.0, coord.1, coord.2));
+    
 
     // Process all tiles in deterministic order
     for (&coordinate, tile) in sorted_tiles {
         match tile {
             Tile::Land(land_tile) => {
+                
                 // Convert land tile to frontend format
                 tiles.push(convert_land_tile(coordinate, land_tile));
 
@@ -949,6 +1005,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
             },
         );
     }
+    
 
     GameBoard {
         tiles,
@@ -970,10 +1027,10 @@ fn update_players_from_state(players: &mut [Player], state: &State) {
             player.resources.clear();
             player
                 .resources
-                .insert(EnumResource::Brick, player_hand[0] as u32);
+                .insert(EnumResource::Wood, player_hand[0] as u32);
             player
                 .resources
-                .insert(EnumResource::Wood, player_hand[1] as u32);
+                .insert(EnumResource::Brick, player_hand[1] as u32);
             player
                 .resources
                 .insert(EnumResource::Sheep, player_hand[2] as u32);

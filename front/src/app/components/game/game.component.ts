@@ -95,7 +95,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   edgeActions: { [key: string]: any } = {};
   hexActions: { [key: string]: any } = {};
 
-  // Debug mode - can be toggled with 'D' key
+  // Debug mode for development
   debugMode: boolean = false;
 
   @HostListener('window:resize', ['$event'])
@@ -162,9 +162,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
         // 🎯 SINGLE DEBUG LOG: Show current playable actions for debugging
         console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
-        console.log('🎯 CURRENT_PROMPT:', this.gameState.current_prompt);
-        console.log('🎯 ROLL_AVAILABLE:', this.canRollDice());
-        console.log('🎯 END_AVAILABLE:', this.canEndTurn());
+        // Load game state successfully - node positioning is now handled by absolute coordinates
 
         // Update actions when game state changes
         this.updateNodeActions();
@@ -263,7 +261,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.nodeActions = {};
 
     // Prevent node actions during bot turns
-    if (this.isBotTurn) return;
+    if (this.isBotThinking) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -308,7 +306,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.edgeActions = {};
 
     // Prevent edge actions during bot turns
-    if (this.isBotTurn) return;
+    if (this.isBotThinking) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -350,7 +348,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.hexActions = {};
 
     // Prevent hex actions during bot turns
-    if (this.isBotTurn) return;
+    if (this.isBotThinking) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -387,7 +385,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!nodeAction?.action) return;
 
-    // Pass the enum format directly - no conversion needed!
+    // Simple check: Log the node ID being sent to backend
+    // Send the action directly to backend - no coordinate transformation needed
     this.gameService.postAction(this.gameId, nodeAction.action).subscribe({
       next: gameState => {
         // State will be updated via WebSocket, no need for manual UI state changes
@@ -596,20 +595,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onMainAction(): void {
     if (!this.gameId || this.isWatchOnlyMode) return;
 
-    // 🔍 DEBUG: Log the main action decision process
-    console.log('🔍 MAIN_ACTION_DEBUG:', {
-      isRoll: this.shouldShowRollButton(),
-      current_prompt: this.gameState?.current_prompt,
-      canRollDice: this.canRollDice(),
-      canEndTurn: this.canEndTurn(),
-      playable_actions: this.gameState?.current_playable_actions
-    });
 
     // Check special prompts first, then fall back to normal turn logic
     if (this.gameState?.current_prompt === 'DISCARD') {
       this.proceedWithDiscard();
     } else if (this.shouldShowRollButton()) {
-      console.log('🎲 Rolling dice...');
       this.rollDice();
     } else {
       console.log('⏭️ Ending turn...');
@@ -849,5 +839,4 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  // Removed convertRustEnumToArray - now passing enum format directly
 }
