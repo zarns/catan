@@ -76,6 +76,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   isPlayingMonopoly = false;
   isPlayingYearOfPlenty = false;
 
+  // Building mode system - tracks what user is currently trying to build
+  buildingMode: 'none' | 'road' | 'settlement' | 'city' = 'none';
+
   // Drawer state
   isLeftDrawerOpen = false;
   isRightDrawerOpen = false;
@@ -108,6 +111,14 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (event.key === 'D' || event.key === 'd') {
       this.debugMode = !this.debugMode;
       console.log(`🔧 Debug mode ${this.debugMode ? 'enabled' : 'disabled'}`);
+    }
+    
+    // Cancel building mode with Escape key
+    if (event.key === 'Escape' && this.buildingMode !== 'none') {
+      this.buildingMode = 'none';
+      this.updateNodeActions();
+      this.updateEdgeActions();
+      console.log('🚫 Building mode cancelled with Escape key');
     }
   }
 
@@ -162,6 +173,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         // 🎯 SINGLE DEBUG LOG: Show current playable actions for debugging
         console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
         // Load game state successfully - node positioning is now handled by absolute coordinates
+
+        // Clear building mode if it's no longer player's turn or actions changed
+        if (this.buildingMode !== 'none' && (this.isBotTurn || this.gameState.current_prompt !== 'PLAY_TURN')) {
+          this.buildingMode = 'none';
+          console.log('🚫 Building mode cleared due to game state change');
+        }
 
         // Update actions when game state changes
         this.updateNodeActions();
@@ -263,10 +280,15 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
+    // Only highlight nodes when user has selected what to build
+    const showSettlements = this.buildingMode === 'settlement';
+    const showCities = this.buildingMode === 'city';
+
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
     this.gameState.current_playable_actions.forEach((action) => {
       // Check if this is a BuildSettlement action (Rust enum format)
       if (
+        showSettlements &&
         action.hasOwnProperty('BuildSettlement') &&
         action.BuildSettlement?.node_id !== undefined
       ) {
@@ -278,7 +300,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         };
       }
       // Check if this is a BuildCity action (Rust enum format)
-      else if (action.hasOwnProperty('BuildCity') && action.BuildCity?.node_id !== undefined) {
+      else if (
+        showCities &&
+        action.hasOwnProperty('BuildCity') && 
+        action.BuildCity?.node_id !== undefined
+      ) {
         const nodeId = action.BuildCity.node_id;
         this.nodeActions[nodeId.toString()] = {
           type: 'BUILD_CITY',
@@ -288,7 +314,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
       }
       // Also handle flat object format for backwards compatibility
       else if (
-        (action.action_type === 'BUILD_SETTLEMENT' || action.action_type === 'BUILD_CITY') &&
+        ((action.action_type === 'BUILD_SETTLEMENT' && showSettlements) ||
+         (action.action_type === 'BUILD_CITY' && showCities)) &&
         action.node_id !== undefined
       ) {
         this.nodeActions[action.node_id.toString()] = {
@@ -308,10 +335,17 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
+    // Only highlight edges when user has selected road building
+    const showRoads = this.buildingMode === 'road';
+
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
     this.gameState.current_playable_actions.forEach((action) => {
       // Check if this is a BuildRoad action (Rust enum format)
-      if (action.hasOwnProperty('BuildRoad') && action.BuildRoad?.edge_id !== undefined) {
+      if (
+        showRoads &&
+        action.hasOwnProperty('BuildRoad') && 
+        action.BuildRoad?.edge_id !== undefined
+      ) {
         const [node1, node2] = action.BuildRoad.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
         this.edgeActions[edgeKey] = {
@@ -321,7 +355,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         };
       }
       // Also handle flat object format for backwards compatibility
-      else if (action.action_type === 'BUILD_ROAD' && action.edge_id !== undefined) {
+      else if (
+        showRoads &&
+        action.action_type === 'BUILD_ROAD' && 
+        action.edge_id !== undefined
+      ) {
         const [node1, node2] = action.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
         this.edgeActions[edgeKey] = {
@@ -387,7 +425,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     // Send the action directly to backend - no coordinate transformation needed
     this.gameService.postAction(this.gameId, nodeAction.action).subscribe({
       next: gameState => {
-        // State will be updated via WebSocket, no need for manual UI state changes
+        // Clear building mode after successful build
+        this.buildingMode = 'none';
+        this.updateNodeActions();
+        this.updateEdgeActions();
+        console.log('✅ Building completed, clearing building mode');
       },
       error: (err: Error) => {
         console.error('❌ Error executing node action:', err);
@@ -410,8 +452,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     // Pass the enum format directly - no conversion needed!
     this.gameService.postAction(this.gameId, edgeAction.action).subscribe({
       next: gameState => {
-        console.log('✅ Edge action completed successfully');
-        // State will be updated via WebSocket, no need for manual UI state changes
+        // Clear building mode after successful build
+        this.buildingMode = 'none';
+        this.updateNodeActions();
+        this.updateEdgeActions();
+        console.log('✅ Edge action completed successfully, clearing building mode');
       },
       error: (err: Error) => {
         console.error('❌ Error executing edge action:', err);
@@ -560,13 +605,28 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
     } else {
-      // For building actions (ROAD, SETTLEMENT, CITY), just let the user know to click on the board
-      // The actual building happens when they click on nodes/edges
-      // The backend's current_playable_actions will determine what's clickable
-      const actionName = buildType.toLowerCase().replace('_', ' ');
-      console.log(`🏗️ Ready to build ${actionName}. Click on the board to place it.`);
+      // Set building mode based on what user selected
+      switch (buildType) {
+        case 'ROAD':
+          this.buildingMode = 'road';
+          console.log('🛣️ Road building mode activated. Click on an edge to build road.');
+          break;
+        case 'SETTLEMENT':
+          this.buildingMode = 'settlement';
+          console.log('🏘️ Settlement building mode activated. Click on a node to build settlement.');
+          break;
+        case 'CITY':
+          this.buildingMode = 'city';
+          console.log('🏛️ City building mode activated. Click on a settlement to upgrade to city.');
+          break;
+        default:
+          this.buildingMode = 'none';
+          console.log('❓ Unknown build type:', buildType);
+      }
 
-      // No need to set UI state - the backend controls what's clickable via current_playable_actions
+      // Update board highlighting based on new building mode
+      this.updateNodeActions();
+      this.updateEdgeActions();
     }
   }
 

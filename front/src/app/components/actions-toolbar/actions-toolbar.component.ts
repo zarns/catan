@@ -174,13 +174,11 @@ export class ActionsToolbarComponent {
   get buildActionTypes(): Set<string> {
     if (!this.gameState?.current_playable_actions) return new Set();
 
-    return new Set(
-      this.gameState.current_playable_actions
-        .filter(
-          action => this.actionStartsWith(action, 'BUILD') || this.actionStartsWith(action, 'BUY')
-        )
-        .map(action => this.getActionType(action))
+    const filtered = this.gameState.current_playable_actions.filter(
+      action => this.actionStartsWith(action, 'BUILD') || this.actionStartsWith(action, 'BUY')
     );
+    
+    return new Set(filtered.map(action => this.getActionType(action)));
   }
 
   get playableDevCardTypes(): Set<string> {
@@ -197,7 +195,7 @@ export class ActionsToolbarComponent {
     if (!this.gameState?.current_playable_actions) return [];
 
     return this.gameState.current_playable_actions.filter(action =>
-      this.actionStartsWith(action, 'MARITIME_TRADE')
+      this.actionStartsWith(action, 'MARITIME_TRADE') || this.actionStartsWith(action, 'MARITIME')
     );
   }
 
