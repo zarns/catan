@@ -1,4 +1,5 @@
-use crate::deck_slices::{freqdeck_contains, CITY_COST, ROAD_COST, SETTLEMENT_COST};
+use crate::deck_slices::{freqdeck_contains, CITY_COST, DEVCARD_COST, ROAD_COST, SETTLEMENT_COST};
+use crate::state_vector::{DEV_BANK_PTR_INDEX, MAX_DEV_CARDS};
 
 use super::Building;
 use super::State;
@@ -183,6 +184,21 @@ impl State {
             .collect()
     }
 
+    pub fn buy_development_card_possibilities(&self, color: u8) -> Vec<Action> {
+        let has_money = freqdeck_contains(self.get_player_hand(color), &DEVCARD_COST);
+        if !has_money {
+            return vec![];
+        }
+
+        // Check if there are development cards available in the deck
+        let dev_card_ptr = self.vector[DEV_BANK_PTR_INDEX] as usize;
+        if dev_card_ptr >= MAX_DEV_CARDS {
+            return vec![];
+        }
+
+        vec![Action::BuyDevelopmentCard { color }]
+    }
+
     pub fn year_of_plenty_possibilities(&self, color: u8) -> Vec<Action> {
         let bank_resources = self.get_bank_resources();
         let mut actions = Vec::new();
@@ -250,6 +266,7 @@ impl State {
         actions.extend(self.settlement_possibilities(color, false));
         actions.extend(self.road_possibilities(color, false));
         actions.extend(self.city_possibilities(color));
+        actions.extend(self.buy_development_card_possibilities(color));
 
         if self.can_play_dev(DevCard::Knight as u8) {
             actions.push(Action::PlayKnight { color });

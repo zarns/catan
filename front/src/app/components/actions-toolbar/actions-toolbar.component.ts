@@ -5,10 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 
-interface PlayableAction {
-  action_type?: string;
-  [key: string]: any;
-}
+type PlayableAction = string;
 
 interface GameState {
   current_playable_actions?: PlayableAction[];
@@ -257,51 +254,34 @@ export class ActionsToolbarComponent {
     }
   }
 
-  // Helper methods for handling both flat and Rust enum formats
   private actionStartsWith(action: PlayableAction, prefix: string): boolean {
-    // Handle legacy flat format
-    if (action.action_type?.startsWith(prefix)) return true;
-
-    // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
-    // Case-insensitive check for Rust enum keys
-    return Object.keys(action).some(key => key.toLowerCase().startsWith(prefix.toLowerCase()));
+    return action.toLowerCase().startsWith(prefix.toLowerCase());
   }
 
   private getActionType(action: PlayableAction): string {
-    // Return action_type for legacy format
-    if (action.action_type) return action.action_type;
-
-    // Return first key for Rust enum format
-    return Object.keys(action)[0] || '';
+    return action;
   }
 
   private hasActionType(actionType: string): boolean {
     if (!this.gameState?.current_playable_actions) return false;
 
-    return this.gameState.current_playable_actions.some((action: PlayableAction) => {
-      // Handle legacy flat format
-      if (action.action_type === actionType) return true;
+    const actionMap: { [key: string]: string } = {
+      BUY_DEVELOPMENT_CARD: 'BuyDevelopmentCard',
+      BUILD_CITY: 'BuildCity',
+      BUILD_SETTLEMENT: 'BuildSettlement',
+      BUILD_ROAD: 'BuildRoad',
+      PLAY_MONOPOLY: 'PlayMonopoly',
+      PLAY_YEAR_OF_PLENTY: 'PlayYearOfPlenty',
+      PLAY_ROAD_BUILDING: 'PlayRoadBuilding',
+      PLAY_KNIGHT: 'PlayKnight',
+      MARITIME_TRADE: 'MaritimeTrade',
+      MOVE_ROBBER: 'MoveRobber',
+      ROLL: 'Roll',
+      END_TURN: 'EndTurn',
+    };
 
-      // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
-      if (action.hasOwnProperty(actionType)) return true;
-
-      // Handle mapped enum names (PLAY_MONOPOLY -> PlayMonopoly, etc.)
-      const enumMap: { [key: string]: string[] } = {
-        PLAY_MONOPOLY: ['PlayMonopoly'],
-        PLAY_YEAR_OF_PLENTY: ['PlayYearOfPlenty'],
-        PLAY_ROAD_BUILDING: ['PlayRoadBuilding'],
-        PLAY_KNIGHT: ['PlayKnight'],
-        BUY_DEVELOPMENT_CARD: ['BuyDevelopmentCard'],
-        BUILD_CITY: ['BuildCity'],
-        BUILD_SETTLEMENT: ['BuildSettlement'],
-        BUILD_ROAD: ['BuildRoad'],
-        MARITIME_TRADE: ['MaritimeTrade'],
-        MOVE_ROBBER: ['MoveRobber'],
-      };
-
-      const possibleEnumNames = enumMap[actionType] || [];
-      return possibleEnumNames.some(enumName => action.hasOwnProperty(enumName));
-    });
+    const expectedAction = actionMap[actionType];
+    return this.gameState.current_playable_actions.includes(expectedAction);
   }
 
   getTradeDescription(tradeAction: PlayableAction): string {

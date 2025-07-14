@@ -280,8 +280,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
-    // Only highlight nodes when user has selected what to build
-    const showSettlements = this.buildingMode === 'settlement';
+    // During initial build phase, always show settlements. During regular play, use building mode.
+    const isInitialBuildPhase = this.gameState.current_prompt === 'BUILD_INITIAL_SETTLEMENT';
+    const showSettlements = isInitialBuildPhase || this.buildingMode === 'settlement';
     const showCities = this.buildingMode === 'city';
 
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
@@ -335,8 +336,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
-    // Only highlight edges when user has selected road building
-    const showRoads = this.buildingMode === 'road';
+    // During initial build phase, always show roads. During regular play, use building mode.
+    const isInitialRoadPhase = this.gameState.current_prompt === 'BUILD_INITIAL_ROAD';
+    const showRoads = isInitialRoadPhase || this.buildingMode === 'road';
 
     // Parse current_playable_actions - these are Rust enum variants, not flat objects
     this.gameState.current_playable_actions.forEach((action) => {
