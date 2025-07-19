@@ -276,7 +276,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.nodeActions = {};
 
     // Prevent node actions during bot turns
-    if (this.isBotThinking) return;
+    if (this.isBotThinking || this.isBotTurn) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -314,7 +314,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.edgeActions = {};
 
     // Prevent edge actions during bot turns
-    if (this.isBotThinking) return;
+    if (this.isBotThinking || this.isBotTurn) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -351,7 +351,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     this.hexActions = {};
 
     // Prevent hex actions during bot turns
-    if (this.isBotThinking) return;
+    if (this.isBotThinking || this.isBotTurn) return;
 
     if (!this.gameState?.current_playable_actions) return;
 
@@ -374,7 +374,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   // Action handlers
 
   onNodeClick(nodeId: string): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     // Check if this node has an available action
     let nodeAction = this.nodeActions[nodeId];
@@ -406,7 +406,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onEdgeClick(edgeId: string): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     // Check if this edge has an available action
     const edgeAction = this.edgeActions[edgeId];
@@ -436,7 +436,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     console.log(`🔶 onHexClick called with:`, coordinate);
     console.log(`🔶 Current state - current_prompt: ${this.gameState?.current_prompt}`);
 
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     // Auto-enable robber movement when it's time to move robber - no button click needed
     if (this.gameState?.current_prompt === 'MOVE_ROBBER') {
@@ -463,7 +463,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onUseCard(cardType: string): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     if (cardType === 'MONOPOLY') {
       this.resourceSelectorMode = 'monopoly';
@@ -524,7 +524,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onResourceSelected(resources: any): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     if (this.resourceSelectorMode === 'monopoly') {
       this.gameService.playMonopolyAction(this.gameId, resources).subscribe({
@@ -560,7 +560,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onBuild(buildType: string): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     if (buildType === 'DEV_CARD') {
       // Development card purchase is immediate
@@ -599,7 +599,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onTrade(trade: any): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     // Example implementation for bank trades
     if (trade.type === 'BANK') {
@@ -615,7 +615,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onMainAction(): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
 
     // Check special prompts first, then fall back to normal turn logic
@@ -631,7 +631,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
 
   proceedWithDiscard(): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     console.log('🗂️ Looking for DISCARD action with proper resources field...');
 
@@ -651,7 +651,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   rollDice(): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     console.log('🎲 Sending Roll action via WebSocket');
     // Use WebSocket instead of HTTP for consistent action handling
@@ -659,7 +659,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   endTurn(): void {
-    if (!this.gameId || this.isWatchOnlyMode) return;
+    if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     console.log('⏭️ Sending EndTurn action via WebSocket');
     // Use WebSocket instead of HTTP for consistent action handling

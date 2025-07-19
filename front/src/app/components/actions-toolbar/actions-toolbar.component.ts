@@ -153,6 +153,9 @@ export class ActionsToolbarComponent {
   get shouldShowActionButtons(): boolean {
     if (!this.gameState) return false;
     
+    // Hide action buttons during bot turns
+    if (this.isBotTurn || this.isBotThinking) return false;
+    
     // Show action buttons during regular play and discard, but hide during robber movement (direct tile clicking)
     return this.gameState.current_prompt === 'PLAY_TURN' || 
            this.gameState.current_prompt === 'DISCARD';
