@@ -285,44 +285,26 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     const showSettlements = isInitialBuildPhase || this.buildingMode === 'settlement';
     const showCities = this.buildingMode === 'city';
 
-    // Parse current_playable_actions - these are Rust enum variants, not flat objects
+    // Parse current_playable_actions - using proper type guards for Rust enum variants
     this.gameState.current_playable_actions.forEach((action) => {
-      // Check if this is a BuildSettlement action (Rust enum format)
-      if (
-        showSettlements &&
-        action.hasOwnProperty('BuildSettlement') &&
-        action.BuildSettlement?.node_id !== undefined
-      ) {
-        const nodeId = action.BuildSettlement.node_id;
+      // Type guard for BuildSettlement
+      if (showSettlements && typeof action === 'object' && action !== null && 'BuildSettlement' in action) {
+        const buildAction = action as { BuildSettlement: { node_id: number } };
+        const nodeId = buildAction.BuildSettlement.node_id;
         this.nodeActions[nodeId.toString()] = {
           type: 'BUILD_SETTLEMENT',
           action: action,
           node_id: nodeId,
         };
       }
-      // Check if this is a BuildCity action (Rust enum format)
-      else if (
-        showCities &&
-        action.hasOwnProperty('BuildCity') && 
-        action.BuildCity?.node_id !== undefined
-      ) {
-        const nodeId = action.BuildCity.node_id;
+      // Type guard for BuildCity
+      else if (showCities && typeof action === 'object' && action !== null && 'BuildCity' in action) {
+        const buildAction = action as { BuildCity: { node_id: number } };
+        const nodeId = buildAction.BuildCity.node_id;
         this.nodeActions[nodeId.toString()] = {
           type: 'BUILD_CITY',
           action: action,
           node_id: nodeId,
-        };
-      }
-      // Also handle flat object format for backwards compatibility
-      else if (
-        ((action.action_type === 'BUILD_SETTLEMENT' && showSettlements) ||
-         (action.action_type === 'BUILD_CITY' && showCities)) &&
-        action.node_id !== undefined
-      ) {
-        this.nodeActions[action.node_id.toString()] = {
-          type: action.action_type,
-          action: action,
-          node_id: action.node_id,
         };
       }
     });
@@ -340,34 +322,17 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     const isInitialRoadPhase = this.gameState.current_prompt === 'BUILD_INITIAL_ROAD';
     const showRoads = isInitialRoadPhase || this.buildingMode === 'road';
 
-    // Parse current_playable_actions - these are Rust enum variants, not flat objects
+    // Parse current_playable_actions - using proper type guards for Rust enum variants
     this.gameState.current_playable_actions.forEach((action) => {
-      // Check if this is a BuildRoad action (Rust enum format)
-      if (
-        showRoads &&
-        action.hasOwnProperty('BuildRoad') && 
-        action.BuildRoad?.edge_id !== undefined
-      ) {
-        const [node1, node2] = action.BuildRoad.edge_id;
+      // Type guard for BuildRoad
+      if (showRoads && typeof action === 'object' && action !== null && 'BuildRoad' in action) {
+        const buildAction = action as { BuildRoad: { edge_id: [number, number] } };
+        const [node1, node2] = buildAction.BuildRoad.edge_id;
         const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
         this.edgeActions[edgeKey] = {
           type: 'BUILD_ROAD',
           action: action,
-          edge_id: action.BuildRoad.edge_id,
-        };
-      }
-      // Also handle flat object format for backwards compatibility
-      else if (
-        showRoads &&
-        action.action_type === 'BUILD_ROAD' && 
-        action.edge_id !== undefined
-      ) {
-        const [node1, node2] = action.edge_id;
-        const edgeKey = `e${Math.min(node1, node2)}_${Math.max(node1, node2)}`;
-        this.edgeActions[edgeKey] = {
-          type: action.action_type,
-          action: action,
-          edge_id: action.edge_id,
+          edge_id: buildAction.BuildRoad.edge_id,
         };
       }
     });
@@ -390,11 +355,12 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
-    // Parse current_playable_actions for MoveRobber actions
+    // Parse current_playable_actions for MoveRobber actions - using proper type guards
     this.gameState.current_playable_actions.forEach((action) => {
-      // Check if this is a MoveRobber action (Rust enum format)
-      if (action.hasOwnProperty('MoveRobber') && action.MoveRobber?.coordinate !== undefined) {
-        const coordinate = action.MoveRobber.coordinate;
+      // Type guard for MoveRobber
+      if (typeof action === 'object' && action !== null && 'MoveRobber' in action) {
+        const moveAction = action as { MoveRobber: { coordinate: [number, number, number]; victim?: string } };
+        const coordinate = moveAction.MoveRobber.coordinate;
         const hexKey = `${coordinate[0]}_${coordinate[1]}_${coordinate[2]}`;
         this.hexActions[hexKey] = {
           type: 'MOVE_ROBBER',
@@ -826,63 +792,38 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   private hasActionType(actionType: string): boolean {
     if (!this.gameState?.current_playable_actions) return false;
 
-    return this.gameState.current_playable_actions.some((action: any) => {
-      // Handle simple string format (e.g., 'Roll', 'EndTurn')
+    return this.gameState.current_playable_actions.some((action) => {
+      // Handle string variants (e.g., 'Roll', 'EndTurn', 'BuyDevelopmentCard')
       if (typeof action === 'string') {
         const enumMap: { [key: string]: string[] } = {
           ROLL: ['Roll'],
           END_TURN: ['EndTurn'],
-          BUILD_SETTLEMENT: ['BuildSettlement'],
-          BUILD_CITY: ['BuildCity'],
-          BUILD_ROAD: ['BuildRoad'],
           BUY_DEVELOPMENT_CARD: ['BuyDevelopmentCard'],
           PLAY_MONOPOLY: ['PlayMonopoly'],
           PLAY_YEAR_OF_PLENTY: ['PlayYearOfPlenty'],
           PLAY_ROAD_BUILDING: ['PlayRoadBuilding'],
           PLAY_KNIGHT_CARD: ['PlayKnight'],
           PLAY_KNIGHT: ['PlayKnight'],
+        };
+
+        const possibleEnumNames = enumMap[actionType] || [];
+        return possibleEnumNames.includes(action);
+      }
+
+      // Handle object variants with proper type guards
+      if (typeof action === 'object' && action !== null) {
+        const enumMap: { [key: string]: string[] } = {
+          BUILD_SETTLEMENT: ['BuildSettlement'],
+          BUILD_CITY: ['BuildCity'],
+          BUILD_ROAD: ['BuildRoad'],
           MOVE_ROBBER: ['MoveRobber'],
         };
 
         const possibleEnumNames = enumMap[actionType] || [];
-        if (possibleEnumNames.includes(action)) {
-          return true;
-        }
-
-        // Also check direct string match (case-insensitive)
-        if (action.toLowerCase() === actionType.toLowerCase()) {
-          return true;
-        }
+        return possibleEnumNames.some(enumName => enumName in action);
       }
 
-      // Handle legacy flat format
-      if (action.action_type === actionType) {
-        return true;
-      }
-
-      // Handle Rust enum format: {BuildSettlement: {node_id: 7}}
-      if (action.hasOwnProperty(actionType)) {
-        return true;
-      }
-
-      // Handle mapped enum names for object format
-      const enumMap: { [key: string]: string[] } = {
-        ROLL: ['Roll'],
-        END_TURN: ['EndTurn'],
-        BUILD_SETTLEMENT: ['BuildSettlement'],
-        BUILD_CITY: ['BuildCity'],
-        BUILD_ROAD: ['BuildRoad'],
-        BUY_DEVELOPMENT_CARD: ['BuyDevelopmentCard'],
-        PLAY_MONOPOLY: ['PlayMonopoly'],
-        PLAY_YEAR_OF_PLENTY: ['PlayYearOfPlenty'],
-        PLAY_ROAD_BUILDING: ['PlayRoadBuilding'],
-        PLAY_KNIGHT_CARD: ['PlayKnight'],
-        PLAY_KNIGHT: ['PlayKnight'],
-        MOVE_ROBBER: ['MoveRobber'],
-      };
-
-      const possibleEnumNames = enumMap[actionType] || [];
-      return possibleEnumNames.some(enumName => action.hasOwnProperty(enumName));
+      return false;
     });
   }
 

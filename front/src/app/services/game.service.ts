@@ -69,32 +69,26 @@ export interface Player {
   achievements?: string[];
 }
 
-// Modern action structure for frontend - matches backend actions::PlayableAction
-export interface PlayableAction {
-  // Flat object format (legacy)
-  action_type?: string;
-  color?: string;
-  node_id?: number;
-  edge_id?: [number, number]; // EdgeId is (NodeId, NodeId) = (u8, u8)
-  coordinate?: [number, number, number];
-  resource?: string;
-  resources?: string[];
-  target_player?: string;
-
-  // Rust enum format support
-  BuildSettlement?: { node_id: number };
-  BuildCity?: { node_id: number };
-  BuildRoad?: { edge_id: [number, number] };
-  Roll?: {};
-  EndTurn?: {};
-  BuyDevelopmentCard?: {};
-  PlayKnight?: {};
-  MoveRobber?: { coordinate: [number, number, number]; victim?: string };
-  Discard?: { resources: string[] };
-
-  // Support for unknown properties from Rust enum variants
-  [key: string]: any;
-}
+// Backend sends Rust PlayerAction enum - can be strings for unit variants or objects for data variants
+export type PlayableAction = 
+  // Unit variants become strings
+  | 'Roll'
+  | 'EndTurn' 
+  | 'BuyDevelopmentCard'
+  | 'PlayKnight'
+  | 'PlayRoadBuilding'
+  // Variants with data become objects
+  | { BuildRoad: { edge_id: [number, number] } }
+  | { BuildSettlement: { node_id: number } }
+  | { BuildCity: { node_id: number } }
+  | { PlayYearOfPlenty: { resources: [string, string | null] } }
+  | { PlayMonopoly: { resource: string } }
+  | { MaritimeTrade: { give: string; take: string; ratio: number } }
+  | { OfferTrade: { give: string[]; take: string[] } }
+  | { AcceptTrade: { trade_id: string } }
+  | { RejectTrade: { trade_id: string } }
+  | { MoveRobber: { coordinate: [number, number, number]; victim?: string } }
+  | { Discard: { resources: string[] } };
 
 export interface Game {
   id: string;
@@ -106,7 +100,7 @@ export interface Game {
   turns: number;
   current_dice_roll?: [number, number];
   actions: any[]; // Game log actions
-  // Modern action structure instead of legacy format
+  // Array of Rust enum objects as sent by backend
   current_playable_actions: PlayableAction[];
   is_initial_build_phase: boolean;
   current_color?: string;
@@ -118,7 +112,7 @@ export interface GameState {
   id: string;
   status: 'waiting' | 'in_progress' | 'finished';
   game: Game;
-  // Modern action structure instead of legacy format
+  // Array of Rust enum objects as sent by backend
   current_playable_actions: PlayableAction[];
   current_color?: string;
   current_prompt?: string;

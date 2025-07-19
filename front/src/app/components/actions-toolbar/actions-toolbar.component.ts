@@ -4,17 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
-
-type PlayableAction = string;
-
-interface GameState {
-  current_playable_actions?: PlayableAction[];
-  current_prompt?: string;
-  game?: {
-    is_initial_build_phase?: boolean;
-    dice_rolled?: boolean;
-  };
-}
+import { GameState, PlayableAction } from '../../services/game.service';
 
 @Component({
   selector: 'app-actions-toolbar',
@@ -168,66 +158,67 @@ export class ActionsToolbarComponent {
            this.gameState.current_prompt === 'DISCARD';
   }
 
-  get buildActionTypes(): Set<string> {
-    if (!this.gameState?.current_playable_actions) return new Set();
-
-    const filtered = this.gameState.current_playable_actions.filter(
-      action => this.actionStartsWith(action, 'BUILD') || this.actionStartsWith(action, 'BUY')
-    );
+  // Helper to extract action names from Rust PlayerAction enum
+  private get actionNames(): string[] {
+    if (!this.gameState?.current_playable_actions) return [];
     
-    return new Set(filtered.map(action => this.getActionType(action)));
+    return this.gameState.current_playable_actions.map((action: PlayableAction) => {
+      // Unit variants are strings: "Roll", "EndTurn", "BuyDevelopmentCard"
+      if (typeof action === 'string') return action;
+      // Data variants are objects: {BuildSettlement: {node_id: 7}} -> "BuildSettlement"
+      if (typeof action === 'object' && action !== null) {
+        return Object.keys(action)[0] || '';
+      }
+      return '';
+    }).filter(name => name.length > 0);
+  }
+
+  get buildActionTypes(): Set<string> {
+    return new Set(this.actionNames.filter(action => 
+      action.startsWith('Buy') || action.startsWith('Build')
+    ));
   }
 
   get playableDevCardTypes(): Set<string> {
-    if (!this.gameState?.current_playable_actions) return new Set();
-
-    return new Set(
-      this.gameState.current_playable_actions
-        .filter(action => this.actionStartsWith(action, 'PLAY'))
-        .map(action => this.getActionType(action))
-    );
+    return new Set(this.actionNames.filter(action => action.startsWith('Play')));
   }
 
-  get tradeActions(): PlayableAction[] {
-    if (!this.gameState?.current_playable_actions) return [];
-
-    return this.gameState.current_playable_actions.filter(action =>
-      this.actionStartsWith(action, 'MARITIME_TRADE') || this.actionStartsWith(action, 'MARITIME')
-    );
+  get tradeActions(): string[] {
+    return this.actionNames.filter(action => action.startsWith('Maritime'));
   }
 
   // Individual dev card checks
   get canPlayMonopoly(): boolean {
-    return this.hasActionType('PLAY_MONOPOLY');
+    return this.actionNames.includes('PlayMonopoly');
   }
 
   get canPlayYearOfPlenty(): boolean {
-    return this.hasActionType('PLAY_YEAR_OF_PLENTY');
+    return this.actionNames.includes('PlayYearOfPlenty');
   }
 
   get canPlayRoadBuilding(): boolean {
-    return this.hasActionType('PLAY_ROAD_BUILDING');
+    return this.actionNames.includes('PlayRoadBuilding');
   }
 
   get canPlayKnight(): boolean {
-    return this.hasActionType('PLAY_KNIGHT');
+    return this.actionNames.includes('PlayKnight');
   }
 
   // Individual build checks
   get canBuyDevCard(): boolean {
-    return this.hasActionType('BUY_DEVELOPMENT_CARD');
+    return this.actionNames.includes('BuyDevelopmentCard');
   }
 
   get canBuildCity(): boolean {
-    return this.hasActionType('BUILD_CITY');
+    return this.actionNames.includes('BuildCity');
   }
 
   get canBuildSettlement(): boolean {
-    return this.hasActionType('BUILD_SETTLEMENT');
+    return this.actionNames.includes('BuildSettlement');
   }
 
   get canBuildRoad(): boolean {
-    return this.hasActionType('BUILD_ROAD');
+    return this.actionNames.includes('BuildRoad');
   }
 
   get mainActionText(): string {
@@ -254,37 +245,7 @@ export class ActionsToolbarComponent {
     }
   }
 
-  private actionStartsWith(action: PlayableAction, prefix: string): boolean {
-    return action.toLowerCase().startsWith(prefix.toLowerCase());
-  }
-
-  private getActionType(action: PlayableAction): string {
-    return action;
-  }
-
-  private hasActionType(actionType: string): boolean {
-    if (!this.gameState?.current_playable_actions) return false;
-
-    const actionMap: { [key: string]: string } = {
-      BUY_DEVELOPMENT_CARD: 'BuyDevelopmentCard',
-      BUILD_CITY: 'BuildCity',
-      BUILD_SETTLEMENT: 'BuildSettlement',
-      BUILD_ROAD: 'BuildRoad',
-      PLAY_MONOPOLY: 'PlayMonopoly',
-      PLAY_YEAR_OF_PLENTY: 'PlayYearOfPlenty',
-      PLAY_ROAD_BUILDING: 'PlayRoadBuilding',
-      PLAY_KNIGHT: 'PlayKnight',
-      MARITIME_TRADE: 'MaritimeTrade',
-      MOVE_ROBBER: 'MoveRobber',
-      ROLL: 'Roll',
-      END_TURN: 'EndTurn',
-    };
-
-    const expectedAction = actionMap[actionType];
-    return this.gameState.current_playable_actions.includes(expectedAction);
-  }
-
-  getTradeDescription(tradeAction: PlayableAction): string {
+  getTradeDescription(tradeAction: string): string {
     // Extract trade description from action data
     // This would need to be implemented based on the actual trade action format
     return 'Maritime Trade'; // Placeholder
