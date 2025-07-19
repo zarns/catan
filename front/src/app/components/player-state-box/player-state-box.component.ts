@@ -66,7 +66,7 @@ export class PlayerStateBoxComponent {
 
   // Use backend resource strings to ensure correct mapping
   resourceTypes = ['Wood', 'Brick', 'Sheep', 'Wheat', 'Ore'];
-  developmentCardTypes = ['VICTORY_POINT', 'KNIGHT', 'MONOPOLY', 'YEAR_OF_PLENTY', 'ROAD_BUILDING'];
+  developmentCardTypes = ['VictoryPoint', 'Knight', 'Monopoly', 'YearOfPlenty', 'RoadBuilding'];
 
   getPlayerClasses(): string {
     const classes = [this.color.toLowerCase()];
@@ -111,10 +111,15 @@ export class PlayerStateBoxComponent {
         (p: any) => p.color.toLowerCase() === this.playerKey.toLowerCase()
       );
 
-      if (player && player.resources) {
-        // Use backend resource strings directly - no mapping needed
-        if (player.resources[card]) {
-          return player.resources[card];
+      if (player) {
+        // Handle development cards from dev_cards array
+        if (this.developmentCardTypes.includes(card) && player.dev_cards) {
+          return player.dev_cards.filter((devCard: string) => devCard === card).length;
+        }
+        
+        // Handle resources from resources object
+        if (this.resourceTypes.includes(card) && player.resources) {
+          return player.resources[card] || 0;
         }
       }
     }
@@ -208,15 +213,15 @@ export class PlayerStateBoxComponent {
 
   getCardTitle(card: string): string {
     switch (card) {
-      case 'VICTORY_POINT':
+      case 'VictoryPoint':
         return 'Victory Point Card(s)';
-      case 'KNIGHT':
+      case 'Knight':
         return 'Knight Card(s)';
-      case 'MONOPOLY':
+      case 'Monopoly':
         return 'Monopoly Card(s)';
-      case 'YEAR_OF_PLENTY':
+      case 'YearOfPlenty':
         return 'Year of Plenty Card(s)';
-      case 'ROAD_BUILDING':
+      case 'RoadBuilding':
         return 'Road Building Card(s)';
       default:
         return card;
@@ -225,15 +230,15 @@ export class PlayerStateBoxComponent {
 
   getCardShortName(card: string): string {
     switch (card) {
-      case 'VICTORY_POINT':
+      case 'VictoryPoint':
         return 'VP';
-      case 'KNIGHT':
+      case 'Knight':
         return 'KN';
-      case 'MONOPOLY':
+      case 'Monopoly':
         return 'MO';
-      case 'YEAR_OF_PLENTY':
+      case 'YearOfPlenty':
         return 'YP';
-      case 'ROAD_BUILDING':
+      case 'RoadBuilding':
         return 'RB';
       default:
         return card;

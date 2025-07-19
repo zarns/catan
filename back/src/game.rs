@@ -256,7 +256,7 @@ pub fn create_player(id: String, name: String, color: String) -> Player {
         name,
         color,
         resources: HashMap::new(),
-        dev_cards: Vec::new(),
+        dev_cards: Vec::new(), // Will be populated from internal state via update_players_from_state
         knights_played: 0,
         victory_points: 0,
         longest_road: false,
@@ -407,7 +407,23 @@ impl Game {
         );
 
         // Create the State object first (it owns the canonical map)
-        let state = State::new(Arc::new(config), Arc::new(map_instance));
+        let mut state = State::new(Arc::new(config), Arc::new(map_instance));
+
+        // For testing: Add dev cards to each player in the internal state
+        for player_idx in 0..player_names.len() {
+            let color = player_idx as u8;
+            // Add 2 of each dev card type to the internal state
+            state.add_dev_card(color, DevCard::Knight as usize);
+            state.add_dev_card(color, DevCard::Knight as usize);
+            state.add_dev_card(color, DevCard::VictoryPoint as usize);
+            state.add_dev_card(color, DevCard::VictoryPoint as usize);
+            state.add_dev_card(color, DevCard::Monopoly as usize);
+            state.add_dev_card(color, DevCard::Monopoly as usize);
+            state.add_dev_card(color, DevCard::YearOfPlenty as usize);
+            state.add_dev_card(color, DevCard::YearOfPlenty as usize);
+            state.add_dev_card(color, DevCard::RoadBuilding as usize);
+            state.add_dev_card(color, DevCard::RoadBuilding as usize);
+        }
 
         // Create the Game object (board is generated on-demand via get_board())
         let mut game = Game {
