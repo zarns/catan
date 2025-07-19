@@ -3,6 +3,29 @@ use crate::map_instance::{EdgeId, NodeId};
 use crate::map_template::Coordinate;
 use serde::{Deserialize, Serialize};
 
+/// Convert u8 resource index to Resource enum
+fn u8_to_resource(index: u8) -> Resource {
+    match index {
+        0 => Resource::Wood,
+        1 => Resource::Brick,
+        2 => Resource::Sheep,
+        3 => Resource::Wheat,
+        4 => Resource::Ore,
+        _ => Resource::Wood, // Default fallback
+    }
+}
+
+/// Convert Resource enum to u8 index
+fn resource_to_u8(resource: Resource) -> u8 {
+    match resource {
+        Resource::Wood => 0,
+        Resource::Brick => 1,
+        Resource::Sheep => 2,
+        Resource::Wheat => 3,
+        Resource::Ore => 4,
+    }
+}
+
 /// Unique identifier for players
 pub type PlayerId = String;
 
@@ -200,6 +223,16 @@ impl From<crate::enums::Action> for PlayerAction {
             EnumAction::BuildCity { node_id, .. } => PlayerAction::BuildCity { node_id },
             EnumAction::BuyDevelopmentCard { .. } => PlayerAction::BuyDevelopmentCard,
             EnumAction::PlayKnight { .. } => PlayerAction::PlayKnight,
+            EnumAction::PlayYearOfPlenty { resources, .. } => PlayerAction::PlayYearOfPlenty { 
+                resources: (
+                    u8_to_resource(resources.0),
+                    resources.1.map(u8_to_resource)
+                )
+            },
+            EnumAction::PlayMonopoly { resource, .. } => PlayerAction::PlayMonopoly { 
+                resource: u8_to_resource(resource)
+            },
+            EnumAction::PlayRoadBuilding { .. } => PlayerAction::PlayRoadBuilding,
             EnumAction::EndTurn { .. } => PlayerAction::EndTurn,
             EnumAction::MoveRobber {
                 coordinate,
@@ -232,6 +265,18 @@ impl From<PlayerAction> for crate::enums::Action {
             PlayerAction::BuildCity { node_id } => EnumAction::BuildCity { color: 0, node_id },
             PlayerAction::BuyDevelopmentCard => EnumAction::BuyDevelopmentCard { color: 0 },
             PlayerAction::PlayKnight => EnumAction::PlayKnight { color: 0 },
+            PlayerAction::PlayYearOfPlenty { resources } => EnumAction::PlayYearOfPlenty { 
+                color: 0, 
+                resources: (
+                    resource_to_u8(resources.0),
+                    resources.1.map(resource_to_u8)
+                )
+            },
+            PlayerAction::PlayMonopoly { resource } => EnumAction::PlayMonopoly { 
+                color: 0, 
+                resource: resource_to_u8(resource)
+            },
+            PlayerAction::PlayRoadBuilding => EnumAction::PlayRoadBuilding { color: 0 },
             PlayerAction::EndTurn => EnumAction::EndTurn { color: 0 },
             PlayerAction::MoveRobber { coordinate, .. } => EnumAction::MoveRobber {
                 color: 0,
