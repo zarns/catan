@@ -1981,6 +1981,57 @@ mod tests {
     }
 
     #[test]
+    fn test_road_building_turn_does_not_advance() {
+        let mut state = State::new_base();
+        let starting_color = state.get_current_color();
+
+        // Set up a simple scenario: build settlement and give road building card
+        state.build_settlement(starting_color, 0);
+        state.add_dev_card(starting_color, DevCard::RoadBuilding as usize);
+        
+        // Manually set state to post-initial phase for road building
+        state.vector[IS_INITIAL_BUILD_PHASE_INDEX] = 0;
+        state.vector[HAS_ROLLED_INDEX] = 1;
+
+        // Verify initial state
+        assert_eq!(state.get_current_color(), starting_color);
+
+        // Play road building card
+        state.apply_action(Action::PlayRoadBuilding { color: starting_color });
+
+        // Verify turn hasn't advanced after playing Road Building
+        assert_eq!(state.get_current_color(), starting_color);
+        assert!(state.is_road_building());
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 2);
+
+        // Build first road
+        let actions = state.generate_playable_actions();
+        if let Some(Action::BuildRoad { edge_id, .. }) = actions.first() {
+            state.apply_action(Action::BuildRoad { color: starting_color, edge_id: *edge_id });
+            
+            // CRITICAL: Verify turn STILL hasn't advanced after building first road
+            assert_eq!(state.get_current_color(), starting_color);
+            assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 1);
+            assert!(state.is_road_building());
+
+            // Build second road  
+            let actions = state.generate_playable_actions();
+            if let Some(Action::BuildRoad { edge_id, .. }) = actions.first() {
+                state.apply_action(Action::BuildRoad { color: starting_color, edge_id: *edge_id });
+                
+                // CRITICAL: Verify turn STILL hasn't advanced after building second road
+                assert_eq!(state.get_current_color(), starting_color);
+                assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 0);
+                assert!(!state.is_road_building());
+
+                // Now player should be able to continue their turn normally
+                let actions = state.generate_playable_actions();
+                assert!(actions.iter().any(|a| matches!(a, Action::EndTurn { .. })));
+            }
+        }
+    }
+
+    #[test]
     fn test_maritime_trade_basic_rate() {
         let mut state = State::new_base();
         let color = state.get_current_color();

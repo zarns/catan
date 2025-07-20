@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::actions::{GameEvent, GameId, PlayerAction};
+use crate::actions::{GameEvent, GameId, PlayerAction, resource_to_u8};
 use crate::errors::{CatanError, CatanResult, GameError, PlayerError};
 use crate::game::{Game, GameState};
 use crate::player_system::{Player, PlayerFactory};
@@ -227,6 +227,19 @@ impl GameService {
             PlayerAction::BuildCity { node_id } => EnumAction::BuildCity { color, node_id },
             PlayerAction::BuyDevelopmentCard => EnumAction::BuyDevelopmentCard { color },
             PlayerAction::PlayKnight => EnumAction::PlayKnight { color },
+            PlayerAction::PlayYearOfPlenty { resources } => {
+                EnumAction::PlayYearOfPlenty {
+                    color,
+                    resources: (resource_to_u8(resources.0), resources.1.map(resource_to_u8)),
+                }
+            }
+            PlayerAction::PlayMonopoly { resource } => {
+                EnumAction::PlayMonopoly {
+                    color,
+                    resource: resource_to_u8(resource),
+                }
+            }
+            PlayerAction::PlayRoadBuilding => EnumAction::PlayRoadBuilding { color },
             PlayerAction::EndTurn => EnumAction::EndTurn { color },
             PlayerAction::MoveRobber { coordinate, victim } => {
                 let victim_opt = victim.and_then(|v| {

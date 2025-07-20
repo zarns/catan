@@ -16,7 +16,7 @@ fn u8_to_resource(index: u8) -> Resource {
 }
 
 /// Convert Resource enum to u8 index
-fn resource_to_u8(resource: Resource) -> u8 {
+pub fn resource_to_u8(resource: Resource) -> u8 {
     match resource {
         Resource::Wood => 0,
         Resource::Brick => 1,
