@@ -408,10 +408,16 @@ impl State {
         );
 
         let is_initial_build_phase = self.is_initial_build_phase();
-        let is_free = is_initial_build_phase || self.is_road_building();
+        let is_road_building = self.is_road_building();
+        let is_free = is_initial_build_phase || is_road_building;
         if !is_free {
             freqdeck_sub(self.get_mut_player_hand(placing_color), ROAD_COST);
             freqdeck_add(&mut self.vector[BANK_RESOURCE_SLICE], ROAD_COST);
+        }
+
+        // If this is a free road from Road Building card, decrement the counter
+        if is_road_building {
+            self.vector[FREE_ROADS_AVAILABLE_INDEX] -= 1;
         }
 
         if is_initial_build_phase {
@@ -1938,6 +1944,40 @@ mod tests {
         // Verify state was set for free roads
         assert_eq!(state.vector[IS_BUILDING_ROAD_INDEX], 1);
         assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 2);
+    }
+
+    #[test]
+    fn test_road_building_full_flow() {
+        let mut state = State::new_base();
+        let color = state.get_current_color();
+
+        // Give player a road building card and build initial settlement
+        state.add_dev_card(color, DevCard::RoadBuilding as usize);
+        state.build_settlement(color, 0);
+
+        // Initial state
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 0);
+        assert!(!state.is_road_building());
+
+        // Play road building card
+        state.play_road_building(color);
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 2);
+        assert!(state.is_road_building());
+
+        // Build first free road
+        state.build_road(color, (0, 1));
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 1);
+        assert!(state.is_road_building()); // Still in road building mode
+
+        // Build second free road
+        state.build_road(color, (1, 2));
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 0);
+        assert!(!state.is_road_building()); // No longer in road building mode
+
+        // Verify roads were built and are owned by player
+        assert_eq!(state.roads.get(&(0, 1)), Some(&color));
+        assert_eq!(state.roads.get(&(1, 2)), Some(&color));
+        assert_eq!(state.roads_by_color[color as usize], 2);
     }
 
     #[test]

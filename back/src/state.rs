@@ -147,8 +147,7 @@ impl State {
     }
 
     fn is_road_building(&self) -> bool {
-        self.vector[IS_INITIAL_BUILD_PHASE_INDEX] == 1
-            && self.vector[FREE_ROADS_AVAILABLE_INDEX] == 1
+        self.vector[FREE_ROADS_AVAILABLE_INDEX] > 0
     }
 
     /// Returns a slice of Colors in the order of seating

@@ -32,7 +32,7 @@ import { BoardComponent } from '../board/board.component';
 import { ActionsToolbarComponent } from '../actions-toolbar/actions-toolbar.component';
 import { LeftDrawerComponent } from '../left-drawer/left-drawer.component';
 import { RightDrawerComponent } from '../right-drawer/right-drawer.component';
-import { ResourceSelectorComponent } from '../resource-selector/resource-selector.component';
+import { ResourceSelectorComponent, ResourceOption } from '../resource-selector/resource-selector.component';
 
 // Extend Player interface to include the is_bot property
 interface ExtendedPlayer extends Player {
@@ -86,7 +86,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // Resource selector state
   resourceSelectorOpen = false;
-  resourceSelectorOptions: any[] = [];
+  resourceSelectorOptions: ResourceOption[] = [];
   resourceSelectorMode: 'monopoly' | 'yearOfPlenty' | 'discard' | 'trade' = 'monopoly';
 
   // Available trades
@@ -467,32 +467,22 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (cardType === 'MONOPOLY') {
       this.resourceSelectorMode = 'monopoly';
-      this.resourceSelectorOptions = ['WOOD', 'BRICK', 'SHEEP', 'WHEAT', 'ORE'];
+      this.resourceSelectorOptions = [
+        { type: 'Wood', label: 'Wood' },
+        { type: 'Brick', label: 'Brick' },
+        { type: 'Sheep', label: 'Sheep' },
+        { type: 'Wheat', label: 'Wheat' },
+        { type: 'Ore', label: 'Ore' }
+      ];
       this.resourceSelectorOpen = true;
     } else if (cardType === 'YEAR_OF_PLENTY') {
       this.resourceSelectorMode = 'yearOfPlenty';
-      // Resource combinations
       this.resourceSelectorOptions = [
-        ['WOOD'],
-        ['BRICK'],
-        ['SHEEP'],
-        ['WHEAT'],
-        ['ORE'],
-        ['WOOD', 'WOOD'],
-        ['BRICK', 'BRICK'],
-        ['SHEEP', 'SHEEP'],
-        ['WHEAT', 'WHEAT'],
-        ['ORE', 'ORE'],
-        ['WOOD', 'BRICK'],
-        ['WOOD', 'SHEEP'],
-        ['WOOD', 'WHEAT'],
-        ['WOOD', 'ORE'],
-        ['BRICK', 'SHEEP'],
-        ['BRICK', 'WHEAT'],
-        ['BRICK', 'ORE'],
-        ['SHEEP', 'WHEAT'],
-        ['SHEEP', 'ORE'],
-        ['WHEAT', 'ORE'],
+        { type: 'Wood', label: 'Wood' },
+        { type: 'Brick', label: 'Brick' },
+        { type: 'Sheep', label: 'Sheep' },
+        { type: 'Wheat', label: 'Wheat' },
+        { type: 'Ore', label: 'Ore' }
       ];
       this.resourceSelectorOpen = true;
     } else if (cardType === 'ROAD_BUILDING') {
@@ -527,7 +517,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
     if (this.resourceSelectorMode === 'monopoly') {
-      this.gameService.playMonopolyAction(this.gameId, resources).subscribe({
+      // Extract resource type from the emitted object { type: "BRICK" }
+      const resourceType = resources.type;
+      this.gameService.playMonopolyAction(this.gameId, resourceType).subscribe({
         next: () => {
           this.resourceSelectorOpen = false;
           this.gameService.dispatch({
@@ -540,7 +532,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
     } else if (this.resourceSelectorMode === 'yearOfPlenty') {
-      this.gameService.playYearOfPlentyAction(this.gameId, resources).subscribe({
+      // Extract resources array from the emitted object { resources: ["WOOD", "BRICK"] }
+      const resourcesArray = resources.resources;
+      this.gameService.playYearOfPlentyAction(this.gameId, resourcesArray).subscribe({
         next: () => {
           this.resourceSelectorOpen = false;
           this.gameService.dispatch({
