@@ -78,6 +78,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // Building mode system - tracks what user is currently trying to build
   buildingMode: 'none' | 'road' | 'settlement' | 'city' = 'none';
+  
+  // Track if we've already auto-entered road building mode to prevent infinite loops
+  hasAutoEnteredRoadBuilding: boolean = false;
 
   // Drawer state
   isLeftDrawerOpen = false;
@@ -599,8 +602,13 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   onTrade(trade: any): void {
     if (!this.gameId || this.isWatchOnlyMode || this.isBotTurn || this.isBotThinking) return;
 
-    // Example implementation for bank trades
-    if (trade.type === 'BANK') {
+    // Handle MaritimeTrade actions directly
+    if (typeof trade === 'object' && trade !== null && 'MaritimeTrade' in trade) {
+      console.log('🏦 Executing maritime trade:', trade);
+      // Send the MaritimeTrade action directly via WebSocket
+      this.websocketService.sendPlayerAction(this.gameId, trade);
+    } else if (trade.type === 'BANK') {
+      // Legacy implementation for bank trades
       this.gameService.tradeWithBankAction(this.gameId, trade.give, trade.receive).subscribe({
         next: () => {
           // Trade completed - state will update via WebSocket
@@ -795,12 +803,16 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Check if ALL playable actions are BuildRoad actions
     if (this.areAllActionsRoads()) {
-      if (!this.isBuildingRoad) {
+      if (!this.isBuildingRoad && !this.hasAutoEnteredRoadBuilding) {
+        this.hasAutoEnteredRoadBuilding = true;
         this.gameService.dispatch({
           type: GameAction.TOGGLE_BUILDING_ROAD,
         });
         console.log('🛣️ Auto-entering road building mode - all actions are BuildRoad');
       }
+    } else {
+      // Reset the flag when we're no longer in road-only mode
+      this.hasAutoEnteredRoadBuilding = false;
     }
   }
 
