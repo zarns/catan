@@ -240,6 +240,12 @@ impl GameService {
                 }
             }
             PlayerAction::PlayRoadBuilding => EnumAction::PlayRoadBuilding { color },
+            PlayerAction::MaritimeTrade { give, take, ratio } => EnumAction::MaritimeTrade {
+                color,
+                give: resource_to_u8(give),
+                take: resource_to_u8(take),
+                ratio,
+            },
             PlayerAction::EndTurn => EnumAction::EndTurn { color },
             PlayerAction::MoveRobber { coordinate, victim } => {
                 let victim_opt = victim.and_then(|v| {

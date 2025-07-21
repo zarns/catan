@@ -233,6 +233,11 @@ impl From<crate::enums::Action> for PlayerAction {
                 resource: u8_to_resource(resource)
             },
             EnumAction::PlayRoadBuilding { .. } => PlayerAction::PlayRoadBuilding,
+            EnumAction::MaritimeTrade { give, take, ratio, .. } => PlayerAction::MaritimeTrade {
+                give: u8_to_resource(give),
+                take: u8_to_resource(take),
+                ratio,
+            },
             EnumAction::EndTurn { .. } => PlayerAction::EndTurn,
             EnumAction::MoveRobber {
                 coordinate,

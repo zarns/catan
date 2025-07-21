@@ -186,8 +186,13 @@ export class ActionsToolbarComponent {
     return new Set(this.actionNames.filter(action => action.startsWith('Play')));
   }
 
-  get tradeActions(): string[] {
-    return this.actionNames.filter(action => action.startsWith('Maritime'));
+  get tradeActions(): any[] {
+    // Return actual MaritimeTrade action objects, not just action names
+    if (!this.gameState?.current_playable_actions) return [];
+    
+    return this.gameState.current_playable_actions.filter(action => {
+      return typeof action === 'object' && action !== null && 'MaritimeTrade' in action;
+    });
   }
 
   // Individual dev card checks
@@ -248,9 +253,11 @@ export class ActionsToolbarComponent {
     }
   }
 
-  getTradeDescription(tradeAction: string): string {
-    // Extract trade description from action data
-    // This would need to be implemented based on the actual trade action format
+  getTradeDescription(tradeAction: any): string {
+    if (typeof tradeAction === 'object' && tradeAction !== null && 'MaritimeTrade' in tradeAction) {
+      const trade = tradeAction.MaritimeTrade;
+      return `Give ${trade.ratio} ${trade.give} → Get 1 ${trade.take}`;
+    }
     return 'Maritime Trade'; // Placeholder
   }
 
