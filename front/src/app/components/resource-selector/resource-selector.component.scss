@@ -1,5 +1,6 @@
 /* Import global resource colors */
 @use '../../../variables' as *;
+@use 'sass:color';
 
 .resource-selector-overlay {
   position: fixed;
@@ -247,7 +248,7 @@
     }
     
     &:hover:not(:disabled) {
-      border-color: darken($color-wood, 10%);
+      border-color: color.adjust($color-wood, $lightness: -10%);
     }
   }
   
@@ -260,7 +261,7 @@
     }
     
     &:hover:not(:disabled) {
-      border-color: darken($color-brick, 10%);
+      border-color: color.adjust($color-brick, $lightness: -10%);
     }
   }
   
@@ -273,7 +274,7 @@
     }
     
     &:hover:not(:disabled) {
-      border-color: darken($color-sheep, 10%);
+      border-color: color.adjust($color-sheep, $lightness: -10%);
     }
   }
   
@@ -286,7 +287,7 @@
     }
     
     &:hover:not(:disabled) {
-      border-color: darken($color-wheat, 10%);
+      border-color: color.adjust($color-wheat, $lightness: -10%);
     }
   }
   
@@ -299,7 +300,7 @@
     }
     
     &:hover:not(:disabled) {
-      border-color: darken($color-ore, 10%);
+      border-color: color.adjust($color-ore, $lightness: -10%);
     }
   }
 }
