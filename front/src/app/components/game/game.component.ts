@@ -171,7 +171,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
         this.error = null;
 
         // 🎯 SINGLE DEBUG LOG: Show current playable actions for debugging
-        console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
+        // console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
         // Load game state successfully - node positioning is now handled by absolute coordinates
 
         // Clear building mode if it's no longer player's turn or actions changed
@@ -180,6 +180,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
           console.log('🚫 Building mode cleared due to game state change');
         }
 
+        // Check if we should auto-enter road building mode
+        this.checkAutoRoadBuildingMode();
+        
         // Update actions when game state changes
         this.updateNodeActions();
         this.updateEdgeActions();
@@ -318,9 +321,10 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.gameState?.current_playable_actions) return;
 
-    // During initial build phase, always show roads. During regular play, use building mode.
+    // During initial build phase, always show roads. During regular play, use building mode or check if all actions are roads.
     const isInitialRoadPhase = this.gameState.current_prompt === 'BUILD_INITIAL_ROAD';
-    const showRoads = isInitialRoadPhase || this.buildingMode === 'road';
+    const allActionsAreRoads = this.areAllActionsRoads();
+    const showRoads = isInitialRoadPhase || this.buildingMode === 'road' || allActionsAreRoads;
 
     // Parse current_playable_actions - using proper type guards for Rust enum variants
     this.gameState.current_playable_actions.forEach((action) => {
@@ -782,6 +786,34 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   // Build and card action aggregation methods moved to ActionToolbar component
+
+  checkAutoRoadBuildingMode(): void {
+    // Only check during human player's turn
+    if (this.isBotTurn || !this.gameState?.current_playable_actions) {
+      return;
+    }
+
+    // Check if ALL playable actions are BuildRoad actions
+    if (this.areAllActionsRoads()) {
+      if (!this.isBuildingRoad) {
+        this.gameService.dispatch({
+          type: GameAction.TOGGLE_BUILDING_ROAD,
+        });
+        console.log('🛣️ Auto-entering road building mode - all actions are BuildRoad');
+      }
+    }
+  }
+
+  areAllActionsRoads(): boolean {
+    if (!this.gameState?.current_playable_actions || this.gameState.current_playable_actions.length === 0) {
+      return false;
+    }
+
+    // Check if ALL playable actions are BuildRoad actions
+    return this.gameState.current_playable_actions.every(action => {
+      return typeof action === 'object' && action !== null && 'BuildRoad' in action;
+    });
+  }
 
   private hasActionType(actionType: string): boolean {
     if (!this.gameState?.current_playable_actions) return false;
