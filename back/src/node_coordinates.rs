@@ -71,39 +71,17 @@ impl NodeDirection {
     }
 }
 
-/// Calculate absolute coordinate for a node based on its tile and direction
+/// DEPRECATED: Coordinate calculation moved to frontend
+/// This stub exists only for backward compatibility during migration
 pub fn calculate_node_coordinate(
-    tile_coord: CubeCoordinate,
-    direction: NodeDirection,
+    _tile_coord: CubeCoordinate,
+    _direction: NodeDirection,
 ) -> NodeCoordinate {
-    // Convert cube coordinates to cartesian for the tile center
-    let tile_x = tile_coord.0 as f64;
-    let _tile_y = tile_coord.1 as f64; // Intentionally unused - keeping for coordinate completeness
-    let tile_z = tile_coord.2 as f64;
-
-    // Hexagonal grid constants
-    const SQRT3: f64 = 1.732050807568877;
-    const HEX_SIZE: f64 = 1.0; // Normalized size, can be scaled by frontend
-
-    // Convert cube to axial coordinates for easier calculation
-    let q = tile_x;
-    let r = tile_z;
-
-    // Calculate tile center in cartesian coordinates
-    let tile_center_x = HEX_SIZE * (SQRT3 * q + SQRT3 / 2.0 * r);
-    let tile_center_y = HEX_SIZE * (3.0 / 2.0 * r);
-
-    // Calculate node offset from tile center
-    let angle = direction.angle_radians();
-    let node_distance = HEX_SIZE; // Distance from tile center to node
-
-    let node_x = tile_center_x + node_distance * angle.sin();
-    let node_y = tile_center_y - node_distance * angle.cos(); // Negative because screen Y increases downward
-
+    // Return zero coordinates - frontend will calculate actual positions
     NodeCoordinate {
-        x: node_x,
-        y: node_y,
-        z: 0.0, // Keep z as 0 for 2D positioning
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
     }
 }
 
@@ -312,32 +290,5 @@ mod tests {
         assert!((node_0.x - 0.0).abs() < 0.001); // Should be centered on X axis
     }
 
-    #[test]
-    fn test_coordinate_uniqueness() {
-        // Test that shared nodes between tiles have the same absolute coordinate
-        let center = (0, 0, 0);
-        let northeast = (1, 0, -1);
-
-        // The NorthEast node of center tile should be same as NorthWest node of northeast tile
-        let center_ne = calculate_node_coordinate(center, NodeDirection::NorthEast);
-        let northeast_nw = calculate_node_coordinate(northeast, NodeDirection::NorthWest);
-
-        // These should be approximately the same position (within floating point precision)
-        let diff_x = (center_ne.x - northeast_nw.x).abs();
-        let diff_y = (center_ne.y - northeast_nw.y).abs();
-
-        // Allow for small floating point differences
-        assert!(
-            diff_x < 0.001,
-            "X coordinates should match: {} vs {}",
-            center_ne.x,
-            northeast_nw.x
-        );
-        assert!(
-            diff_y < 0.001,
-            "Y coordinates should match: {} vs {}",
-            center_ne.y,
-            northeast_nw.y
-        );
-    }
+    // REMOVED: test_coordinate_uniqueness - coordinate calculation moved to frontend
 }

@@ -4,7 +4,7 @@ use crate::enums::{
 use crate::global_state::GlobalState;
 use crate::map_instance::{Direction, EdgeRef, LandTile, MapInstance, NodeRef, PortTile, Tile};
 use crate::map_template::Coordinate as CubeCoordinate;
-use crate::node_coordinates::{calculate_node_coordinate, NodeCoordinate, NodeDirection};
+// REMOVED: NodeDirection import - no longer needed
 use crate::state::{BuildingType, State};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -64,20 +64,11 @@ pub struct PortPosition {
 pub struct Node {
     pub building: Option<String>,
     pub color: Option<String>,
-    // DEPRECATED: Keep for backward compatibility, will be removed in future version
     pub tile_coordinate: Coordinate,
     pub direction: String,
-    // NEW: Absolute coordinates for deterministic positioning
-    pub absolute_coordinate: NodeAbsoluteCoordinate,
 }
 
-// Absolute coordinate for nodes in normalized hexagonal space
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeAbsoluteCoordinate {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
+// REMOVED: NodeAbsoluteCoordinate struct - no longer needed
 
 // An edge (path) on the board
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,12 +76,8 @@ pub struct Edge {
     pub color: Option<String>,
     pub node1_id: u8,
     pub node2_id: u8,
-    // DEPRECATED: Keep for backward compatibility, will be removed in future version
     pub tile_coordinate: Coordinate,
     pub direction: String,
-    // NEW: Absolute coordinates of the two connected nodes for deterministic positioning
-    pub node1_absolute_coordinate: NodeAbsoluteCoordinate,
-    pub node2_absolute_coordinate: NodeAbsoluteCoordinate,
 }
 
 // The game board representation
@@ -151,47 +138,11 @@ fn convert_coordinate(coord: CubeCoordinate) -> Coordinate {
     }
 }
 
-// Helper function to convert NodeRef to NodeDirection
-fn node_ref_to_direction(node_ref: NodeRef) -> NodeDirection {
-    match node_ref {
-        NodeRef::North => NodeDirection::North,
-        NodeRef::NorthEast => NodeDirection::NorthEast,
-        NodeRef::SouthEast => NodeDirection::SouthEast,
-        NodeRef::South => NodeDirection::South,
-        NodeRef::SouthWest => NodeDirection::SouthWest,
-        NodeRef::NorthWest => NodeDirection::NorthWest,
-    }
-}
+// REMOVED: node_ref_to_direction function - no longer needed
 
-// Helper function to convert NodeCoordinate to NodeAbsoluteCoordinate
-fn node_coordinate_to_absolute(coord: NodeCoordinate) -> NodeAbsoluteCoordinate {
-    NodeAbsoluteCoordinate {
-        x: coord.x,
-        y: coord.y,
-        z: coord.z,
-    }
-}
+// REMOVED: node_coordinate_to_absolute helper - no longer needed
 
-// Helper function to find a node's absolute coordinate from the map_instance
-fn find_node_absolute_coordinate(
-    node_id: u8,
-    map_instance: &MapInstance,
-) -> Option<NodeAbsoluteCoordinate> {
-    // Search through all tiles to find this node_id and calculate its absolute coordinate
-    for (&tile_coord, tile) in &map_instance.tiles {
-        if let Tile::Land(land_tile) = tile {
-            for (&node_ref, &found_node_id) in &land_tile.hexagon.nodes {
-                if found_node_id == node_id {
-                    // Found the node! Calculate its absolute coordinate
-                    let node_direction = node_ref_to_direction(node_ref);
-                    let absolute_coord = calculate_node_coordinate(tile_coord, node_direction);
-                    return Some(node_coordinate_to_absolute(absolute_coord));
-                }
-            }
-        }
-    }
-    None
-}
+// REMOVED: find_node_absolute_coordinate function - no longer needed
 
 // Helper function to convert from map_instance::Tile to TilePosition
 fn convert_land_tile(coord: CubeCoordinate, land_tile: &LandTile) -> TilePosition {
@@ -847,22 +798,6 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                         _ => "unknown".to_string(),
                     });
 
-                    // Calculate absolute coordinates for the edge endpoints using actual node IDs
-                    let node1_abs = find_node_absolute_coordinate(node1, map_instance).unwrap_or(
-                        NodeAbsoluteCoordinate {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 0.0,
-                        },
-                    );
-                    let node2_abs = find_node_absolute_coordinate(node2, map_instance).unwrap_or(
-                        NodeAbsoluteCoordinate {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 0.0,
-                        },
-                    );
-
                     edges.insert(
                         edge_id_str,
                         Edge {
@@ -871,8 +806,6 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                             node2_id: node2,
                             tile_coordinate: convert_coordinate(coordinate),
                             direction: direction.to_string(),
-                            node1_absolute_coordinate: node1_abs,
-                            node2_absolute_coordinate: node2_abs,
                         },
                     );
                 }
@@ -910,15 +843,6 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
             _ => "unknown".to_string(), // Handle unexpected color index
         });
 
-        // Calculate absolute coordinate for this node
-        let cube_coord = (
-            tile_coordinate.x as i8,
-            tile_coordinate.y as i8,
-            tile_coordinate.z as i8,
-        );
-        let node_direction = NodeDirection::from_str(&direction).unwrap_or(NodeDirection::North);
-        let absolute_coord = calculate_node_coordinate(cube_coord, node_direction);
-
         nodes.insert(
             node_id_str,
             Node {
@@ -926,7 +850,6 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                 color: building_color,
                 tile_coordinate,
                 direction,
-                absolute_coordinate: node_coordinate_to_absolute(absolute_coord),
             },
         );
     }

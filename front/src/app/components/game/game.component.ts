@@ -175,7 +175,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewInit {
 
         // 🎯 SINGLE DEBUG LOG: Show current playable actions for debugging
         // console.log('🎯 PLAYABLE_ACTIONS:', this.gameState.current_playable_actions);
-        // Load game state successfully - node positioning is now handled by absolute coordinates
+        // Load game state successfully - node positioning is now handled by hex math calculations
 
         // Clear building mode if it's no longer player's turn or actions changed
         if (this.buildingMode !== 'none' && (this.isBotTurn || this.gameState.current_prompt !== 'PLAY_TURN')) {

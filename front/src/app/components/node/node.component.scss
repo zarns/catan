@@ -2,6 +2,8 @@
 
 .node {
   position: absolute;
+  width: 12.6px; /* size * 0.21 = 60 * 0.21 */
+  height: 12.6px; /* size * 0.21 = 60 * 0.21 */
   background-color: transparent; // Remove old node indicator background
   border: none;
   display: flex;
@@ -11,6 +13,11 @@
   cursor: pointer;
   pointer-events: auto;
   transform: translateY(-50%) translateX(-50%);
+  z-index: 3; /* Default z-index for empty nodes */
+  
+  /* CSS custom properties for positioning - set from TypeScript */
+  left: var(--node-x, 0);
+  top: var(--node-y, 0);
 
   &:hover {
     z-index: 15;
@@ -63,7 +70,6 @@
   // Occupied node state - more prominent
   &.occupied {
     border-color: #333;
-    z-index: 12;
 
     // Settlement size (larger and more prominent)
     &.settlement {
@@ -85,7 +91,6 @@
         0 3px 6px rgba(0, 0, 0, 0.4),
         0 0 0 1px rgba(0, 0, 0, 0.3); // Stronger shadow and border
     }
-
     // Player colors for settlements (solid) and cities (grey center with colored border)
     &.red {
       border-color: vars.$player-red;
@@ -124,6 +129,11 @@
       }
     }
   }
+}
+
+// Higher z-index for nodes with buildings
+.node.has-building {
+  z-index: 13;
 }
 
 // Apply brightness animation to settlement-shape when node is flashing

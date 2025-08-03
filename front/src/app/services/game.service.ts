@@ -26,11 +26,17 @@ export interface Node {
   id: string;
   building?: string; // 'settlement' or 'city'
   color?: string;
+  tile_coordinate: Coordinate;
+  direction: string;
 }
 
 export interface Edge {
   id: string;
   color?: string;
+  node1_id: number;
+  node2_id: number;
+  tile_coordinate: Coordinate;
+  direction: string;
 }
 
 export interface GameBoard {

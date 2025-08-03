@@ -67,8 +67,6 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - ✅ Visibility-based hiding instead of conditional rendering
 - implement rightdrawer
   - backend mcts endpoint
-- GameBoard
-  - Hide actionsToolbar buttons when bots are playing
 - Fix cargo test - failed tests
 - Add play against catanatron buttons
 - Cleanup
@@ -83,3 +81,4 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - stop highlighting clickable nodes for bot players on bot turns
 - Resource distribution mismatch between sheep/wood??
 - Can build settlements during other player's turn
+- Robber starts in middle

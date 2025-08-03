@@ -2,32 +2,13 @@
 
 .edge {
   position: absolute;
-  display: flex;
-  justify-content: center;
-  height: 8px; /* Reduced height for smaller edges */
-  border: none;
+  width: 42px;
+  height: 8px;
   z-index: 15;
-  transition: all 0.2s ease;
   cursor: pointer;
 
   &:hover {
     z-index: 16;
-  }
-
-  /* Debug label styling */
-  .debug-label {
-    position: absolute;
-    top: -15px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    font-size: 9px;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: 1px 3px;
-    border-radius: 2px;
-    pointer-events: none;
-    z-index: 100;
   }
 }
 
@@ -42,16 +23,14 @@
   }
 
   &.occupied {
-    // Road content goes here, no background needed
     background-color: transparent;
   }
 }
 
 .road {
-  position: absolute;
-  border: 1px solid #333;
   width: 100%;
   height: 100%;
+  border: 1px solid #333;
   border-radius: 2px;
 
   // Player colors with minimal styling
@@ -72,45 +51,18 @@
   }
 }
 
-// Apply scaling animation to edge-indicator when edge is flashing (like nodes)
+// Flashing animation for clickable edges
 .edge.flashing .edge-indicator {
-  animation: edge-brightness-pulse 2s ease-in-out infinite;
+  animation: edge-pulse 2s ease-in-out infinite;
 }
 
-@keyframes edge-brightness-pulse {
-  0%,
-  100% {
+@keyframes edge-pulse {
+  0%, 100% {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
   }
   50% {
     background-color: rgba(255, 255, 255, 0.35);
     border-color: rgba(255, 255, 255, 0.5);
-  }
-}
-
-// Debug overlay styles
-.debug-overlay {
-  position: absolute;
-  top: -25px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 2px 4px;
-  border-radius: 2px;
-  font-size: 8px;
-  font-family: monospace;
-  z-index: 30;
-  pointer-events: none;
-  white-space: nowrap;
-
-  .debug-id {
-    color: #ffeb3b;
-    font-weight: bold;
-  }
-
-  .debug-direction {
-    color: vars.$player-blue;
   }
 }

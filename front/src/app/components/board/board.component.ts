@@ -14,6 +14,7 @@ import { TileComponent } from '../tile/tile.component';
 import { NodeComponent } from '../node/node.component';
 import { EdgeComponent } from '../edge/edge.component';
 import { RobberComponent } from '../robber/robber.component';
+import { calculateNodePixelPosition, CubeCoordinate } from '../../utils/hex-math';
 import { Coordinate, GameBoard } from '../../services/game.service';
 
 @Component({
@@ -64,15 +65,13 @@ import { Coordinate, GameBoard } from '../../services/game.service';
           <app-edge
             [id]="edge.id"
             [coordinate]="edge.tile_coordinate"
-            [node1AbsoluteCoordinate]="edge.node1_absolute_coordinate"
-            [node2AbsoluteCoordinate]="edge.node2_absolute_coordinate"
+            [calculatedNodePositions]="getEdgeNodePositions(edge)"
             [direction]="edge.direction"
             [color]="edge.color"
             [flashing]="isActionableEdge(edge.id)"
             [size]="size"
             [centerX]="centerX"
             [centerY]="centerY"
-            [showDebugInfo]="debugMode"
             (onClick)="onEdgeClick(edge.id)"
           >
           </app-edge>
@@ -81,7 +80,7 @@ import { Coordinate, GameBoard } from '../../services/game.service';
         @for (node of getNodes(); track node.id) {
           <app-node
             [id]="node.id"
-            [absoluteCoordinate]="node.absolute_coordinate"
+            [tileCoordinate]="node.tile_coordinate"
             [direction]="node.direction"
             [building]="node.building"
             [color]="node.color"
@@ -209,9 +208,45 @@ export class BoardComponent implements OnInit, AfterViewInit {
       id,
     }));
 
-    // Removed excessive edge debugging
-
     return edges;
+  }
+
+  /**
+   * Calculate pixel position for a node given its ID
+   * This looks up the node data and uses hex math to calculate position
+   */
+  private calculateNodePixelPositionById(nodeId: number): { x: number, y: number } | null {
+    const nodes = this.getNodes();
+    const node = nodes.find(n => n.id === `n${nodeId}`);
+    
+    if (!node || !node.tile_coordinate || !node.direction) {
+      return null;
+    }
+
+    const position = calculateNodePixelPosition(
+      node.tile_coordinate as CubeCoordinate,
+      node.direction,
+      this.size
+    );
+
+    return {
+      x: this.centerX + position.x,
+      y: this.centerY + position.y
+    };
+  }
+
+  /**
+   * Get calculated node positions for an edge
+   * This replaces the deprecated absolute coordinates with hex math calculations
+   */
+  getEdgeNodePositions(edge: any): { node1: {x: number, y: number} | null, node2: {x: number, y: number} | null } {
+    const node1Pos = this.calculateNodePixelPositionById(edge.node1_id);
+    const node2Pos = this.calculateNodePixelPositionById(edge.node2_id);
+    
+    return {
+      node1: node1Pos,
+      node2: node2Pos
+    };
   }
 
   isActionableNode(nodeId: string): boolean {

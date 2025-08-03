@@ -1,11 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-interface NodeAbsoluteCoordinate {
-  x: number;
-  y: number;
-  z: number;
-}
+import { calculateNodePixelPosition, CubeCoordinate } from '../../utils/hex-math';
 
 @Component({
   selector: 'app-node',
@@ -15,7 +10,8 @@ interface NodeAbsoluteCoordinate {
     <div
       class="node"
       [ngClass]="getNodeClasses()"
-      [ngStyle]="nodeStyle"
+      [style.--node-x]="nodePosition.x + 'px'"
+      [style.--node-y]="nodePosition.y + 'px'"
       [attr.data-node-id]="id"
       [attr.data-node-coord]="getCoordinateString()"
       [attr.data-node-direction]="direction"
@@ -47,7 +43,7 @@ interface NodeAbsoluteCoordinate {
 })
 export class NodeComponent {
   @Input() id: string = '';
-  @Input() absoluteCoordinate?: NodeAbsoluteCoordinate; // Absolute positioning coordinates
+  @Input() tileCoordinate?: CubeCoordinate; // Canonical tile coordinate for position calculation
   @Input() direction: string = '';
   @Input() building: string | null = null;
   @Input() color: string | null = null;
@@ -93,44 +89,25 @@ export class NodeComponent {
     }
   }
 
-  get nodeStyle() {
-    let x: number, y: number;
-
-    // Always use absolute coordinates for consistent positioning
-    if (this.absoluteCoordinate) {
-      [x, y] = this.absolutePixelVector();
+  get nodePosition() {
+    // Calculate position using hex math
+    if (this.tileCoordinate && this.direction) {
+      const position = calculateNodePixelPosition(this.tileCoordinate, this.direction, this.size);
+      return {
+        x: this.centerX + position.x,
+        y: this.centerY + position.y
+      };
     } else {
-      // Log error and fallback to center if no absolute coordinate is provided
-      console.error(`Node ${this.id} has no absolute coordinate - using center position`);
-      x = this.centerX;
-      y = this.centerY;
+      // Fallback to center position if data is missing
+      console.error(`❌ Node ${this.id} missing tileCoordinate or direction - using center position`);
+      return {
+        x: this.centerX,
+        y: this.centerY
+      };
     }
-
-    return {
-      width: `${this.size * 0.21}px`,
-      height: `${this.size * 0.21}px`,
-      left: `${x}px`,
-      top: `${y}px`,
-      transform: 'translateY(-50%) translateX(-50%)',
-      'z-index': this.building ? 13 : 3,
-    };
   }
 
-  // Convert absolute coordinates to pixel coordinates
-  absolutePixelVector(): [number, number] {
-    if (!this.absoluteCoordinate) {
-      return [0, 0];
-    }
-
-    const { x, y } = this.absoluteCoordinate;
-    const size = this.size;
-
-    // Scale and center the normalized coordinates
-    const pixelX = this.centerX + x * size;
-    const pixelY = this.centerY + y * size;
-
-    return [pixelX, pixelY];
-  }
+  // REMOVED: absolutePixelVector method - no longer needed with hex math calculations
 
   // Calculate the delta position based on the node direction
   getNodeDelta(): [number, number] {
@@ -171,10 +148,10 @@ export class NodeComponent {
   }
 
   getCoordinateString(): string {
-    if (!this.absoluteCoordinate) {
+    if (!this.tileCoordinate) {
       return '';
     }
-    return `${this.absoluteCoordinate.x},${this.absoluteCoordinate.y},${this.absoluteCoordinate.z}`;
+    return `${this.tileCoordinate.x},${this.tileCoordinate.y},${this.tileCoordinate.z}`;
   }
 
   getDebugTitle(): string {
@@ -193,6 +170,10 @@ export class NodeComponent {
 
     if (this.direction) {
       classes.push(this.direction);
+    }
+
+    if (this.building) {
+      classes.push('has-building');
     }
 
     return classes;
