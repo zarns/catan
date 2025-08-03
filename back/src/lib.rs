@@ -23,7 +23,7 @@ pub mod deck_slices;
 pub mod global_state;
 pub mod map_instance;
 pub mod map_template;
-pub mod node_coordinates;
+
 pub mod ordered_hashmap;
 pub mod player;
 pub mod players;

@@ -67,13 +67,14 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
   - ✅ Visibility-based hiding instead of conditional rendering
 - implement rightdrawer
   - backend mcts endpoint
+- ✅ **COMPLETE: Fixed build errors** - Resolved showDebugInfo binding issues after edge component cleanup
 - Fix cargo test - failed tests
 - Add play against catanatron buttons
 - Cleanup
   - remove unnecessary logging from frontend & backend
   - convert println statements to debug statements (or remove)
   - Evaluate frontend conversion serialized enums and remove unnecessary conversions
-  - Attempt to remove node_coordinates.rs. Frontend should be responsible for this logic.
+  - ✅ **COMPLETE: Removed node_coordinates.rs** - Frontend now handles all coordinate logic
 - Build the greatest catan bot player of all time
 - Implement DB functionality to track user count and game history
   - MCP integration

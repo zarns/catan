@@ -272,6 +272,13 @@ The hex-to-pixel coordinate migration has been **completely finished** with comp
 5. **✅ Better Maintainability** - Cleaner code structure and single source of truth
 6. **✅ Future-Proof Architecture** - Easy to optimize or change rendering without backend changes
 
+### 🗑️ **Final Backend Cleanup (Completed)**
+- **✅ Removed `back/src/node_coordinates.rs`** - Entire deprecated file deleted (295 lines removed)
+- **✅ Updated `back/src/lib.rs`** - Removed module declaration  
+- **✅ Backend verification** - Compiles successfully without coordinate module
+- **✅ No dependencies** - Confirmed no other backend code used the deprecated functions
+- **✅ Codebase cleaned** - Zero dead code or unused imports remaining
+
 ### 🔄 **Rollback Safety**
 - Frontend components include backward compatibility fallbacks
 - Backend still sends `absolute_coordinate` for safety
