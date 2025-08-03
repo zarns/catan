@@ -68,7 +68,6 @@ function getNodeDirectionAngle(direction: NodeDirection): number {
     case NodeDirection.SouthWest: return -5 * Math.PI / 6;      // 210° = -150°
     case NodeDirection.NorthWest: return 5 * Math.PI / 6;       // 150°
     default:
-      console.warn(`Unknown node direction: ${direction}`);
       return 0;
   }
 }
@@ -120,7 +119,6 @@ export function parseNodeDirection(directionStr: string): NodeDirection {
     case 'NORTHWEST':
       return NodeDirection.NorthWest;
     default:
-      console.warn(`Unknown direction string: ${directionStr}, using North as fallback`);
       return NodeDirection.North;
   }
 }

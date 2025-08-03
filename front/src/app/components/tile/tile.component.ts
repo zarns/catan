@@ -56,7 +56,7 @@ import { MatCardModule } from '@angular/material/card';
 
       <!-- Port indicator for harbors - move this with the same transform as the port tile -->
       @if (isPort) {
-        <div class="port-container" [ngStyle]="getPortTranslateStyle()">
+        <div class="port-container">
           <div class="port-indicator">
             <div class="port-ratio">{{ getPortRatio() }}</div>
             @if (isResourcePort()) {
@@ -311,9 +311,5 @@ export class TileComponent implements OnInit {
     return `translate(${x * 0.5}px, ${y * 0.5}px)`;
   }
 
-  // Helper method to get style object for port container
-  getPortTranslateStyle() {
-    // Keep port indicators centered in their tiles
-    return {}; // No translation applied to the indicators
-  }
+
 }

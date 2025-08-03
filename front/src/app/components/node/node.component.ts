@@ -99,7 +99,6 @@ export class NodeComponent {
       };
     } else {
       // Fallback to center position if data is missing
-      console.error(`❌ Node ${this.id} missing tileCoordinate or direction - using center position`);
       return {
         x: this.centerX,
         y: this.centerY
@@ -107,7 +106,7 @@ export class NodeComponent {
     }
   }
 
-  // REMOVED: absolutePixelVector method - no longer needed with hex math calculations
+
 
   // Calculate the delta position based on the node direction
   getNodeDelta(): [number, number] {
@@ -142,7 +141,6 @@ export class NodeComponent {
         return [-w / 2, -h / 4]; // Top-left point
 
       default:
-        console.warn(`Node ${this.id} has invalid direction: "${this.direction}"`);
         return [0, 0];
     }
   }

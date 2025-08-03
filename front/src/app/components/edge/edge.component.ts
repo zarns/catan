@@ -7,7 +7,7 @@ interface EdgeCoordinate {
   z: number;
 }
 
-// REMOVED: EdgeAbsoluteCoordinate interface - no longer needed
+
 
 @Component({
   selector: 'app-edge',
@@ -83,7 +83,7 @@ export class EdgeComponent {
     };
   }
 
-  // REMOVED: getAbsoluteEdgeStyle method - no longer needed with hex math calculations
+
 
   private getTileRelativeEdgeStyle() {
     const [tileX, tileY] = this.tilePixelVector();
@@ -120,7 +120,7 @@ export class EdgeComponent {
     return [pixelX, pixelY];
   }
 
-  // REMOVED: absolutePixelVector method - no longer needed with hex math calculations
+
 
   // Simple edge transform for legacy positioning
   getEdgeTransform(): string {
