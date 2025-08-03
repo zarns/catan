@@ -130,7 +130,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
 
     // Simulate turns with real actions
     let mut turn_count = 0;
-    const MAX_TURNS: u32 = 500; // Higher limit for real games - increased for thorough testing
+    const MAX_TURNS: u32 = 5000; // Higher limit for real games - increased for thorough testing
     let mut last_vp_log = 0;
 
     if verbose {
