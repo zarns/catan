@@ -1881,7 +1881,7 @@ mod tests {
         }
 
         let initial_wood = state.get_player_hand(monopolist_color)[0];
-        let expected_stolen = 3 * ((state.get_num_players() - 1)); // 3 wood from each other player
+        let expected_stolen = 3 * (state.get_num_players() - 1); // 3 wood from each other player
 
         // Play monopoly on wood (resource index 0)
         state.play_monopoly(monopolist_color, 0);

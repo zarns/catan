@@ -8,6 +8,10 @@ use crate::map_template::Coordinate as CubeCoordinate;
 use crate::state::{BuildingType, State};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+// (tile_id, resource_name, number)
+type NodeTileAdjacency = (u8, Option<String>, Option<u8>);
+type NodeAdjacencyMap = HashMap<u8, Vec<NodeTileAdjacency>>;
 use std::sync::Arc;
 use uuid;
 
@@ -643,11 +647,11 @@ impl Game {
     pub fn get_node_adjacent_tiles(
         &self,
         node_id: u8,
-    ) -> Option<Vec<(u8, Option<String>, Option<u8>)>> {
+    ) -> Option<Vec<NodeTileAdjacency>> {
         if let Some(state) = &self.state {
             let map_instance = state.get_map_instance();
             if let Some(adjacent_tiles) = map_instance.get_adjacent_tiles(node_id) {
-                let result: Vec<(u8, Option<String>, Option<u8>)> = adjacent_tiles
+                let result: Vec<NodeTileAdjacency> = adjacent_tiles
                     .iter()
                     .map(|tile| {
                         let resource_str = tile.resource.map(|r| match r {
@@ -673,8 +677,8 @@ impl Game {
     /// Returns HashMap<NodeId, Vec<(TileId, Resource, Number)>>
     pub fn get_all_node_tile_adjacencies(
         &self,
-    ) -> HashMap<u8, Vec<(u8, Option<String>, Option<u8>)>> {
-        let mut adjacencies = HashMap::new();
+    ) -> NodeAdjacencyMap {
+        let mut adjacencies: NodeAdjacencyMap = HashMap::new();
 
         if let Some(state) = &self.state {
             let map_instance = state.get_map_instance();
