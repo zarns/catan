@@ -293,7 +293,7 @@ impl GameService {
         let game = self.get_game(game_id).await?;
         let players = self.get_players(game_id).await?;
 
-        // BUGFIX: Validate game state before processing
+        // Validate game state before processing
         if !matches!(game.game_state, GameState::Active | GameState::Setup) {
             return Ok(None);
         }
@@ -315,7 +315,7 @@ impl GameService {
             return Ok(None);
         }
 
-        // BUGFIX: Get available actions with proper validation and error handling
+        // Get available actions with proper validation and error handling
         let available_actions = if let Some(ref state) = game.state {
             // Get actions from the game state and convert them
             let state_actions = state.generate_playable_actions();
@@ -338,7 +338,7 @@ impl GameService {
             vec![PlayerAction::EndTurn]
         };
 
-        // BUGFIX: Add specific logging for initial build phase state tracking
+        // Add specific logging for initial build phase state tracking
         if let Some(ref state) = game.state {
             let action_prompt = state.get_action_prompt();
             let is_initial_phase = state.is_initial_build_phase();
@@ -388,7 +388,7 @@ impl GameService {
             Ok(Ok(action)) => {
                 log::info!("🤖 {} action: {:?}", current_player.info.name, action);
 
-                // BUGFIX: Validate the action is actually in available actions
+                // Validate the action is actually in available actions
                 if !available_actions.contains(&action) {
                     log::warn!(
                         "Bot {} chose invalid action {:?}. Using EndTurn instead.",

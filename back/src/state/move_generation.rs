@@ -117,7 +117,7 @@ impl State {
             }
         };
 
-        // BUGFIX: Don't rely on board_buildable_edges which uses connected_components cache
+        // Don't rely on board_buildable_edges which uses connected_components cache
         // For initial build phase, just get edges adjacent to the last settlement
         let buildable_edges: Vec<_> = self
             .map_instance
@@ -400,7 +400,7 @@ impl State {
         let hand = self.get_player_hand(color);
         let total_cards: u8 = hand.iter().sum();
 
-        // BUGFIX: If player has fewer cards than the discard limit, they shouldn't be in discard phase
+        // If player has fewer cards than the discard limit, they shouldn't be in discard phase
         // But if they ARE in discard phase, they must discard (this can happen if they had >7 cards
         // when 7 was rolled, but then other players discarded and affected their hand somehow)
         if total_cards <= self.config.discard_limit {

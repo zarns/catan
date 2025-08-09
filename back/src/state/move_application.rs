@@ -422,7 +422,7 @@ impl State {
         }
 
         if is_initial_build_phase {
-            // BUGFIX: Count only settlements, not all buildings
+            // Count only settlements, not all buildings
             let num_settlements = self
                 .buildings_by_color
                 .values()
@@ -597,7 +597,7 @@ impl State {
             buildings.remove(pos);
         }
 
-        // BUGFIX: Add the new city to buildings_by_color
+        // Add the new city to buildings_by_color
         buildings.push(Building::City(color, node_id));
 
         freqdeck_sub(self.get_mut_player_hand(color), CITY_COST);
@@ -849,12 +849,12 @@ impl State {
             discarded
         );
 
-        // BUGFIX: Handle proper discard turn advancement and state transitions
+        // Handle proper discard turn advancement and state transitions
         self.advance_discard_turn();
     }
 
     fn advance_discard_turn(&mut self) {
-        // CRITICAL BUGFIX: Fix the discard advancement logic to handle seating order properly
+        // Fix the discard advancement logic to handle seating order properly
 
         let current_tick_seat_index = self.vector[CURRENT_TICK_SEAT_INDEX] as usize;
         let seating_order = self.get_seating_order();
@@ -868,7 +868,7 @@ impl State {
             self.config.discard_limit
         );
 
-        // BUGFIX: Check if the CURRENT discarder still needs to discard FIRST
+        // Check if the CURRENT discarder still needs to discard FIRST
         let current_hand = self.get_player_hand(current_discarder_color);
         let current_total: u8 = current_hand.iter().sum();
         log::info!(
@@ -1098,7 +1098,7 @@ impl State {
     }
 
     fn end_turn(&mut self, _color: u8) {
-        // BUGFIX: Handle discard phase properly
+        // Handle discard phase properly
         if self.is_discarding() {
             // During discard phase, EndTurn should advance discard turn, not regular turn
             self.advance_discard_turn();

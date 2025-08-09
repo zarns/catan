@@ -213,7 +213,7 @@ impl State {
                 return ActionPrompt::PlayTurn;
             }
 
-            // BUGFIX: Check the current player's state specifically
+            // Check the current player's state specifically
             let current_color = self.get_current_color();
             let current_player_settlements = self
                 .buildings_by_color
@@ -443,9 +443,10 @@ impl State {
             }
 
             // Determine if this edge is owned by the player, tolerating legacy unsorted inserts
-            let is_owned_by_player = self.roads.get(&edge) == Some(&color)
-                || self.roads.get(&(node, neighbor)) == Some(&color)
-                || self.roads.get(&(neighbor, node)) == Some(&color);
+            let is_owned_by_player =
+                self.roads.get(&edge) == Some(&color)
+                    || self.roads.get(&(node, neighbor)) == Some(&color)
+                    || self.roads.get(&(neighbor, node)) == Some(&color);
             if !is_owned_by_player {
                 continue;
             }
