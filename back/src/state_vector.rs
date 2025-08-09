@@ -226,8 +226,8 @@ pub fn initialize_state(num_players: u8) -> Vec<u8> {
     // Use deterministic seating order instead of shuffling
     // This ensures RED (0) always goes first, which is important for human vs bot games
     let color_seating_order: Vec<u8> = COLORS[0..n].iter().map(|&x| x as u8).collect();
-    println!(
-        "🎲 DEBUG: Using deterministic seating order: {:?}",
+    log::debug!(
+        "Using deterministic seating order: {:?}",
         color_seating_order
     );
     vector[player_state_start..player_state_start + n].copy_from_slice(&color_seating_order);

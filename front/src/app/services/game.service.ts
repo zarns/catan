@@ -401,17 +401,17 @@ export class GameService {
   // Simplified helper methods using enum format
 
   // Build a road using enum format
-  buildRoadAction(gameId: string, edgeId: string): Observable<GameState> {
+  buildRoadAction(gameId: string, edgeId: [number, number]): Observable<GameState> {
     return this.postAction(gameId, { BuildRoad: { edge_id: edgeId } });
   }
 
   // Build a settlement using enum format
-  buildSettlementAction(gameId: string, nodeId: string): Observable<GameState> {
+  buildSettlementAction(gameId: string, nodeId: number): Observable<GameState> {
     return this.postAction(gameId, { BuildSettlement: { node_id: nodeId } });
   }
 
   // Build a city using enum format
-  buildCityAction(gameId: string, nodeId: string): Observable<GameState> {
+  buildCityAction(gameId: string, nodeId: number): Observable<GameState> {
     return this.postAction(gameId, { BuildCity: { node_id: nodeId } });
   }
 

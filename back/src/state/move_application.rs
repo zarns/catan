@@ -1429,7 +1429,7 @@ mod tests {
             let drawn_card = state.buy_development_card(color);
             cards_drawn += 1;
 
-            println!("Cards Drawn: {}, Drawn card: {:?}", cards_drawn, drawn_card);
+            log::debug!("Cards Drawn: {}, Drawn card: {:?}", cards_drawn, drawn_card);
 
             if cards_drawn < 26 {
                 let hand_after = state.get_player_hand(color);

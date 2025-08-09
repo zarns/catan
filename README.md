@@ -43,38 +43,14 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 
 
 # TODO
-- ✅ hide mobile buttons after clicking
-- ✅ implement interactive node/edge clicking system
-  - ✅ Parse current_playable_actions from backend
-  - ✅ Replace offset node indicators with centered pulse animations
-  - ✅ Enable proper click handling for settlements, cities, and roads
-  - ✅ Connect frontend actions to backend via WebSocket
-  - ✅ Dynamic actions toolbar based on available actions
-- ✅ **COMPLETE: Interactive Human vs Bot Gameplay**
-  - ✅ Backend exposes current_playable_actions in legacy [player_color, action_type, action_data] format
-  - ✅ Frontend parses actions and enables proper node/edge clicking
-  - ✅ Full action flow: Frontend click → Backend action processing → State update → WebSocket response
-  - ✅ Bot player identification via bot_colors array
-  - ✅ Initial build phase support for settlement/road placement
-  - ✅ Actions toolbar dynamically enables/disables based on available actions
-  - ✅ Proper human player turn detection and UI state management
-  - ✅ implement player interactivity so user can play against bots
-- ✅ **COMPLETE: ActionsToolbar React-Style Implementation**
-  - ✅ Dynamic button filtering (only show enabled actions)
-  - ✅ Player-specific roll detection (ROLL vs END button logic)
-  - ✅ Fixed button layout (no horizontal shifting when buttons hide)
-  - ✅ Proper material icons (dice for ROLL, skip for END)
-  - ✅ Visibility-based hiding instead of conditional rendering
+
 - implement rightdrawer
   - backend mcts endpoint
-- ✅ **COMPLETE: Fixed build errors** - Resolved showDebugInfo binding issues after edge component cleanup
 - Fix cargo test - failed tests
 - Add play against catanatron buttons
 - Cleanup
-  - remove unnecessary logging from frontend & backend
-  - convert println statements to debug statements (or remove)
-  - Evaluate frontend conversion serialized enums and remove unnecessary conversions
-  - ✅ **COMPLETE: Removed node_coordinates.rs** - Frontend now handles all coordinate logic
+  - Evaluate frontend conversion serialized enums and remove unnecessary conversions — PARTIAL (typed action helpers)
+
 - Build the greatest catan bot player of all time
 - Implement DB functionality to track user count and game history
   - MCP integration
@@ -83,3 +59,26 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - Resource distribution mismatch between sheep/wood??
 - Can build settlements during other player's turn
 - Robber starts in middle
+
+## Cleanup Progress (tracking)
+
+- Backend logging
+  - Switched noisy `println!` to `log::debug!` in `back/src/state_vector.rs` (deterministic seating) — DONE
+  - Converted test `println!` in `back/src/state/move_application.rs` to `log::debug!` — DONE
+  - Note: Replace remaining diagnostic `println!` in `back/src/game.rs`, `back/src/application.rs`, and `back/src/bin/simulate.rs` with `log` macros as follow-up (kept for current verbose CLI UX) — TODO
+
+- Longest road logic
+  - Fixed enemy-node handling; count terminal edge but do not traverse through — DONE
+  - Removed unused `connected_set` parameter from DFS and simplified logic — DONE
+
+- Determinism and component split
+  - Settlement bisection deterministic and rules-correct — DONE
+
+- Frontend typing and actions
+  - `buildRoadAction` now takes tuple `[number, number]`; `buildSettlementAction`/`buildCityAction` use `number` — DONE
+  - `WebsocketService.sendPlayerAction` parameter `gameId` marked unused (not sent in payload) — DONE
+  - Future: introduce `request_id` correlation for websocket responses — TODO
+
+- Future safe-guards
+  - Replace unwraps in `MapInstance` getters with safe defaults — TODO
+  - Normalize edge storage to single canonical key — TODO

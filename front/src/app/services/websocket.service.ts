@@ -101,7 +101,7 @@ export class WebsocketService {
   }
 
   // Helper methods for specific message types
-  public sendPlayerAction(gameId: string, action: any): void {
+  public sendPlayerAction(_gameId: string, action: any): void {
     this.sendMessage({
       type: 'player_action',
       action: action,
