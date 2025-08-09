@@ -43,7 +43,7 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 
 
 # TODO
-
+- Decks.rs unused!
 - implement rightdrawer
   - backend mcts endpoint
 - Fix cargo test - failed tests

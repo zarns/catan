@@ -35,11 +35,11 @@ impl GameService {
     /// Create a new game with the specified configuration
     pub async fn create_game(&self, num_players: u8, bot_type: &str) -> CatanResult<GameId> {
         println!("🏭 DEBUG GameService::create_game:");
-        println!("  - num_players: {}", num_players);
-        println!("  - bot_type: '{}'", bot_type);
+        println!("  - num_players: {num_players}");
+        println!("  - bot_type: '{bot_type}'");
 
         let game_id = Uuid::new_v4().to_string();
-        println!("  - Generated game_id: {}", game_id);
+        println!("  - Generated game_id: {game_id}");
 
         // Create the game instance using the appropriate function
         let game = match bot_type {
@@ -81,7 +81,7 @@ impl GameService {
         let colors = ["red", "blue", "white", "orange"];
 
         for (i, player) in game.players.iter().enumerate() {
-            let player_id = format!("player_{}", i);
+            let player_id = format!("player_{i}");
             let color = colors[i % colors.len()].to_string();
 
             let player_obj = if bot_type == "human" && i == 0 {
@@ -115,7 +115,7 @@ impl GameService {
 
     /// Get a game by ID
     pub async fn get_game(&self, game_id: &str) -> CatanResult<Game> {
-        println!("📖 DEBUG GameService::get_game for game_id: {}", game_id);
+        println!("📖 DEBUG GameService::get_game for game_id: {game_id}");
 
         let games = self.games.read().await;
 
@@ -137,7 +137,7 @@ impl GameService {
 
             Ok(game.clone())
         } else {
-            println!("❌ Game not found: {}", game_id);
+            println!("❌ Game not found: {game_id}");
             Err(CatanError::Game(GameError::GameNotFound {
                 game_id: game_id.to_string(),
             }))

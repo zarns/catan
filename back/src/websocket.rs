@@ -56,8 +56,8 @@ pub enum WsMessage {
     GameCreated { game_id: String, game: Game },
 }
 
-/// Convert array action format to PlayerAction enum
-/// Expected format: [player_color, action_type, action_data]
+// Convert array action format to PlayerAction enum
+// Expected format: [player_color, action_type, action_data]
 // Removed array_to_player_action function - now accepting enum format directly
 
 /// WebSocket service that handles real-time communication
@@ -114,7 +114,7 @@ impl WebSocketService {
         // Check if game exists and send initial state
         if !self.game_service.game_exists(&game_id).await {
             let error = WsMessage::Error {
-                message: format!("Game {} not found", game_id),
+                message: format!("Game {game_id} not found"),
             };
             let _ = self.send_message(&mut sender, &error).await;
             self.remove_connection(&game_id, &connection_id).await;
@@ -146,7 +146,7 @@ impl WebSocketService {
             let connections = self.active_connections.read().await;
             connections
                 .get(&game_id)
-                .map_or(false, |conns| conns.len() == 1)
+                .is_some_and(|conns| conns.len() == 1)
         };
 
         if should_start_bots {
@@ -356,7 +356,7 @@ impl WebSocketService {
             }
 
             crate::errors::CatanError::Network(crate::errors::NetworkError::DeserializationFailed {
-                details: format!("Message deserialization failed: {}", e),
+                details: format!("Message deserialization failed: {e}"),
             })
         })?;
 
@@ -401,7 +401,7 @@ impl WebSocketService {
                     Err(e) => {
                         log::error!("❌ Action processing failed: {}", e);
                         let error_msg = WsMessage::Error {
-                            message: format!("Action failed: {}", e),
+                            message: format!("Action failed: {e}"),
                         };
                         let _ = broadcaster.send((game_id.to_string(), error_msg));
                     }
@@ -418,7 +418,7 @@ impl WebSocketService {
                     Err(e) => {
                         log::error!("❌ Failed to get game state: {}", e);
                         let error_msg = WsMessage::Error {
-                            message: format!("Failed to get game: {}", e),
+                            message: format!("Failed to get game: {e}"),
                         };
                         let _ = broadcaster.send((game_id.to_string(), error_msg));
                     }
@@ -456,7 +456,7 @@ impl WebSocketService {
                             Err(e) => {
                                 log::error!("❌ Failed to get created game: {}", e);
                                 let error_msg = WsMessage::Error {
-                                    message: format!("Failed to get created game: {}", e),
+                                    message: format!("Failed to get created game: {e}"),
                                 };
                                 let _ = broadcaster.send((game_id.to_string(), error_msg));
                             }
@@ -500,10 +500,10 @@ impl WebSocketService {
         loop {
             // Check if we should continue (has active connections)
             let has_connections = {
-                let connections = active_connections.read().await;
-                connections
-                    .get(game_id)
-                    .map_or(false, |conns| !conns.is_empty())
+            let connections = active_connections.read().await;
+            connections
+                .get(game_id)
+                .is_some_and(|conns| !conns.is_empty())
             };
 
             if !has_connections {

@@ -244,7 +244,7 @@ impl From<crate::enums::Action> for PlayerAction {
                 ..
             } => PlayerAction::MoveRobber {
                 coordinate,
-                victim: victim_opt.map(|c| format!("player_{}", c)),
+                victim: victim_opt.map(|c| format!("player_{c}")),
             },
             EnumAction::Discard { .. } => PlayerAction::Discard { resources: vec![] },
             _ => PlayerAction::EndTurn, // Default for unhandled actions

@@ -223,7 +223,7 @@ impl PlayerFactory {
         match bot_type {
             "random" => Ok(Self::create_random_bot(id, name, color)),
             _ => Err(PlayerError::StrategyError {
-                details: format!("Unknown bot type: {}", bot_type),
+                details: format!("Unknown bot type: {bot_type}"),
             }),
         }
     }
