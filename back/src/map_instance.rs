@@ -179,14 +179,14 @@ impl MapInstance {
         self.node_neighbors
             .get(&node_id)
             .cloned()
-            .unwrap_or_else(|| panic!("Unknown node_id {} in get_neighbor_nodes", node_id))
+            .unwrap_or_else(|| panic!("Unknown node_id {node_id} in get_neighbor_nodes"))
     }
 
     pub fn get_neighbor_edges(&self, node_id: NodeId) -> Vec<EdgeId> {
         self.edge_neighbors
             .get(&node_id)
             .cloned()
-            .unwrap_or_else(|| panic!("Unknown node_id {} in get_neighbor_edges", node_id))
+            .unwrap_or_else(|| panic!("Unknown node_id {node_id} in get_neighbor_edges"))
     }
 
     pub fn get_adjacent_tiles(&self, node_id: NodeId) -> Option<&Vec<LandTile>> {
@@ -497,6 +497,22 @@ fn get_noderefs(edgeref: EdgeRef) -> (NodeRef, NodeRef) {
     }
 }
 
+impl Clone for MapInstance {
+    fn clone(&self) -> Self {
+        Self {
+            tiles: self.tiles.clone(),
+            land_tiles: self.land_tiles.clone(),
+            port_nodes: self.port_nodes.clone(),
+            adjacent_land_tiles: self.adjacent_land_tiles.clone(),
+            node_production: self.node_production.clone(),
+            land_nodes: self.land_nodes.clone(),
+            land_edges: self.land_edges.clone(),
+            node_neighbors: self.node_neighbors.clone(),
+            edge_neighbors: self.edge_neighbors.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::global_state::GlobalState;
@@ -693,21 +709,5 @@ mod tests {
         assert_node_value(&map_instance, (1, 0, -1), NodeRef::NorthEast, 23);
         assert_node_value(&map_instance, (-1, 2, -1), NodeRef::North, 43);
         assert_node_value(&map_instance, (0, -2, 2), NodeRef::NorthWest, 11);
-    }
-}
-
-impl Clone for MapInstance {
-    fn clone(&self) -> Self {
-        Self {
-            tiles: self.tiles.clone(),
-            land_tiles: self.land_tiles.clone(),
-            port_nodes: self.port_nodes.clone(),
-            adjacent_land_tiles: self.adjacent_land_tiles.clone(),
-            node_production: self.node_production.clone(),
-            land_nodes: self.land_nodes.clone(),
-            land_edges: self.land_edges.clone(),
-            node_neighbors: self.node_neighbors.clone(),
-            edge_neighbors: self.edge_neighbors.clone(),
-        }
     }
 }

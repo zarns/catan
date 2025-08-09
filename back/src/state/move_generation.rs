@@ -32,8 +32,7 @@ impl State {
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
         println!(
-            "🏘️  DEBUG settlement_possibilities: color {}, initial_phase: {}",
-            color, is_initial_build_phase
+            "🏘️  DEBUG settlement_possibilities: color {color}, initial_phase: {is_initial_build_phase}"
         );
 
         if is_initial_build_phase {
@@ -61,8 +60,7 @@ impl State {
             let has_settlements_available = settlements_used < 5;
 
             println!(
-                "  - has_resources: {}, settlements_used: {}, has_settlements_available: {}",
-                has_resources, settlements_used, has_settlements_available
+                "  - has_resources: {has_resources}, settlements_used: {settlements_used}, has_settlements_available: {has_settlements_available}"
             );
 
             if has_resources && has_settlements_available {
@@ -856,7 +854,7 @@ mod tests {
         // Now roads adjacent to the settlement should be buildable
         let actions = state.road_possibilities(color, false);
         assert!(
-            actions.len() > 0,
+            !actions.is_empty(),
             "Roads adjacent to settlement should be buildable"
         );
 
@@ -873,8 +871,7 @@ mod tests {
                 let normalized_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
                 assert!(
                     normalized_node_0_edges.contains(&normalized_edge),
-                    "Road {:?} should be adjacent to settlement at node 0",
-                    edge_id
+                    "Road {edge_id:?} should be adjacent to settlement at node 0"
                 );
             }
         }
@@ -906,9 +903,7 @@ mod tests {
 
                     assert!(
                         is_adjacent_to_settlement || is_adjacent_to_first_road,
-                        "Road {:?} should be adjacent to either settlement at node 0 or first road {:?}",
-                        edge_id,
-                        first_edge
+                        "Road {edge_id:?} should be adjacent to either settlement at node 0 or first road {first_edge:?}"
                     );
                 }
             }

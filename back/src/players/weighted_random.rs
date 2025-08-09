@@ -37,7 +37,7 @@ impl WeightedRandomPlayer {
 impl BotPlayer for WeightedRandomPlayer {
     fn decide(&self, _state: &State, playable_actions: &[Action]) -> Action {
         if playable_actions.len() == 1 {
-            return playable_actions[0].clone();
+            return playable_actions[0];
         }
 
         let weights = Self::get_action_weights();
@@ -60,18 +60,18 @@ impl BotPlayer for WeightedRandomPlayer {
 
             // Add this action to the list 'weight' times
             for _ in 0..weight {
-                weighted_actions.push(action.clone());
+                weighted_actions.push(*action);
             }
         }
 
         // If no actions were added (shouldn't happen), return the first action
         if weighted_actions.is_empty() {
-            return playable_actions[0].clone();
+            return playable_actions[0];
         }
 
         // Choose a random action from the weighted list
         let index = rng.gen_range(0..weighted_actions.len());
-        weighted_actions[index].clone()
+        weighted_actions[index]
     }
 }
 

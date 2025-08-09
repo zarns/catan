@@ -262,6 +262,24 @@ pub fn initialize_state(num_players: u8) -> Vec<u8> {
     vector
 }
 
+// Simple implementation directly here to avoid import issues
+fn starting_dev_listdeck() -> Vec<u8> {
+    // Return a Vec with exactly 25 elements to match the DEV_BANK slice
+    let mut deck = Vec::with_capacity(25);
+    // Knights (14)
+    deck.extend(vec![0; 14]); // 0 = Knight
+                              // Year of Plenty (2)
+    deck.extend(vec![1; 2]); // 1 = Year of Plenty
+                             // Road Building (2)
+    deck.extend(vec![2; 2]); // 2 = Road Building
+                             // Monopoly (2)
+    deck.extend(vec![3; 2]); // 3 = Monopoly
+                             // Victory Points (5)
+    deck.extend(vec![4; 5]); // 4 = Victory Point
+
+    deck
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,22 +313,4 @@ mod tests {
         let result = actual_victory_points_index(num_players, Color::Blue as u8);
         assert_eq!(result, 270 + 15);
     }
-}
-
-// Simple implementation directly here to avoid import issues
-fn starting_dev_listdeck() -> Vec<u8> {
-    // Return a Vec with exactly 25 elements to match the DEV_BANK slice
-    let mut deck = Vec::with_capacity(25);
-    // Knights (14)
-    deck.extend(vec![0; 14]); // 0 = Knight
-                              // Year of Plenty (2)
-    deck.extend(vec![1; 2]); // 1 = Year of Plenty
-                             // Road Building (2)
-    deck.extend(vec![2; 2]); // 2 = Road Building
-                             // Monopoly (2)
-    deck.extend(vec![3; 2]); // 3 = Monopoly
-                             // Victory Points (5)
-    deck.extend(vec![4; 5]); // 4 = Victory Point
-
-    deck
 }

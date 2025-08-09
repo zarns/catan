@@ -63,7 +63,7 @@ impl GreedyPlayer {
             }
 
             // Choose a random action
-            let action = actions.choose(&mut rng).unwrap().clone();
+            let action = *actions.choose(&mut rng).unwrap();
             state.apply_action(action);
         }
 
@@ -84,25 +84,25 @@ impl GreedyPlayer {
             for _ in 0..self.num_simulations_per_action {
                 // Create a new state with the action applied
                 let mut state_copy = state.clone();
-                state_copy.apply_action(action.clone());
+                state_copy.apply_action(*action);
 
                 // Run a random playout from this state
                 if let Some(winner) = Self::playout(state_copy) {
                     // Count the win
-                    let win_count = action_wins.entry(action.clone()).or_insert(0);
+                    let win_count = action_wins.entry(*action).or_insert(0);
                     if winner == my_color {
                         *win_count += 1;
                     }
                 }
 
                 // Count the play
-                let play_count = action_plays.entry(action.clone()).or_insert(0);
+                let play_count = action_plays.entry(*action).or_insert(0);
                 *play_count += 1;
             }
         }
 
         // Choose the action with the highest win rate
-        let mut best_action = playable_actions[0].clone();
+        let mut best_action = playable_actions[0];
         let mut best_win_rate = 0.0;
 
         for action in playable_actions {
@@ -112,7 +112,7 @@ impl GreedyPlayer {
             let win_rate = (wins as f64) / (plays as f64);
             if win_rate > best_win_rate {
                 best_win_rate = win_rate;
-                best_action = action.clone();
+                best_action = *action;
             }
         }
 
@@ -141,7 +141,7 @@ impl GreedyPlayer {
                 // Run simulations for this action
                 for _ in 0..self.num_simulations_per_action {
                     let mut state_copy = state.clone();
-                    state_copy.apply_action(action.clone());
+                    state_copy.apply_action(*action);
 
                     if let Some(winner) = Self::playout(state_copy) {
                         if winner == my_color {
@@ -151,12 +151,12 @@ impl GreedyPlayer {
                 }
 
                 let win_rate = wins as f64 / self.num_simulations_per_action as f64;
-                (action.clone(), win_rate)
+                (*action, win_rate)
             })
             .collect();
 
         // Find the action with the highest win rate
-        let mut best_action = playable_actions[0].clone();
+        let mut best_action = playable_actions[0];
         let mut best_win_rate = 0.0;
 
         for (action, win_rate) in results {
@@ -181,7 +181,7 @@ impl GreedyPlayer {
 impl BotPlayer for GreedyPlayer {
     fn decide(&self, state: &State, playable_actions: &[Action]) -> Action {
         if playable_actions.len() == 1 {
-            return playable_actions[0].clone();
+            return playable_actions[0];
         }
 
         if self.use_parallel {

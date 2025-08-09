@@ -465,7 +465,7 @@ impl WebSocketService {
                     Err(e) => {
                         log::error!("❌ Game creation failed: {}", e);
                         let error_msg = WsMessage::Error {
-                            message: format!("Game creation failed: {}", e),
+                            message: format!("Game creation failed: {e}"),
                         };
                         let _ = broadcaster.send((game_id.to_string(), error_msg));
                     }
@@ -484,7 +484,7 @@ impl WebSocketService {
         let connections = self.active_connections.read().await;
         connections
             .get(game_id)
-            .map_or(false, |conns| !conns.is_empty())
+            .is_some_and(|conns| !conns.is_empty())
     }
 
     // ✅ REMOVED: ensure_bot_simulation_running() - now using event-driven bot simulation

@@ -99,24 +99,24 @@ impl AlphaBetaPlayer {
 impl BotPlayer for AlphaBetaPlayer {
     fn decide(&self, state: &State, playable_actions: &[Action]) -> Action {
         if playable_actions.len() == 1 {
-            return playable_actions[0].clone();
+            return playable_actions[0];
         }
 
         let start = Instant::now();
         let my_color = state.get_current_color();
 
-        let mut best_action = playable_actions[0].clone();
+        let mut best_action = playable_actions[0];
         let mut best_value = f64::NEG_INFINITY;
 
         for action in playable_actions {
             let mut new_state = state.clone();
-            new_state.apply_action(action.clone());
+            new_state.apply_action(*action);
 
             let value = self.minimax(&new_state, self.depth - 1, my_color);
 
             if value > best_value {
                 best_value = value;
-                best_action = action.clone();
+                best_action = *action;
             }
         }
 

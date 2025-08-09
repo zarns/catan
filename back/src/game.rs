@@ -222,7 +222,7 @@ pub fn create_game(id: String, player_names: Vec<String>) -> Game {
         .iter()
         .enumerate()
         .map(|(i, name)| {
-            let player_id = format!("player_{}", i);
+            let player_id = format!("player_{i}");
             let color = colors[i % colors.len()].to_string();
             create_player(player_id, name.clone(), color)
         })
@@ -282,8 +282,8 @@ pub fn simulate_bot_game(num_players: u8) -> Game {
 // Initial setup for a game against Catanatron
 pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
     println!("🎮 DEBUG start_human_vs_catanatron:");
-    println!("  - Human name: {}", human_name);
-    println!("  - Number of bots: {}", num_bots);
+    println!("  - Human name: {human_name}");
+    println!("  - Number of bots: {num_bots}");
 
     let mut player_names = vec![human_name.clone()];
 
@@ -291,10 +291,10 @@ pub fn start_human_vs_catanatron(human_name: String, num_bots: u8) -> Game {
         player_names.push(format!("Bot {}", i + 1));
     }
 
-    println!("  - Player names: {:?}", player_names);
+    println!("  - Player names: {player_names:?}");
 
     let game_id = format!("hvs_{}", uuid::Uuid::new_v4());
-    println!("  - Game ID: {}", game_id);
+    println!("  - Game ID: {game_id}");
 
     let mut game = Game::new(game_id, player_names);
 
@@ -333,7 +333,7 @@ impl Game {
             .iter()
             .enumerate()
             .map(|(i, name)| {
-                let player_id = format!("player_{}", i);
+                let player_id = format!("player_{i}");
                 let color = colors[i % colors.len()].to_string();
                 create_player(player_id, name.clone(), color)
             })
@@ -570,9 +570,9 @@ impl Game {
             let action_prompt = state.get_action_prompt();
 
             println!("🔍 DEBUG update_metadata_from_state:");
-            println!("  - Current color index: {}", current_color_index);
-            println!("  - Is initial build phase: {}", is_initial_phase);
-            println!("  - Action prompt: {:?}", action_prompt);
+            println!("  - Current color index: {current_color_index}");
+            println!("  - Is initial build phase: {is_initial_phase}");
+            println!("  - Action prompt: {action_prompt:?}");
 
             // Update current_playable_actions
             let playable_actions = state.generate_playable_actions();
@@ -599,7 +599,7 @@ impl Game {
                 1 => "BLUE".to_string(),
                 2 => "WHITE".to_string(),
                 3 => "ORANGE".to_string(),
-                _ => format!("PLAYER_{}", current_color_index),
+                _ => format!("PLAYER_{current_color_index}"),
             });
 
             // Update is_initial_build_phase
@@ -755,7 +755,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                 // Collect node information (store the first occurrence for deterministic positioning)
                 for (&node_ref, &node_id) in &land_tile.hexagon.nodes {
                     // Only store if not already stored (ensures deterministic positioning)
-                    if !node_info.contains_key(&node_id) {
+                    node_info.entry(node_id).or_insert_with(|| {
                         let direction = match node_ref {
                             NodeRef::North => "N",
                             NodeRef::NorthEast => "NE",
@@ -765,11 +765,8 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                             NodeRef::NorthWest => "NW",
                         };
 
-                        node_info.insert(
-                            node_id,
-                            (convert_coordinate(coordinate), direction.to_string()),
-                        );
-                    }
+                        (convert_coordinate(coordinate), direction.to_string())
+                    });
                 }
 
                 // Generate edges for this tile
@@ -821,7 +818,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     // Now process nodes in deterministic order (sorted by node_id)
     for (node_id, (tile_coordinate, direction)) in node_info {
         // Use just the node ID as the key to ensure uniqueness
-        let node_id_str = format!("n{}", node_id);
+        let node_id_str = format!("n{node_id}");
 
         // Get building info using public state methods
         let building_type_opt = state.get_building_type(node_id);

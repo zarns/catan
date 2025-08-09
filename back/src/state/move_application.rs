@@ -84,7 +84,7 @@ impl State {
                 self.end_turn(color);
             }
             _ => {
-                panic!("Action not implemented: {:?}", action);
+                panic!("Action not implemented: {action:?}");
             }
         }
 
@@ -1495,7 +1495,7 @@ mod tests {
         let initial_bank = state.vector[BANK_RESOURCE_SLICE].to_vec();
         let initial_hand = state.get_player_hand(color).to_vec();
         // Roll numbers should sum to chosen_roll
-        let roll_numbers = (chosen_roll.unwrap() / 2, (chosen_roll.unwrap() + 1) / 2);
+        let roll_numbers = (chosen_roll.unwrap() / 2, chosen_roll.unwrap().div_ceil(2));
 
         state.apply_action(Action::Roll {
             color,
@@ -1552,7 +1552,7 @@ mod tests {
         let initial_bank = state.vector[BANK_RESOURCE_SLICE].to_vec();
         let initial_hand = state.get_player_hand(color).to_vec();
         // Roll numbers should sum to chosen_roll
-        let roll_numbers = (chosen_roll.unwrap() / 2, (chosen_roll.unwrap() + 1) / 2);
+        let roll_numbers = (chosen_roll.unwrap() / 2, chosen_roll.unwrap().div_ceil(2));
 
         state.apply_action(Action::Roll {
             color,
@@ -1608,7 +1608,7 @@ mod tests {
         let hand_before = state.get_player_hand(color).to_vec();
 
         let roll = chosen_roll.unwrap();
-        let roll_numbers = (roll / 2, (roll + 1) / 2);
+        let roll_numbers = (roll / 2, roll.div_ceil(2));
         state.roll_dice(color, Some(roll_numbers));
 
         let chosen_resource_idx = chosen_resource.unwrap() as usize;
@@ -1665,7 +1665,7 @@ mod tests {
         let hand2_before = state.get_player_hand(color2)[resource_idx];
 
         // Roll the shared tile's number
-        let roll_numbers = (number / 2, (number + 1) / 2);
+        let roll_numbers = (number / 2, number.div_ceil(2));
         state.roll_dice(color1, Some(roll_numbers));
 
         assert_eq!(
@@ -1881,7 +1881,7 @@ mod tests {
         }
 
         let initial_wood = state.get_player_hand(monopolist_color)[0];
-        let expected_stolen = 3 * (state.get_num_players() - 1) as u8; // 3 wood from each other player
+        let expected_stolen = 3 * ((state.get_num_players() - 1)); // 3 wood from each other player
 
         // Play monopoly on wood (resource index 0)
         state.play_monopoly(monopolist_color, 0);

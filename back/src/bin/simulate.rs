@@ -38,8 +38,8 @@ fn main() {
     println!("=======================");
     println!("Configuration:");
     println!("  - Players: {} ({})", players_config, players_config.len());
-    println!("  - Number of games: {}", num_games);
-    println!("  - Verbose: {}", verbose);
+    println!("  - Number of games: {num_games}");
+    println!("  - Verbose: {verbose}");
 
     let mut wins = vec![0; players_config.len()];
     let mut total_turns = 0;
@@ -57,7 +57,7 @@ fn main() {
                 total_turns += turns;
                 completed_games += 1;
                 if num_games > 1 {
-                    println!("  Winner: Player {} in {} turns", winner, turns);
+                    println!("  Winner: Player {winner} in {turns} turns");
                 }
             }
             None => {
@@ -77,9 +77,9 @@ fn main() {
             } else {
                 0.0
             };
-            println!("Player {}: {} wins ({:.1}%)", i, win_count, win_rate);
+            println!("Player {i}: {win_count} wins ({win_rate:.1}%)");
         }
-        println!("Completed games: {}/{}", completed_games, num_games);
+        println!("Completed games: {completed_games}/{num_games}");
         if completed_games > 0 {
             println!(
                 "Average turns per game: {:.1}",
@@ -121,8 +121,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                 let cities = state.get_cities(color).len();
                 let roads = state.get_roads_by_color()[color as usize];
                 println!(
-                    "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
-                    color, vp, settlements, cities, roads
+                    "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                 );
             }
         }
@@ -134,7 +133,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     let mut last_vp_log = 0;
 
     if verbose {
-        println!("🎯 Starting simulation with MAX_TURNS = {}", MAX_TURNS);
+        println!("🎯 Starting simulation with MAX_TURNS = {MAX_TURNS}");
     }
 
     while turn_count < MAX_TURNS {
@@ -142,7 +141,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         if let Some(ref state) = game.state {
             if let Some(winner) = state.winner() {
                 if verbose {
-                    println!("🎉 GAME WON! Player {} is the winner!", winner);
+                    println!("🎉 GAME WON! Player {winner} is the winner!");
                     println!("📊 Final Victory Points:");
                     // Show final victory points breakdown
                     for color in 0..state.get_num_players() {
@@ -151,12 +150,11 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                         let cities = state.get_cities(color).len();
                         let roads = state.get_roads_by_color()[color as usize];
                         println!(
-                            "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
-                            color, vp, settlements, cities, roads
+                            "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                         );
                     }
                 }
-                println!("✅ Game completed in {} turns", turn_count);
+                println!("✅ Game completed in {turn_count} turns");
                 return Some((winner, turn_count));
             }
         }
@@ -201,7 +199,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         // Show first few available actions for debugging (only early turns)
         if verbose && turn_count < 5 {
             if available_actions.len() <= 5 {
-                println!("   Available actions: {:?}", available_actions);
+                println!("   Available actions: {available_actions:?}");
             } else {
                 println!("   First 3 actions: {:?}", &available_actions[..3]);
                 println!("   ... and {} more", available_actions.len() - 3);
@@ -219,8 +217,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                 // Log player's resources
                 let hand = state.get_player_hand(current_player);
                 println!(
-                    "   📊 Player {} status: {} VP (settlements: {}, cities: {}, roads: {})",
-                    current_player, vp, settlements, cities, roads
+                    "   📊 Player {current_player} status: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                 );
                 println!(
                     "   💰 Resources: Wood={}, Brick={}, Sheep={}, Wheat={}, Ore={}",
@@ -233,7 +230,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         let action = choose_best_action(&available_actions);
 
         if verbose && (turn_count % 10 == 0 || turn_count < 5) {
-            println!("🤖 Player {} action: {:?}", current_player, action);
+            println!("🤖 Player {current_player} action: {action:?}");
         }
 
         // Apply the action using real game logic
@@ -259,8 +256,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     let cities = state.get_cities(color).len();
                     let roads = state.get_roads_by_color()[color as usize];
                     println!(
-                        "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
-                        color, vp, settlements, cities, roads
+                        "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                     );
                 }
             }
@@ -275,11 +271,10 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         }
     }
 
-    if turn_count >= MAX_TURNS {
-        if verbose {
+    if turn_count >= MAX_TURNS
+        && verbose {
             println!(
-                "⏰ Simulation ended after {} turns (max reached)",
-                MAX_TURNS
+                "⏰ Simulation ended after {MAX_TURNS} turns (max reached)"
             );
             if let Some(ref state) = game.state {
                 println!("📊 Final Victory Points:");
@@ -290,13 +285,11 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     let cities = state.get_cities(color).len();
                     let roads = state.get_roads_by_color()[color as usize];
                     println!(
-                        "   🏆 Player {}: {} VP (settlements: {}, cities: {}, roads: {})",
-                        color, vp, settlements, cities, roads
+                        "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                     );
                 }
             }
         }
-    }
 
     None
 }
@@ -311,21 +304,21 @@ fn choose_best_action(actions: &[Action]) -> Action {
         .iter()
         .find(|a| matches!(a, Action::BuildSettlement { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     if let Some(action) = actions
         .iter()
         .find(|a| matches!(a, Action::BuildCity { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     if let Some(action) = actions
         .iter()
         .find(|a| matches!(a, Action::BuildRoad { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     // Check for development card actions
@@ -333,7 +326,7 @@ fn choose_best_action(actions: &[Action]) -> Action {
         .iter()
         .find(|a| matches!(a, Action::BuyDevelopmentCard { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     if let Some(action) = actions.iter().find(|a| {
@@ -345,7 +338,7 @@ fn choose_best_action(actions: &[Action]) -> Action {
                 | Action::PlayRoadBuilding { .. }
         )
     }) {
-        return action.clone();
+        return *action;
     }
 
     // Check for trade actions
@@ -353,7 +346,7 @@ fn choose_best_action(actions: &[Action]) -> Action {
         .iter()
         .find(|a| matches!(a, Action::MaritimeTrade { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     // Check for robber actions
@@ -361,19 +354,19 @@ fn choose_best_action(actions: &[Action]) -> Action {
         .iter()
         .find(|a| matches!(a, Action::MoveRobber { .. }))
     {
-        return action.clone();
+        return *action;
     }
 
     // Check for discard actions
     if let Some(action) = actions.iter().find(|a| matches!(a, Action::Discard { .. })) {
-        return action.clone();
+        return *action;
     }
 
     // Check for roll action
     if let Some(action) = actions.iter().find(|a| matches!(a, Action::Roll { .. })) {
-        return action.clone();
+        return *action;
     }
 
     // Fall back to first action (likely EndTurn)
-    actions[0].clone()
+    actions[0]
 }
