@@ -176,11 +176,17 @@ impl MapInstance {
     }
 
     pub fn get_neighbor_nodes(&self, node_id: NodeId) -> Vec<NodeId> {
-        self.node_neighbors.get(&node_id).unwrap().clone()
+        self.node_neighbors
+            .get(&node_id)
+            .cloned()
+            .unwrap_or_else(|| panic!("Unknown node_id {} in get_neighbor_nodes", node_id))
     }
 
     pub fn get_neighbor_edges(&self, node_id: NodeId) -> Vec<EdgeId> {
-        self.edge_neighbors.get(&node_id).unwrap().clone()
+        self.edge_neighbors
+            .get(&node_id)
+            .cloned()
+            .unwrap_or_else(|| panic!("Unknown node_id {} in get_neighbor_edges", node_id))
     }
 
     pub fn get_adjacent_tiles(&self, node_id: NodeId) -> Option<&Vec<LandTile>> {

@@ -524,7 +524,7 @@ impl Game {
 
         self.actions.push(action_log_entry);
 
-        // BUGFIX - Sync frontend game_state with internal state phase transitions
+        // Sync frontend game_state with internal state phase transitions
         // Check if we should transition from Setup to Active phase
         if self.game_state == GameState::Setup {
             if let Some(ref state) = self.state {
@@ -736,7 +736,7 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
     // Get robber position from state
     let robber_tile_id = state.get_robber_tile();
 
-    // BUGFIX: Sort tiles by coordinate for deterministic iteration
+    // Sort tiles by coordinate for deterministic iteration
     let mut sorted_tiles: Vec<_> = map_instance.tiles.iter().collect();
     sorted_tiles.sort_by_key(|(coord, _)| (coord.0, coord.1, coord.2));
 
@@ -786,9 +786,8 @@ fn generate_board_from_state(state: &State, map_instance: &MapInstance) -> GameB
                     // Use edge ID format that shows both connected nodes
                     let edge_id_str = format!("e{}_{}", node1.min(node2), node1.max(node2));
 
-                    // BUGFIX: Get road info from state using the actual EdgeId tuple
-                    let edge_id_tuple = (node1, node2);
-                    let edge_color_idx = state.get_edge_owner(edge_id_tuple);
+                    // Get road owner using order-agnostic helper
+                    let edge_color_idx = state.get_edge_owner((node1, node2));
                     let edge_color = edge_color_idx.map(|color_idx| match color_idx {
                         0 => "red".to_string(),
                         1 => "blue".to_string(),

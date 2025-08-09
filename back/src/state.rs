@@ -206,7 +206,7 @@ impl State {
 
     pub fn get_action_prompt(&self) -> ActionPrompt {
         if self.is_initial_build_phase() {
-            let num_things_built = self.buildings.len() + self.roads.len() / 2;
+            let num_things_built = self.buildings.len() + self.roads.len();
             let num_players = self.config.num_players as usize;
 
             if num_things_built == 4 * num_players {
@@ -372,9 +372,9 @@ impl State {
         let mut buildable = HashSet::new();
         for node in expandable_nodes {
             for edge in self.map_instance.get_neighbor_edges(node) {
-                if !self.roads.contains_key(&edge) {
-                    let sorted_edge = (edge.0.min(edge.1), edge.0.max(edge.1));
-                    buildable.insert(sorted_edge);
+                let canonical_edge = (edge.0.min(edge.1), edge.0.max(edge.1));
+                if !self.roads.contains_key(&canonical_edge) {
+                    buildable.insert(canonical_edge);
                 }
             }
         }
@@ -437,11 +437,16 @@ impl State {
         for &neighbor in &self.map_instance.get_neighbor_nodes(node) {
             let edge = (node.min(neighbor), node.max(neighbor));
 
-            // Skip backtracking, edges not owned by us, or already-used edges
-            if parent == Some(neighbor)
-                || self.roads.get(&edge) != Some(&color)
-                || current_path.contains(&edge)
-            {
+            // Skip backtracking or already-used edges
+            if parent == Some(neighbor) || current_path.contains(&edge) {
+                continue;
+            }
+
+            // Determine if this edge is owned by the player, tolerating legacy unsorted inserts
+            let is_owned_by_player = self.roads.get(&edge) == Some(&color)
+                || self.roads.get(&(node, neighbor)) == Some(&color)
+                || self.roads.get(&(neighbor, node)) == Some(&color);
+            if !is_owned_by_player {
                 continue;
             }
 
@@ -560,7 +565,18 @@ impl State {
     /// Get the owner of a specific edge (road)
     /// Returns Some(color) if a road exists on this edge, None otherwise
     pub fn get_edge_owner(&self, edge_id: EdgeId) -> Option<u8> {
-        self.roads.get(&edge_id).copied()
+        let canonical_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
+        self.roads.get(&canonical_edge).copied()
+    }
+
+    /// Returns true if any road is present on this edge (order-agnostic)
+    pub fn has_road(&self, edge_id: EdgeId) -> bool {
+        self.get_edge_owner(edge_id).is_some()
+    }
+
+    /// Returns true if the given color owns this edge (order-agnostic)
+    pub fn owns_road(&self, color: u8, edge_id: EdgeId) -> bool {
+        self.get_edge_owner(edge_id) == Some(color)
     }
 
     pub fn get_bank_resources(&self) -> &[u8] {

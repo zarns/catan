@@ -77,7 +77,7 @@ impl State {
                         self.map_instance
                             .get_neighbor_edges(node_id)
                             .iter()
-                            .any(|&edge_id| self.roads.get(&edge_id) == Some(&color))
+                            .any(|&edge_id| self.owns_road(color, edge_id))
                     })
                     .collect();
 
@@ -123,7 +123,7 @@ impl State {
             .map_instance
             .get_neighbor_edges(last_node_id)
             .into_iter()
-            .filter(|edge_id| !self.roads.contains_key(edge_id))
+            .filter(|edge_id| !self.has_road(*edge_id))
             .collect();
 
         // DEBUG: Log what's being allowed for initial road building

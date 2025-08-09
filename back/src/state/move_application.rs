@@ -29,7 +29,7 @@ impl State {
                     .count()
             })
             .sum::<usize>();
-        let before_roads = self.roads.len() / 2;
+        let before_roads = self.roads.len();
 
         match action {
             Action::BuildSettlement { color, node_id } => {
@@ -100,7 +100,7 @@ impl State {
                     .count()
             })
             .sum::<usize>();
-        let after_roads = self.roads.len() / 2;
+        let after_roads = self.roads.len();
 
         // Log phase transitions and significant state changes
         if before_initial != after_initial {
@@ -214,11 +214,12 @@ impl State {
 
             let mut plowed_edges_by_color: HashMap<u8, Vec<EdgeId>> = HashMap::new();
             for edge in self.map_instance.get_neighbor_edges(node_id) {
-                if let Some(&road_color) = self.roads.get(&edge) {
+                let canonical_edge = (edge.0.min(edge.1), edge.0.max(edge.1));
+                if let Some(&road_color) = self.roads.get(&canonical_edge) {
                     plowed_edges_by_color
                         .entry(road_color)
                         .or_default()
-                        .push(edge);
+                        .push(canonical_edge);
                 }
             }
 
@@ -359,7 +360,7 @@ impl State {
                     .count()
             })
             .sum::<usize>();
-        let total_roads = self.roads.len() / 2; // Each road stored twice
+        let total_roads = self.roads.len();
         let num_players = self.config.num_players as usize;
 
         let phase_1_complete = total_settlements >= num_players && total_roads >= num_players;
@@ -388,21 +389,21 @@ impl State {
         );
 
         // DEBUG: Log existing roads before insertion
-        let existing_roads_count = self.roads.len() / 2; // Each road stored twice
+        let existing_roads_count = self.roads.len();
         log::debug!(
             "📊 Before insertion: {} roads in storage, inserting for player {}",
             existing_roads_count,
             placing_color
         );
 
-        self.roads.insert(edge_id, placing_color);
-        self.roads.insert(inverted_edge, placing_color);
+        let canonical_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
+        self.roads.insert(canonical_edge, placing_color);
         self.roads_by_color[placing_color as usize] += 1;
 
         // DEBUG: Log after insertion
         log::debug!(
             "📊 After insertion: {} roads in storage, player {} now has {} roads",
-            self.roads.len() / 2,
+            self.roads.len(),
             placing_color,
             self.roads_by_color[placing_color as usize]
         );
@@ -432,7 +433,7 @@ impl State {
                         .count()
                 })
                 .sum::<usize>();
-            let num_roads = self.roads.len() / 2; // Each road is stored twice (a,b) and (b,a)
+            let num_roads = self.roads.len();
             let num_players = self.config.num_players as usize;
 
             log::info!(
@@ -989,8 +990,7 @@ impl State {
             }
 
             for neighbor in self.map_instance.get_neighbor_nodes(node) {
-                let edge = (node.min(neighbor), node.max(neighbor));
-                if self.roads.get(&edge) == Some(&color) {
+                if self.owns_road(color, (node, neighbor)) {
                     agenda.push(neighbor);
                 }
             }
