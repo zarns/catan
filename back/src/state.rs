@@ -437,10 +437,6 @@ impl State {
         }
 
         for &neighbor in &self.map_instance.get_neighbor_nodes(node) {
-            // Must be in the connected component
-            if !connected_set.contains(&neighbor) {
-                continue;
-            }
             let edge = (node.min(neighbor), node.max(neighbor));
 
             // Avoid going back to parent
@@ -453,6 +449,17 @@ impl State {
             }
             // Acyclic check
             if current_path.contains(&edge) {
+                continue;
+            }
+
+            // If neighbor is an enemy-occupied node, allow stepping onto the edge
+            // to count it as terminal, but do not traverse beyond it.
+            if self.is_enemy_node(color, neighbor) {
+                current_path.push(edge);
+                if current_path.len() > best_path.len() {
+                    *best_path = current_path.clone();
+                }
+                current_path.pop();
                 continue;
             }
 

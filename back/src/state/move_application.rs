@@ -1988,7 +1988,7 @@ mod tests {
         // Set up a simple scenario: build settlement and give road building card
         state.build_settlement(starting_color, 0);
         state.add_dev_card(starting_color, DevCard::RoadBuilding as usize);
-        
+
         // Manually set state to post-initial phase for road building
         state.vector[IS_INITIAL_BUILD_PHASE_INDEX] = 0;
         state.vector[HAS_ROLLED_INDEX] = 1;
@@ -1997,7 +1997,9 @@ mod tests {
         assert_eq!(state.get_current_color(), starting_color);
 
         // Play road building card
-        state.apply_action(Action::PlayRoadBuilding { color: starting_color });
+        state.apply_action(Action::PlayRoadBuilding {
+            color: starting_color,
+        });
 
         // Verify turn hasn't advanced after playing Road Building
         assert_eq!(state.get_current_color(), starting_color);
@@ -2007,18 +2009,24 @@ mod tests {
         // Build first road
         let actions = state.generate_playable_actions();
         if let Some(Action::BuildRoad { edge_id, .. }) = actions.first() {
-            state.apply_action(Action::BuildRoad { color: starting_color, edge_id: *edge_id });
-            
+            state.apply_action(Action::BuildRoad {
+                color: starting_color,
+                edge_id: *edge_id,
+            });
+
             // CRITICAL: Verify turn STILL hasn't advanced after building first road
             assert_eq!(state.get_current_color(), starting_color);
             assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 1);
             assert!(state.is_road_building());
 
-            // Build second road  
+            // Build second road
             let actions = state.generate_playable_actions();
             if let Some(Action::BuildRoad { edge_id, .. }) = actions.first() {
-                state.apply_action(Action::BuildRoad { color: starting_color, edge_id: *edge_id });
-                
+                state.apply_action(Action::BuildRoad {
+                    color: starting_color,
+                    edge_id: *edge_id,
+                });
+
                 // CRITICAL: Verify turn STILL hasn't advanced after building second road
                 assert_eq!(state.get_current_color(), starting_color);
                 assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 0);

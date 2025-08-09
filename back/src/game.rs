@@ -199,7 +199,6 @@ fn convert_port_tile(coord: CubeCoordinate, port_tile: &PortTile) -> PortPositio
     }
 }
 
-
 // Create a new Player struct from the given information
 pub fn create_player(id: String, name: String, color: String) -> Player {
     Player {
@@ -698,7 +697,7 @@ impl Serialize for Game {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        
+
         let mut state = serializer.serialize_struct("Game", 14)?;
         state.serialize_field("id", &self.id)?;
         state.serialize_field("players", &self.players)?;
@@ -713,11 +712,11 @@ impl Serialize for Game {
         state.serialize_field("current_color", &self.current_color)?;
         state.serialize_field("current_prompt", &self.current_prompt)?;
         state.serialize_field("bot_colors", &self.bot_colors)?;
-        
+
         // Generate board on-demand during serialization
         let board = self.get_board();
         state.serialize_field("board", &board)?;
-        
+
         state.end()
     }
 }

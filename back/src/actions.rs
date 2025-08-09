@@ -223,17 +223,16 @@ impl From<crate::enums::Action> for PlayerAction {
             EnumAction::BuildCity { node_id, .. } => PlayerAction::BuildCity { node_id },
             EnumAction::BuyDevelopmentCard { .. } => PlayerAction::BuyDevelopmentCard,
             EnumAction::PlayKnight { .. } => PlayerAction::PlayKnight,
-            EnumAction::PlayYearOfPlenty { resources, .. } => PlayerAction::PlayYearOfPlenty { 
-                resources: (
-                    u8_to_resource(resources.0),
-                    resources.1.map(u8_to_resource)
-                )
+            EnumAction::PlayYearOfPlenty { resources, .. } => PlayerAction::PlayYearOfPlenty {
+                resources: (u8_to_resource(resources.0), resources.1.map(u8_to_resource)),
             },
-            EnumAction::PlayMonopoly { resource, .. } => PlayerAction::PlayMonopoly { 
-                resource: u8_to_resource(resource)
+            EnumAction::PlayMonopoly { resource, .. } => PlayerAction::PlayMonopoly {
+                resource: u8_to_resource(resource),
             },
             EnumAction::PlayRoadBuilding { .. } => PlayerAction::PlayRoadBuilding,
-            EnumAction::MaritimeTrade { give, take, ratio, .. } => PlayerAction::MaritimeTrade {
+            EnumAction::MaritimeTrade {
+                give, take, ratio, ..
+            } => PlayerAction::MaritimeTrade {
                 give: u8_to_resource(give),
                 take: u8_to_resource(take),
                 ratio,
@@ -270,16 +269,13 @@ impl From<PlayerAction> for crate::enums::Action {
             PlayerAction::BuildCity { node_id } => EnumAction::BuildCity { color: 0, node_id },
             PlayerAction::BuyDevelopmentCard => EnumAction::BuyDevelopmentCard { color: 0 },
             PlayerAction::PlayKnight => EnumAction::PlayKnight { color: 0 },
-            PlayerAction::PlayYearOfPlenty { resources } => EnumAction::PlayYearOfPlenty { 
-                color: 0, 
-                resources: (
-                    resource_to_u8(resources.0),
-                    resources.1.map(resource_to_u8)
-                )
+            PlayerAction::PlayYearOfPlenty { resources } => EnumAction::PlayYearOfPlenty {
+                color: 0,
+                resources: (resource_to_u8(resources.0), resources.1.map(resource_to_u8)),
             },
-            PlayerAction::PlayMonopoly { resource } => EnumAction::PlayMonopoly { 
-                color: 0, 
-                resource: resource_to_u8(resource)
+            PlayerAction::PlayMonopoly { resource } => EnumAction::PlayMonopoly {
+                color: 0,
+                resource: resource_to_u8(resource),
             },
             PlayerAction::PlayRoadBuilding => EnumAction::PlayRoadBuilding { color: 0 },
             PlayerAction::EndTurn => EnumAction::EndTurn { color: 0 },
