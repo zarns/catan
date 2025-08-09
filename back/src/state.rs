@@ -426,12 +426,10 @@ impl State {
         &self,
         node: NodeId,
         parent: Option<NodeId>,
-        connected_set: &HashSet<NodeId>,
         color: u8,
         current_path: &mut Vec<EdgeId>,
         best_path: &mut Vec<EdgeId>,
     ) {
-        // If current_path is longer than what we have, store it
         if current_path.len() > best_path.len() {
             *best_path = current_path.clone();
         }
@@ -439,21 +437,15 @@ impl State {
         for &neighbor in &self.map_instance.get_neighbor_nodes(node) {
             let edge = (node.min(neighbor), node.max(neighbor));
 
-            // Avoid going back to parent
-            if parent == Some(neighbor) {
-                continue;
-            }
-            // Skip roads not owned by us
-            if self.roads.get(&edge) != Some(&color) {
-                continue;
-            }
-            // Acyclic check
-            if current_path.contains(&edge) {
+            // Skip backtracking, edges not owned by us, or already-used edges
+            if parent == Some(neighbor)
+                || self.roads.get(&edge) != Some(&color)
+                || current_path.contains(&edge)
+            {
                 continue;
             }
 
-            // If neighbor is an enemy-occupied node, allow stepping onto the edge
-            // to count it as terminal, but do not traverse beyond it.
+            // Enemy node: count the terminal edge, but do not traverse beyond
             if self.is_enemy_node(color, neighbor) {
                 current_path.push(edge);
                 if current_path.len() > best_path.len() {
@@ -463,16 +455,9 @@ impl State {
                 continue;
             }
 
-            // Move forward
+            // Traverse forward
             current_path.push(edge);
-            self.dfs_longest_path(
-                neighbor,
-                Some(node),
-                connected_set,
-                color,
-                current_path,
-                best_path,
-            );
+            self.dfs_longest_path(neighbor, Some(node), color, current_path, best_path);
             current_path.pop();
         }
     }
@@ -492,14 +477,7 @@ impl State {
             let mut current_path = Vec::new();
             let mut best_path = Vec::new();
 
-            self.dfs_longest_path(
-                start_node,
-                None,
-                connected_node_set,
-                color,
-                &mut current_path,
-                &mut best_path,
-            );
+            self.dfs_longest_path(start_node, None, color, &mut current_path, &mut best_path);
             if best_path.len() > overall_best_path.len() {
                 overall_best_path = best_path;
             }
