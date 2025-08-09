@@ -37,4 +37,9 @@ impl<K: std::hash::Hash + Eq + Clone, V> OrderedHashMap<K, V> {
     pub fn len(&self) -> usize {
         self.keys.len()
     }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
 }
