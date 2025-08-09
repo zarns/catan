@@ -369,8 +369,6 @@ impl Game {
             // Add 2 of each dev card type to the internal state
             state.add_dev_card(color, DevCard::Knight as usize);
             state.add_dev_card(color, DevCard::Knight as usize);
-            state.add_dev_card(color, DevCard::VictoryPoint as usize);
-            state.add_dev_card(color, DevCard::VictoryPoint as usize);
             state.add_dev_card(color, DevCard::Monopoly as usize);
             state.add_dev_card(color, DevCard::Monopoly as usize);
             state.add_dev_card(color, DevCard::YearOfPlenty as usize);
