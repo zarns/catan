@@ -11,7 +11,7 @@ use super::BotPlayer;
 /// - Building cities
 /// - Building settlements
 /// - Buying development cards
-/// Other actions have a default weight of 1.
+///   Other actions have a default weight of 1.
 pub struct WeightedRandomPlayer {
     pub id: String,
     pub name: String,
