@@ -271,25 +271,22 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         }
     }
 
-    if turn_count >= MAX_TURNS
-        && verbose {
-            println!(
-                "⏰ Simulation ended after {MAX_TURNS} turns (max reached)"
-            );
-            if let Some(ref state) = game.state {
-                println!("📊 Final Victory Points:");
-                // Show final victory points breakdown
-                for color in 0..state.get_num_players() {
-                    let vp = state.get_actual_victory_points(color);
-                    let settlements = state.get_settlements(color).len();
-                    let cities = state.get_cities(color).len();
-                    let roads = state.get_roads_by_color()[color as usize];
-                    println!(
+    if turn_count >= MAX_TURNS && verbose {
+        println!("⏰ Simulation ended after {MAX_TURNS} turns (max reached)");
+        if let Some(ref state) = game.state {
+            println!("📊 Final Victory Points:");
+            // Show final victory points breakdown
+            for color in 0..state.get_num_players() {
+                let vp = state.get_actual_victory_points(color);
+                let settlements = state.get_settlements(color).len();
+                let cities = state.get_cities(color).len();
+                let roads = state.get_roads_by_color()[color as usize];
+                println!(
                         "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                     );
-                }
             }
         }
+    }
 
     None
 }

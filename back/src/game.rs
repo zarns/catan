@@ -644,10 +644,7 @@ impl Game {
     }
 
     /// Get all adjacent tiles for a specific node ID using backend's authoritative adjacency calculation
-    pub fn get_node_adjacent_tiles(
-        &self,
-        node_id: u8,
-    ) -> Option<Vec<NodeTileAdjacency>> {
+    pub fn get_node_adjacent_tiles(&self, node_id: u8) -> Option<Vec<NodeTileAdjacency>> {
         if let Some(state) = &self.state {
             let map_instance = state.get_map_instance();
             if let Some(adjacent_tiles) = map_instance.get_adjacent_tiles(node_id) {
@@ -675,9 +672,7 @@ impl Game {
 
     /// Get complete node-to-tile adjacency mapping for all nodes using backend's authoritative calculations
     /// Returns HashMap<NodeId, Vec<(TileId, Resource, Number)>>
-    pub fn get_all_node_tile_adjacencies(
-        &self,
-    ) -> NodeAdjacencyMap {
+    pub fn get_all_node_tile_adjacencies(&self) -> NodeAdjacencyMap {
         let mut adjacencies: NodeAdjacencyMap = HashMap::new();
 
         if let Some(state) = &self.state {

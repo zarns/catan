@@ -500,10 +500,10 @@ impl WebSocketService {
         loop {
             // Check if we should continue (has active connections)
             let has_connections = {
-            let connections = active_connections.read().await;
-            connections
-                .get(game_id)
-                .is_some_and(|conns| !conns.is_empty())
+                let connections = active_connections.read().await;
+                connections
+                    .get(game_id)
+                    .is_some_and(|conns| !conns.is_empty())
             };
 
             if !has_connections {
