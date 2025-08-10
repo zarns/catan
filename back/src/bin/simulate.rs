@@ -353,18 +353,19 @@ fn simulate_single_game(
                         catan::enums::ActionPrompt::PlayTurn
                     ) {
                         let color = state.get_current_color();
-                        let mut cats = Vec::new();
-                        cats.push((
-                            "settlement",
-                            state.settlement_possibilities(color, false).len(),
-                        ));
-                        cats.push(("road", state.road_possibilities(color, false).len()));
-                        cats.push(("city", state.city_possibilities(color).len()));
-                        cats.push((
-                            "buy_dev",
-                            state.buy_development_card_possibilities(color).len(),
-                        ));
-                        cats.push(("maritime", state.maritime_trade_possibilities(color).len()));
+                        let cats = vec![
+                            (
+                                "settlement",
+                                state.settlement_possibilities(color, false).len(),
+                            ),
+                            ("road", state.road_possibilities(color, false).len()),
+                            ("city", state.city_possibilities(color).len()),
+                            (
+                                "buy_dev",
+                                state.buy_development_card_possibilities(color).len(),
+                            ),
+                            ("maritime", state.maritime_trade_possibilities(color).len()),
+                        ];
                         log::debug!("   - Category sizes: {:?}", cats);
                     }
                     state.log_victory_points();
@@ -537,9 +538,7 @@ fn simulate_single_game(
     SimOutcome::NoState
 }
 
-/// Choose the most interesting action from available options
-/// Prioritizes building actions over basic actions like EndTurn
-// removed unused choose_best_action helper; decisions now come from configured bots
+// Helper for building the bot lineup from config string
 
 fn build_bots_from_config(config: &str) -> (Vec<Box<dyn BotPlayer>>, Vec<String>) {
     let colors = ["red", "blue", "white", "orange"]; // cosmetic only
