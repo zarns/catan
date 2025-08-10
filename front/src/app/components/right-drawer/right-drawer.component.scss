@@ -1,6 +1,14 @@
 @use '../../../variables' as vars;
 
 .analyze-button {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 200ms ease, transform 120ms ease;
+  &.loading {
+    cursor: default;
+    animation: pulseGlow 1.6s ease-in-out infinite;
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.15), 0 0 0 rgba(0,0,0,0);
+  }
   .button-content {
     display: inline-flex;
     align-items: center;
@@ -9,10 +17,14 @@
   .button-icon {
     font-size: 20px;
     line-height: 20px;
+    transition: transform 200ms ease;
   }
-  .button-spinner {
-    display: inline-block;
-  }
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 rgba(255,255,255,0.0); }
+  50% { box-shadow: 0 0 16px rgba(255,255,255,0.4); }
+  100% { box-shadow: 0 0 0 rgba(255,255,255,0.0); }
 }
 
 .probability-row .player-color {

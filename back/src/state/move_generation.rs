@@ -408,7 +408,7 @@ impl State {
         // when 7 was rolled, but then other players discarded and affected their hand somehow)
         if total_cards <= self.config.discard_limit {
             // This shouldn't normally happen, but if it does, treat as no discard needed
-            log::warn!(
+            log::debug!(
                 "Player {} in discard phase but only has {} cards (limit: {})",
                 color,
                 total_cards,

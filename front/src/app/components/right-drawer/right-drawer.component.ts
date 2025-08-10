@@ -2,7 +2,6 @@ import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { environment } from '../../../environments/environment';
 import { WebsocketService } from '../../services/websocket.service';
@@ -14,7 +13,6 @@ import { WebsocketService } from '../../services/websocket.service';
     CommonModule,
     MatButtonModule,
     MatDividerModule,
-    MatProgressSpinnerModule,
     MatIconModule,
   ],
   template: `
@@ -28,18 +26,18 @@ import { WebsocketService } from '../../services/websocket.service';
         <div class="analysis-header">
           <h3>Win Probability Analysis</h3>
         </div>
+        
         <div class="analysis-actions">
           <button
             mat-raised-button
             color="primary"
             class="analyze-button"
             (click)="handleAnalyzeClick()"
-            [disabled]="loading || isGameOver"
+            [disabled]="isGameOver"
             [class.loading]="loading"
           >
             <span class="button-content">
-              <mat-icon class="button-icon" *ngIf="!loading">assessment</mat-icon>
-              <mat-spinner class="button-spinner" *ngIf="loading" diameter="18"></mat-spinner>
+              <mat-icon class="button-icon">assessment</mat-icon>
               <span class="button-label">{{ loading ? 'Analyzing...' : 'Analyze' }}</span>
             </span>
           </button>
@@ -147,7 +145,7 @@ export class RightDrawerComponent implements OnInit {
   }
 
   handleAnalyzeClick(): void {
-    if (!this.gameId || !this.gameState || this.isGameOver) {
+    if (!this.gameId || !this.gameState || this.isGameOver || this.loading) {
       return;
     }
 
