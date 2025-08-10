@@ -5,7 +5,6 @@ use super::Building;
 use super::State;
 
 use crate::enums::{Action, ActionPrompt, DevCard};
-use crate::state_vector::get_free_roads_available;
 use std::collections::HashSet;
 
 const TOTAL_ROADS_PER_PLAYER: u8 = 15;
@@ -248,11 +247,12 @@ impl State {
 
     pub fn play_turn_possibilities(&self, color: u8) -> Vec<Action> {
         if self.is_road_building() {
-            if get_free_roads_available(&self.vector) == 0 {
-                return vec![Action::EndTurn { color }]; // Always provide EndTurn
+            let actions = self.road_possibilities(color, true);
+            if !actions.is_empty() {
+                return actions;
             }
-            return self.road_possibilities(color, true);
-        } else if !self.current_player_rolled() {
+        }
+        if !self.current_player_rolled() {
             let mut actions = vec![Action::Roll {
                 color,
                 dice_opt: None,

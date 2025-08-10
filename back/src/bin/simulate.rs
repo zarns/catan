@@ -1,5 +1,9 @@
 use catan::enums::Action;
 use catan::game::*;
+use catan::players::{
+    AlphaBetaPlayer, BotPlayer, GreedyPlayer, RandomPlayer, WeightedRandomPlayer,
+};
+use std::collections::HashMap;
 use std::env;
 
 fn main() {
@@ -9,6 +13,7 @@ fn main() {
     let mut num_games = 1;
     let mut verbose = false;
     let mut players_config = "RRRR".to_string(); // Default: 4 random players
+    let mut dump_timeout = false;
 
     // Parse command line arguments
     let mut i = 1;
@@ -29,6 +34,9 @@ fn main() {
             "-v" | "--verbose" => {
                 verbose = true;
             }
+            "-t" | "--dump-timeout" => {
+                dump_timeout = true;
+            }
             _ => {}
         }
         i += 1;
@@ -41,57 +49,161 @@ fn main() {
     log::info!("  - Number of games: {num_games}");
     log::info!("  - Verbose: {verbose}");
 
-    let mut wins = vec![0; players_config.len()];
-    let mut total_turns = 0;
-    let mut completed_games = 0;
+    let num_players = players_config.len();
+    let mut wins = vec![0u32; num_players];
+    let mut total_turns: u64 = 0;
+    let mut completed_games: u32 = 0;
+    // Per-player VP aggregates for completed games
+    let mut vp_sum = vec![0u64; num_players];
+    let mut vp_sum_sq = vec![0u128; num_players];
+    // Termination reasons
+    let mut timeout_games: u32 = 0;
+    let mut no_actions_games: u32 = 0;
+    let mut no_state_games: u32 = 0;
+    let mut no_actions_by_prompt: HashMap<String, u32> = HashMap::new();
+    let mut timeout_turns: u64 = 0;
+    let mut timeout_bank_zero_sum: u64 = 0;
+    let mut timeout_actions_sum: u64 = 0;
+    let mut no_actions_turns: u64 = 0;
+    let mut timeout_vp_sum: u64 = 0; // sum of total VP across players at timeout
+    let mut no_actions_vp_sum: u64 = 0; // sum of total VP across players at no-actions
+
+    // Build bot lineup from players_config (R,G,W,A)
+    let bots = build_bots_from_config(&players_config);
 
     for game_num in 0..num_games {
         if num_games > 1 {
             log::info!("\n🎯 Game {} of {}", game_num + 1, num_games);
         }
 
-        let result = simulate_single_game(players_config.len() as u8, verbose);
+        let result = simulate_single_game(&bots, verbose, dump_timeout);
         match result {
-            Some((winner, turns)) => {
+            SimOutcome::Completed { winner, turns, vps } => {
                 wins[winner as usize] += 1;
-                total_turns += turns;
+                total_turns += turns as u64;
                 completed_games += 1;
+                for (i, &vp) in vps.iter().enumerate() {
+                    vp_sum[i] += vp as u64;
+                    vp_sum_sq[i] += (vp as u128) * (vp as u128);
+                }
                 if num_games > 1 {
                     log::info!("  Winner: Player {winner} in {turns} turns");
                 }
             }
-            None => {
-                if num_games > 1 {
-                    log::warn!("  Game did not complete within turn limit");
-                }
+            SimOutcome::Timeout {
+                turns,
+                vps,
+                bank_zeroes,
+                actions_len,
+            } => {
+                timeout_games += 1;
+                timeout_turns += turns as u64;
+                timeout_vp_sum += vps.iter().map(|&v| v as u64).sum::<u64>();
+                timeout_bank_zero_sum += bank_zeroes as u64;
+                timeout_actions_sum += actions_len as u64;
+            }
+            SimOutcome::NoActions { turns, prompt, vps } => {
+                no_actions_games += 1;
+                no_actions_turns += turns as u64;
+                no_actions_vp_sum += vps.iter().map(|&v| v as u64).sum::<u64>();
+                *no_actions_by_prompt.entry(prompt).or_insert(0) += 1;
+            }
+            SimOutcome::NoState => no_state_games += 1,
+        }
+    }
+
+    // Always print a summary to stdout so it's visible without RUST_LOG
+    if num_games > 1 {
+        println!("\n📊 Tournament Results:\n====================");
+    } else {
+        println!("\n📊 Game Result:\n=============");
+    }
+    for (i, &win_count) in wins.iter().enumerate() {
+        let win_rate = if completed_games > 0 {
+            (win_count as f64 / completed_games as f64) * 100.0
+        } else {
+            0.0
+        };
+        let (mean_vp, std_vp) = if completed_games > 0 {
+            let n = completed_games as f64;
+            let mean = vp_sum[i] as f64 / n;
+            let mean_sq = vp_sum_sq[i] as f64 / n;
+            let var = (mean_sq - mean * mean).max(0.0);
+            (mean, var.sqrt())
+        } else {
+            (0.0, 0.0)
+        };
+        println!(
+            "Player {i}: {win_count} wins ({win_rate:.1}%), mean VP: {mean_vp:.2} ± {std_vp:.2}"
+        );
+    }
+    println!("Completed games: {completed_games}/{num_games}");
+    let incomplete = num_games as u32 - completed_games;
+    if incomplete > 0 {
+        println!(
+            "Incomplete: {} (timeouts: {}, no_actions: {}, no_state: {})",
+            incomplete, timeout_games, no_actions_games, no_state_games
+        );
+        if timeout_games > 0 {
+            let avg = timeout_turns as f64 / timeout_games as f64;
+            let mean_vp_sum = timeout_vp_sum as f64 / timeout_games as f64;
+            let mean_bank_zeroes = timeout_bank_zero_sum as f64 / timeout_games as f64;
+            let mean_actions = timeout_actions_sum as f64 / timeout_games as f64;
+            println!(
+                "  - Timeouts: avg turns {:.1}, mean total VP at timeout {:.2}, mean bank zero-res types {:.2}, mean legal actions {:.2}",
+                avg, mean_vp_sum, mean_bank_zeroes, mean_actions
+            );
+        }
+        if no_actions_games > 0 {
+            let avg = no_actions_turns as f64 / no_actions_games as f64;
+            let mean_vp_sum = no_actions_vp_sum as f64 / no_actions_games as f64;
+            println!(
+                "  - NoActions: avg turns {:.1}, mean total VP {:.2}",
+                avg, mean_vp_sum
+            );
+            // Print top 3 prompts causing no_actions
+            let mut items: Vec<(String, u32)> = no_actions_by_prompt.into_iter().collect();
+            items.sort_by(|a, b| b.1.cmp(&a.1));
+            for (i, (prompt, count)) in items.into_iter().take(3).enumerate() {
+                println!("    {}. {}: {}", i + 1, prompt, count);
             }
         }
     }
-
-    if num_games > 1 {
-        log::info!("\n📊 Tournament Results:");
-        log::info!("====================");
-        for (i, &win_count) in wins.iter().enumerate() {
-            let win_rate = if completed_games > 0 {
-                (win_count as f64 / completed_games as f64) * 100.0
-            } else {
-                0.0
-            };
-            log::info!("Player {i}: {win_count} wins ({win_rate:.1}%)");
-        }
-        log::info!("Completed games: {completed_games}/{num_games}");
-        if completed_games > 0 {
-            log::info!(
-                "Average turns per game: {:.1}",
-                total_turns as f64 / completed_games as f64
-            );
-        }
+    if completed_games > 0 {
+        println!(
+            "Average turns per game: {:.1}",
+            total_turns as f64 / completed_games as f64
+        );
     }
 }
 
-fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
+enum SimOutcome {
+    Completed {
+        winner: u8,
+        turns: u32,
+        vps: Vec<u8>,
+    },
+    Timeout {
+        turns: u32,
+        vps: Vec<u8>,
+        bank_zeroes: u8,
+        actions_len: usize,
+    },
+    NoActions {
+        turns: u32,
+        prompt: String,
+        vps: Vec<u8>,
+    },
+    NoState,
+}
+
+fn simulate_single_game(
+    bots: &[Box<dyn BotPlayer>],
+    verbose: bool,
+    dump_timeout: bool,
+) -> SimOutcome {
     // Create a real game with actual game logic
-    let mut game = simulate_bot_game(num_players);
+    let mut game = simulate_bot_game(bots.len() as u8);
 
     if verbose {
         log::debug!(
@@ -129,7 +241,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
 
     // Simulate turns with real actions
     let mut turn_count = 0;
-    const MAX_TURNS: u32 = 5000; // Higher limit for real games - increased for thorough testing
+    const MAX_TURNS: u32 = 10000; // Higher limit for real games - increased for thorough testing
     let mut last_vp_log = 0;
 
     if verbose {
@@ -154,8 +266,13 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                         );
                     }
                 }
+                let final_vps = collect_final_vps(state);
                 log::info!("✅ Game completed in {turn_count} turns");
-                return Some((winner, turn_count));
+                return SimOutcome::Completed {
+                    winner,
+                    turns: turn_count,
+                    vps: final_vps,
+                };
             }
         }
 
@@ -168,7 +285,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
             if verbose {
                 log::error!("❌ No game state available!");
             }
-            break;
+            return SimOutcome::NoState;
         };
 
         // Log turn info every 10 turns or for debugging
@@ -190,10 +307,70 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     log::debug!("   - Is initial: {}", state.is_initial_build_phase());
                     log::debug!("   - Is discarding: {}", state.is_discarding());
                     log::debug!("   - Is moving robber: {}", state.is_moving_robber());
+                    log::debug!("   - Rolled this turn: {}", state.current_player_rolled());
+                    let color = state.get_current_color();
+                    let hand = state.get_player_hand(color);
+                    log::debug!(
+                        "   - Current player {} hand: Wd={} Br={} Sh={} Wh={} Or={}",
+                        color,
+                        hand[0],
+                        hand[1],
+                        hand[2],
+                        hand[3],
+                        hand[4]
+                    );
+                    let dev = state.get_player_devhand(color);
+                    log::debug!(
+                        "   - Dev hand: K={} YOP={} Mono={} RB={} VP={}",
+                        dev[0],
+                        dev[1],
+                        dev[2],
+                        dev[3],
+                        dev[4]
+                    );
+                    let bank = state.get_bank_resources();
+                    log::debug!(
+                        "   - Bank: Wd={} Br={} Sh={} Wh={} Or={}",
+                        bank[0],
+                        bank[1],
+                        bank[2],
+                        bank[3],
+                        bank[4]
+                    );
+                    // Also dump candidate possibilities by category for PlayTurn
+                    if matches!(
+                        state.get_action_prompt(),
+                        catan::enums::ActionPrompt::PlayTurn
+                    ) {
+                        let color = state.get_current_color();
+                        let mut cats = Vec::new();
+                        cats.push((
+                            "settlement",
+                            state.settlement_possibilities(color, false).len(),
+                        ));
+                        cats.push(("road", state.road_possibilities(color, false).len()));
+                        cats.push(("city", state.city_possibilities(color).len()));
+                        cats.push((
+                            "buy_dev",
+                            state.buy_development_card_possibilities(color).len(),
+                        ));
+                        cats.push(("maritime", state.maritime_trade_possibilities(color).len()));
+                        log::debug!("   - Category sizes: {:?}", cats);
+                    }
                     state.log_victory_points();
                 }
             }
-            break;
+            if let Some(ref state) = game.state {
+                let prompt = format!("{:?}", state.get_action_prompt());
+                let vps = collect_final_vps(state);
+                return SimOutcome::NoActions {
+                    turns: turn_count,
+                    prompt,
+                    vps,
+                };
+            } else {
+                return SimOutcome::NoState;
+            }
         }
 
         // Show first few available actions for debugging (only early turns)
@@ -230,8 +407,14 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
             }
         }
 
-        // Choose action: prioritize building actions over EndTurn for more interesting gameplay
-        let action = choose_best_action(&available_actions);
+        // Choose action via configured bot for the current player
+        let bot_idx = current_player as usize;
+        let action = if bot_idx < bots.len() {
+            bots[bot_idx].decide(game.state.as_ref().unwrap(), &available_actions)
+        } else {
+            // Fallback: first action
+            available_actions[0]
+        };
 
         if verbose && (turn_count % 10 == 0 || turn_count < 5) {
             log::debug!("🤖 Player {current_player} action: {action:?}");
@@ -292,82 +475,95 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         }
     }
 
-    None
+    // If we reach here, no winner within MAX_TURNS
+    if let Some(ref state) = game.state {
+        let vps = collect_final_vps(state);
+        // Quick diagnostics at timeout
+        let bank = state.get_bank_resources();
+        let bank_zeroes = bank.iter().filter(|&&c| c == 0).count() as u8;
+        let actions_len = state.generate_playable_actions().len();
+        if dump_timeout {
+            println!("\n⏰ Timeout dump:");
+            println!("  - Turn: {}", turn_count);
+            println!("  - Current player: {}", state.get_current_color());
+            println!("  - Action prompt: {:?}", state.get_action_prompt());
+            println!("  - Rolled this turn: {}", state.current_player_rolled());
+            println!(
+                "  - Bank: wood={} brick={} sheep={} wheat={} ore={} (zero-types={})",
+                bank[0], bank[1], bank[2], bank[3], bank[4], bank_zeroes
+            );
+            for color in 0..state.get_num_players() {
+                let hand = state.get_player_hand(color);
+                let dev = state.get_player_devhand(color);
+                println!(
+                    "  - P{}: VP={} | hand [w={},b={},s={},w={},o={}] | dev [K={},YOP={},M={},RB={},VP={}]",
+                    color,
+                    state.get_actual_victory_points(color),
+                    hand[0], hand[1], hand[2], hand[3], hand[4],
+                    dev[0], dev[1], dev[2], dev[3], dev[4]
+                );
+            }
+            let color = state.get_current_color();
+            println!(
+                "  - Legal actions now: {} (settle={}, road={}, city={}, buy_dev={}, maritime={})",
+                actions_len,
+                state.settlement_possibilities(color, false).len(),
+                state.road_possibilities(color, false).len(),
+                state.city_possibilities(color).len(),
+                state.buy_development_card_possibilities(color).len(),
+                state.maritime_trade_possibilities(color).len()
+            );
+            let acts = state.generate_playable_actions();
+            let preview = acts.iter().take(5).collect::<Vec<_>>();
+            println!("  - Actions (up to 5): {:?}", preview);
+        }
+        return SimOutcome::Timeout {
+            turns: turn_count,
+            vps,
+            bank_zeroes,
+            actions_len,
+        };
+    }
+    SimOutcome::NoState
 }
 
 /// Choose the most interesting action from available options
 /// Prioritizes building actions over basic actions like EndTurn
-fn choose_best_action(actions: &[Action]) -> Action {
-    // Priority order: Settlement > City > Road > Development > Trade > Robber > Other > EndTurn
+// removed unused choose_best_action helper; decisions now come from configured bots
 
-    // Check for building actions first (most important)
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::BuildSettlement { .. }))
-    {
-        return *action;
-    }
+fn build_bots_from_config(config: &str) -> Vec<Box<dyn BotPlayer>> {
+    let colors = ["red", "blue", "white", "orange"]; // cosmetic only
+    config
+        .chars()
+        .enumerate()
+        .map(|(i, c)| match c {
+            'G' | 'g' => Box::new(GreedyPlayer::new(
+                format!("player_{i}"),
+                format!("Greedy {i}"),
+                colors[i % colors.len()].to_string(),
+            )) as Box<dyn BotPlayer>,
+            'W' | 'w' => Box::new(WeightedRandomPlayer::new(
+                format!("player_{i}"),
+                format!("Weighted {i}"),
+                colors[i % colors.len()].to_string(),
+            )) as Box<dyn BotPlayer>,
+            'A' | 'a' => Box::new(AlphaBetaPlayer::new(
+                format!("player_{i}"),
+                format!("AlphaBeta {i}"),
+                colors[i % colors.len()].to_string(),
+            )) as Box<dyn BotPlayer>,
+            _ => Box::new(RandomPlayer::new(
+                format!("player_{i}"),
+                format!("Random {i}"),
+                colors[i % colors.len()].to_string(),
+            )) as Box<dyn BotPlayer>,
+        })
+        .collect()
+}
 
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::BuildCity { .. }))
-    {
-        return *action;
-    }
-
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::BuildRoad { .. }))
-    {
-        return *action;
-    }
-
-    // Check for development card actions
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::BuyDevelopmentCard { .. }))
-    {
-        return *action;
-    }
-
-    if let Some(action) = actions.iter().find(|a| {
-        matches!(
-            a,
-            Action::PlayKnight { .. }
-                | Action::PlayYearOfPlenty { .. }
-                | Action::PlayMonopoly { .. }
-                | Action::PlayRoadBuilding { .. }
-        )
-    }) {
-        return *action;
-    }
-
-    // Check for trade actions
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::MaritimeTrade { .. }))
-    {
-        return *action;
-    }
-
-    // Check for robber actions
-    if let Some(action) = actions
-        .iter()
-        .find(|a| matches!(a, Action::MoveRobber { .. }))
-    {
-        return *action;
-    }
-
-    // Check for discard actions
-    if let Some(action) = actions.iter().find(|a| matches!(a, Action::Discard { .. })) {
-        return *action;
-    }
-
-    // Check for roll action
-    if let Some(action) = actions.iter().find(|a| matches!(a, Action::Roll { .. })) {
-        return *action;
-    }
-
-    // Fall back to first action (likely EndTurn)
-    actions[0]
+fn collect_final_vps(state: &catan::state::State) -> Vec<u8> {
+    let num_players = state.get_num_players();
+    (0..num_players)
+        .map(|c| state.get_actual_victory_points(c))
+        .collect()
 }

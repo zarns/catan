@@ -159,6 +159,10 @@ impl State {
         self.vector[FREE_ROADS_AVAILABLE_INDEX] > 0
     }
 
+    fn reset_is_road_building(&mut self) {
+        self.vector[FREE_ROADS_AVAILABLE_INDEX] = 0;
+    }
+
     /// Returns a slice of Colors in the order of seating
     /// e.g. [2, 1, 0, 3] if Orange goes first, then Blue, then Red, and then White
     pub fn get_seating_order(&self) -> &[u8] {

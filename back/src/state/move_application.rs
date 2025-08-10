@@ -81,6 +81,7 @@ impl State {
                 self.maritime_trade(color, give, take, ratio);
             }
             Action::EndTurn { color } => {
+                self.reset_is_road_building();
                 self.end_turn(color);
             }
             _ => {
@@ -2069,12 +2070,14 @@ mod tests {
 
         state.vector[HAS_PLAYED_DEV_CARD] = 1;
         state.vector[HAS_ROLLED_INDEX] = 1;
+        state.vector[FREE_ROADS_AVAILABLE_INDEX] = 1;
         state.apply_action(Action::EndTurn {
             color: starting_color,
         });
 
         assert_eq!(state.vector[HAS_PLAYED_DEV_CARD], 0);
         assert_eq!(state.vector[HAS_ROLLED_INDEX], 0);
+        assert_eq!(state.vector[FREE_ROADS_AVAILABLE_INDEX], 0);
 
         assert_eq!(state.get_current_color(), seating_order[1]);
 
