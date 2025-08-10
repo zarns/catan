@@ -54,16 +54,23 @@ enum GameMode {
               </button>
             </div>
           </div>
-          <div class="action-buttons">
-            <button class="action-button primary" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
-              PLAY AGAINST CATANATRON
-            </button>
-            <button class="action-button secondary" (click)="startGame(GameMode.HUMAN_VS_RANDOM)">
-              PLAY AGAINST RANDOM
-            </button>
-            <button class="action-button secondary" (click)="startGame(GameMode.RANDOM_BOTS)">
-              WATCH RANDOM BOTS
-            </button>
+          <div class="action-buttons two-col">
+            <div class="col left">
+              <button class="action-button primary" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
+                PLAY AGAINST CATANATRON
+              </button>
+              <button class="action-button secondary" (click)="startGame(GameMode.HUMAN_VS_RANDOM)">
+                PLAY AGAINST RANDOM
+              </button>
+            </div>
+            <div class="col right">
+              <button class="action-button secondary" (click)="startGame(GameMode.CATANATRON_BOTS)">
+                WATCH CATANATRON
+              </button>
+              <button class="action-button secondary" (click)="startGame(GameMode.RANDOM_BOTS)">
+                WATCH RANDOM BOTS
+              </button>
+            </div>
           </div>
         } @else {
           <mat-spinner diameter="60"></mat-spinner>
@@ -124,10 +131,18 @@ enum GameMode {
         text-align: center;
       }
 
+      .player-count-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
       .button-group {
         display: flex;
         gap: 1rem;
         margin-bottom: 2rem;
+        justify-content: center;
+        flex-wrap: wrap;
       }
 
       .player-button {
@@ -163,6 +178,19 @@ enum GameMode {
         flex-direction: column;
         gap: 1rem;
         align-items: center;
+      }
+
+      .action-buttons.two-col {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 2rem;
+      }
+
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
       }
 
       .action-button {
@@ -295,12 +323,12 @@ export class HomeComponent implements OnInit {
   }
 
   // Map local GameMode enum to service string literals
-  private mapGameMode(mode: GameMode): 'HUMAN_VS_CATANATRON' | 'RANDOM_BOTS' | 'CATANATRON_BOTS' {
+  private mapGameMode(mode: GameMode): 'HUMAN_VS_CATANATRON' | 'HUMAN_VS_RANDOM' | 'RANDOM_BOTS' | 'CATANATRON_BOTS' {
     switch (mode) {
       case GameMode.HUMAN_VS_CATANATRON:
         return 'HUMAN_VS_CATANATRON';
       case GameMode.HUMAN_VS_RANDOM:
-        return 'HUMAN_VS_RANDOM' as any;
+        return 'HUMAN_VS_RANDOM';
       case GameMode.RANDOM_BOTS:
         return 'RANDOM_BOTS';
       case GameMode.CATANATRON_BOTS:

@@ -83,7 +83,7 @@ async fn create_game(
         GameMode::RandomBots => "random",
         GameMode::HumanVsCatanatron => "human_alphabeta", // First player human, bots use AlphaBeta
         GameMode::HumanVsRandom => "human_random",        // First player human, bots random
-        GameMode::CatanatronBots => "random",             // All bots for now
+        GameMode::CatanatronBots => "alphabeta",          // All bots use AlphaBeta
     };
 
     // Delegate to game service (clean separation)

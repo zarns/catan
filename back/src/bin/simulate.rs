@@ -145,8 +145,7 @@ fn main() {
     let incomplete = num_games as u32 - completed_games;
     if incomplete > 0 {
         println!(
-            "Incomplete: {} (timeouts: {}, no_actions: {}, no_state: {})",
-            incomplete, timeout_games, no_actions_games, no_state_games
+            "Incomplete: {incomplete} (timeouts: {timeout_games}, no_actions: {no_actions_games}, no_state: {no_state_games})"
         );
         if timeout_games > 0 {
             let avg = timeout_turns as f64 / timeout_games as f64;
@@ -154,17 +153,13 @@ fn main() {
             let mean_bank_zeroes = timeout_bank_zero_sum as f64 / timeout_games as f64;
             let mean_actions = timeout_actions_sum as f64 / timeout_games as f64;
             println!(
-                "  - Timeouts: avg turns {:.1}, mean total VP at timeout {:.2}, mean bank zero-res types {:.2}, mean legal actions {:.2}",
-                avg, mean_vp_sum, mean_bank_zeroes, mean_actions
+                "  - Timeouts: avg turns {avg:.1}, mean total VP at timeout {mean_vp_sum:.2}, mean bank zero-res types {mean_bank_zeroes:.2}, mean legal actions {mean_actions:.2}"
             );
         }
         if no_actions_games > 0 {
             let avg = no_actions_turns as f64 / no_actions_games as f64;
             let mean_vp_sum = no_actions_vp_sum as f64 / no_actions_games as f64;
-            println!(
-                "  - NoActions: avg turns {:.1}, mean total VP {:.2}",
-                avg, mean_vp_sum
-            );
+            println!("  - NoActions: avg turns {avg:.1}, mean total VP {mean_vp_sum:.2}");
             // Print top 3 prompts causing no_actions
             let mut items: Vec<(String, u32)> = no_actions_by_prompt.into_iter().collect();
             items.sort_by(|a, b| b.1.cmp(&a.1));
@@ -189,10 +184,7 @@ fn main() {
         num_games as f64
     };
     let per_game_secs = if denom > 0.0 { total_secs / denom } else { 0.0 };
-    println!(
-        "Total time: {:.3}s | Avg time per game: {:.3}s",
-        total_secs, per_game_secs
-    );
+    println!("Total time: {total_secs:.3}s | Avg time per game: {per_game_secs:.3}s");
 }
 
 enum SimOutcome {
@@ -502,7 +494,7 @@ fn simulate_single_game(
         let actions_len = state.generate_playable_actions().len();
         if dump_timeout {
             println!("\n⏰ Timeout dump:");
-            println!("  - Turn: {}", turn_count);
+            println!("  - Turn: {turn_count}");
             println!("  - Current player: {}", state.get_current_color());
             println!("  - Action prompt: {:?}", state.get_action_prompt());
             println!("  - Rolled this turn: {}", state.current_player_rolled());
@@ -533,7 +525,7 @@ fn simulate_single_game(
             );
             let acts = state.generate_playable_actions();
             let preview = acts.iter().take(5).collect::<Vec<_>>();
-            println!("  - Actions (up to 5): {:?}", preview);
+            println!("  - Actions (up to 5): {preview:?}");
         }
         return SimOutcome::Timeout {
             turns: turn_count,

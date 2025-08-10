@@ -101,6 +101,10 @@ impl GameService {
                     "human_alphabeta" => {
                         PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
                     }
+                    "alphabeta" => {
+                        // Watch Catanatron: all bots use AlphaBeta (decided in process_bot_turn)
+                        PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
+                    }
                     "human_random" => {
                         PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
                     }
@@ -401,7 +405,7 @@ impl GameService {
         }
 
         // Let the bot decide what action to take with timeout protection
-        let decision_result = if bot_mode == "human_alphabeta" {
+        let decision_result = if bot_mode == "human_alphabeta" || bot_mode == "alphabeta" {
             // Use backend AlphaBetaPlayer on the internal state for bots
             use crate::enums::Action as EnumAction;
             use crate::players::{minimax::AlphaBetaPlayer, BotPlayer as _};
