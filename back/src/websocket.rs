@@ -373,7 +373,7 @@ impl WebSocketService {
                         let start = std::time::Instant::now();
                         if let Ok(game) = game_service.get_game(&req_game_id).await {
                             if let Some(state) = &game.state {
-                                let sims_capped = simulations.min(200).max(50);
+                                let sims_capped = simulations.clamp(10, 200);
                                 // Temporarily suppress info/debug logs during analysis
                                 let prev_level = log::max_level();
                                 log::set_max_level(LevelFilter::Error);
