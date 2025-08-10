@@ -42,6 +42,29 @@ async fn hello_world() -> &'static str {
     "Hello from Catan backend!"
 }
 
+// Simple MCTS analysis placeholder endpoint
+async fn analyze_game(
+    State(state): State<Arc<AppState>>,
+    Path(game_id): Path<String>,
+) -> impl IntoResponse {
+    // For now, return a minimal JSON with available actions count and status
+    match state.game_service.get_game(&game_id).await {
+        Ok(game) => {
+            let actions = game.current_playable_actions.len();
+            let payload = serde_json::json!({
+                "game_id": game_id,
+                "status": game.game_state,
+                "available_actions": actions,
+            });
+            (StatusCode::OK, axum::Json(payload))
+        }
+        Err(_) => (
+            StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({"error":"game not found"})),
+        ),
+    }
+}
+
 // Create a new game
 async fn create_game(
     State(state): State<Arc<AppState>>,
@@ -133,6 +156,7 @@ async fn main() -> shuttle_axum::ShuttleAxum {
     // Create router with routes
     let app = Router::new()
         .route("/", get(hello_world))
+        .route("/mcts/analyze/{game_id}", get(analyze_game))
         .route("/games", post(create_game))
         .route("/games/{game_id}", get(get_game))
         .route("/ws/games/{game_id}", get(ws_handler))

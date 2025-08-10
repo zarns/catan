@@ -591,6 +591,20 @@ impl State {
         self.vector[BANK_RESOURCE_SLICE.start + resource_index] = count;
     }
 
+    /// Diagnostic logging for resource distribution per roll
+    pub fn log_roll_distribution(&self, roll: u8, yields: &[(u8, usize, u8)]) {
+        log::info!("🎲 Roll {} distribution: {:?}", roll, yields);
+        let bank = self.get_bank_resources();
+        log::info!(
+            "🏦 Bank before/after snapshot (Wood:{}, Brick:{}, Sheep:{}, Wheat:{}, Ore:{})",
+            bank[0],
+            bank[1],
+            bank[2],
+            bank[3],
+            bank[4]
+        );
+    }
+
     /// Calculates effective production (considering robber) for a player
     pub fn get_effective_production(&self, color: u8) -> Vec<f64> {
         self.get_player_production_internal(color, true)

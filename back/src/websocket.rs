@@ -10,6 +10,9 @@ use crate::actions::{GameEvent, GameId, PlayerAction};
 use crate::application::GameService;
 use crate::errors::CatanResult;
 use crate::game::Game;
+use crate::state::State;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 /// WebSocket message types for client-server communication
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +57,14 @@ pub enum WsMessage {
 
     #[serde(rename = "game_created")]
     GameCreated { game_id: String, game: Game },
+
+    // Request MCTS/Monte Carlo analysis over WebSocket
+    #[serde(rename = "mcts_analyze")]
+    MctsAnalyze { game_id: String, simulations: Option<u32> },
+
+    // Analysis result message with win probabilities per color
+    #[serde(rename = "mcts_analysis")]
+    MctsAnalysis { probabilities: std::collections::HashMap<String, f32>, simulations: u32 },
 }
 
 // Convert array action format to PlayerAction enum
@@ -334,6 +345,46 @@ impl WebSocketService {
             }
         }
 
+        // Parse the incoming message or handle special-case messages
+        // Fast-path: if this is an analysis request, handle it without full enum deserialization
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(t) = json_value.get("type").and_then(|v| v.as_str()) {
+                if t == "mcts_analyze" {
+                    let req_game_id = json_value
+                        .get("game_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let simulations = json_value
+                        .get("simulations")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(100) as usize;
+
+                    let broadcaster = broadcaster.clone();
+                    let game_service = game_service.clone();
+                    tokio::spawn(async move {
+                        let start = std::time::Instant::now();
+                        if let Ok(game) = game_service.get_game(&req_game_id).await {
+                            if let Some(state) = &game.state {
+                                let sims_capped = simulations.min(200).max(50);
+                                let probs = WebSocketService::compute_win_probabilities(
+                                    state.clone(),
+                                    &game,
+                                    sims_capped,
+                                );
+                                let msg = WsMessage::MctsAnalysis { probabilities: probs, simulations: sims_capped as u32 };
+                                let _ = broadcaster.send((req_game_id.clone(), msg));
+                            }
+                        }
+                        let elapsed = start.elapsed();
+                        log::debug!("MCTS analyze completed in {:?}", elapsed);
+                    });
+
+                    return Ok(());
+                }
+            }
+        }
+
         // Parse the incoming message
         let ws_message: WsMessage = serde_json::from_str(&text).map_err(|e| {
             log::error!("❌ Failed to deserialize WebSocket message: {}", e);
@@ -367,9 +418,21 @@ impl WebSocketService {
                 // Use the PlayerAction enum directly - no conversion needed!
                 log::info!("✅ Received PlayerAction enum: {:?}", action);
 
-                // Process the action through the game service (use game_id from function parameter)
+                // Resolve the acting player to the current player at the moment of receipt
+                let acting_player_id = match game_service.get_game(game_id).await {
+                    Ok(game) => {
+                        let idx = game.current_player_index;
+                        game.players
+                            .get(idx)
+                            .map(|p| p.id.clone())
+                            .unwrap_or_else(|| "player_0".to_string())
+                    }
+                    Err(_) => "player_0".to_string(),
+                };
+
+                // Process the action through the game service
                 match game_service
-                    .process_action(game_id, "player_0", action)
+                    .process_action(game_id, &acting_player_id, action)
                     .await
                 {
                     Ok(events) => {
@@ -406,6 +469,21 @@ impl WebSocketService {
                         let _ = broadcaster.send((game_id.to_string(), error_msg));
                     }
                 }
+            }
+            WsMessage::MctsAnalyze { game_id: req_game_id, simulations } => {
+                // Run analysis asynchronously to avoid blocking the message loop
+                let sims = simulations.unwrap_or(100) as usize;
+                let broadcaster = broadcaster.clone();
+                let game_service = game_service.clone();
+                tokio::spawn(async move {
+                    if let Ok(game) = game_service.get_game(&req_game_id).await {
+                        if let Some(state) = &game.state {
+                            let probs = Self::compute_win_probabilities(state.clone(), &game, sims);
+                            let msg = WsMessage::MctsAnalysis { probabilities: probs, simulations: sims as u32 };
+                            let _ = broadcaster.send((req_game_id.clone(), msg));
+                        }
+                    }
+                });
             }
             WsMessage::GetGameState => {
                 log::info!("📡 Getting game state for game {}", game_id);
@@ -587,5 +665,51 @@ impl WebSocketService {
     /// Get the broadcaster for sending messages to all clients
     pub fn broadcaster(&self) -> broadcast::Sender<(GameId, WsMessage)> {
         self.broadcaster.clone()
+    }
+}
+
+impl WebSocketService {
+    fn compute_win_probabilities(
+        root_state: State,
+        game: &Game,
+        simulations: usize,
+    ) -> std::collections::HashMap<String, f32> {
+        let num_players = root_state.get_num_players() as usize;
+        let mut win_counts = vec![0usize; num_players];
+
+        for _ in 0..simulations {
+            let mut state = root_state.clone();
+
+            // Run a random rollout capped at 1000 steps
+            for _ in 0..1000 {
+                if let Some(winner) = state.winner() {
+                    win_counts[winner as usize] += 1;
+                    break;
+                }
+                let actions = state.generate_playable_actions();
+                if actions.is_empty() {
+                    break;
+                }
+                let mut rng = thread_rng();
+                if let Some(action) = actions.choose(&mut rng) {
+                    state.apply_action(action.clone());
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Convert counts to percentages keyed by player color string
+        let total = simulations.max(1) as f32;
+        let mut probs = std::collections::HashMap::new();
+        for (idx, count) in win_counts.iter().enumerate() {
+            let key = game
+                .players
+                .get(idx)
+                .map(|p| p.color.clone())
+                .unwrap_or_else(|| format!("player_{}", idx));
+            probs.insert(key, (*count as f32 / total) * 100.0);
+        }
+        probs
     }
 }

@@ -4,8 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
-import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { WebsocketService } from '../../services/websocket.service';
 
 @Component({
   selector: 'app-right-drawer',
@@ -27,21 +27,27 @@ import { environment } from '../../../environments/environment';
       <div class="analysis-box">
         <div class="analysis-header">
           <h3>Win Probability Analysis</h3>
+        </div>
+        <div class="analysis-actions">
           <button
             mat-raised-button
             color="primary"
+            class="analyze-button"
             (click)="handleAnalyzeClick()"
             [disabled]="loading || isGameOver"
             [class.loading]="loading"
           >
-            @if (!loading) {
-              <mat-icon>assessment</mat-icon>
-            }
-            @if (loading) {
-              <mat-spinner diameter="20"></mat-spinner>
-            }
-            {{ loading ? 'Analyzing...' : 'Analyze' }}
+            <span class="button-content">
+              <mat-icon class="button-icon" *ngIf="!loading">assessment</mat-icon>
+              <mat-spinner class="button-spinner" *ngIf="loading" diameter="18"></mat-spinner>
+              <span class="button-label">{{ loading ? 'Analyzing...' : 'Analyze' }}</span>
+            </span>
           </button>
+          @if (mctsResults && !loading && !error) {
+            <div class="simulations-note">
+              Simulations: {{ lastSimulations }}
+            </div>
+          }
         </div>
 
         @if (error) {
@@ -54,7 +60,7 @@ import { environment } from '../../../environments/environment';
           <div class="probability-bars">
             @for (result of getMctsResultsArray(); track result.color) {
               <div class="probability-row" [ngClass]="result.color.toLowerCase()">
-                <span class="player-color">{{ result.color }}</span>
+                <span class="player-color">{{ result.color | uppercase }}</span>
                 <span class="probability-bar">
                   <div class="bar-fill" [style.width.%]="result.probability"></div>
                 </span>
@@ -116,10 +122,11 @@ export class RightDrawerComponent implements OnInit {
   @Input() isMobile: boolean = false;
 
   mctsResults: { [color: string]: number } | null = null;
+  lastSimulations: number | null = null;
   loading: boolean = false;
   error: string | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(private websocket: WebsocketService) {}
 
   ngOnInit(): void {}
 
@@ -147,21 +154,16 @@ export class RightDrawerComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.http.get<any>(`${environment.apiUrl}/analysis/${this.gameId}`).subscribe({
-      next: result => {
-        if (result.success) {
-          this.mctsResults = result.probabilities;
-        } else {
-          this.error = result.error || 'Analysis failed';
-        }
+    // Send MCTS analyze request over WebSocket; listen for analysis message
+    const sub = this.websocket.messages$.subscribe((message: any) => {
+      if (message.type === 'mcts_analysis') {
+        this.mctsResults = message.probabilities || null;
+        this.lastSimulations = message.simulations ?? null;
         this.loading = false;
-      },
-      error: err => {
-        console.error('MCTS Analysis failed:', err);
-        this.error = err.message || 'Analysis failed due to a network error';
-        this.loading = false;
-      },
+        sub.unsubscribe();
+      }
     });
+    this.websocket.sendMessage({ type: 'mcts_analyze', game_id: this.gameId, simulations: 50 });
   }
 
   getMctsResultsArray(): { color: string; probability: number }[] {
