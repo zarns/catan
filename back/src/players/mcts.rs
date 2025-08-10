@@ -256,7 +256,7 @@ impl MctsPlayer {
         }
         
         let duration = start.elapsed();
-        println!(
+        log::debug!(
             "MCTS took {:?} to make a decision with {} simulations (sequential)",
             duration,
             self.num_simulations
@@ -310,7 +310,7 @@ impl MctsPlayer {
         }
         
         let duration = start.elapsed();
-        println!(
+        log::debug!(
             "MCTS took {:?} to make a decision with ~{} simulations (parallel), win rate: {:.2}%",
             duration,
             self.num_simulations,

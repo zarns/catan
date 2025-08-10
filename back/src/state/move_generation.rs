@@ -31,12 +31,14 @@ impl State {
     }
 
     pub fn settlement_possibilities(&self, color: u8, is_initial_build_phase: bool) -> Vec<Action> {
-        println!(
-            "🏘️  DEBUG settlement_possibilities: color {color}, initial_phase: {is_initial_build_phase}"
+        log::debug!(
+            "🏘️  DEBUG settlement_possibilities: color {}, initial_phase: {}",
+            color,
+            is_initial_build_phase
         );
 
         if is_initial_build_phase {
-            println!(
+            log::debug!(
                 "  - Using initial build phase logic, {} buildable nodes",
                 self.board_buildable_ids.len()
             );
@@ -51,22 +53,25 @@ impl State {
                 })
                 .collect();
 
-            println!("  - Returning {} settlement actions", actions.len());
+            log::debug!("  - Returning {} settlement actions", actions.len());
             actions
         } else {
-            println!("  - Using normal build phase logic");
+            log::debug!("  - Using normal build phase logic");
             let has_resources = freqdeck_contains(self.get_player_hand(color), &SETTLEMENT_COST);
             let settlements_used = self.get_settlements(color).len();
             let has_settlements_available = settlements_used < 5;
 
-            println!(
-                "  - has_resources: {has_resources}, settlements_used: {settlements_used}, has_settlements_available: {has_settlements_available}"
+            log::debug!(
+                "  - has_resources: {}, settlements_used: {}, has_settlements_available: {}",
+                has_resources,
+                settlements_used,
+                has_settlements_available
             );
 
             if has_resources && has_settlements_available {
                 // For non-initial phase, check road connectivity
                 let buildable_nodes = self.buildable_node_ids(color);
-                println!("  - {} buildable nodes found", buildable_nodes.len());
+                log::debug!("  - {} buildable nodes found", buildable_nodes.len());
 
                 let connected_nodes: Vec<u8> = buildable_nodes
                     .into_iter()
@@ -79,17 +84,17 @@ impl State {
                     })
                     .collect();
 
-                println!("  - {} connected nodes found", connected_nodes.len());
+                log::debug!("  - {} connected nodes found", connected_nodes.len());
 
                 let actions: Vec<Action> = connected_nodes
                     .into_iter()
                     .map(|node_id| Action::BuildSettlement { color, node_id })
                     .collect();
 
-                println!("  - Returning {} settlement actions", actions.len());
+                log::debug!("  - Returning {} settlement actions", actions.len());
                 actions
             } else {
-                println!("  - No resources or settlements available, returning empty");
+                log::debug!("  - No resources or settlements available, returning empty");
                 vec![]
             }
         }
@@ -854,7 +859,7 @@ mod tests {
         // Now roads adjacent to the settlement should be buildable
         let actions = state.road_possibilities(color, false);
         assert!(
-            !actions.is_empty(),
+            actions.len() > 0,
             "Roads adjacent to settlement should be buildable"
         );
 
@@ -871,7 +876,8 @@ mod tests {
                 let normalized_edge = (edge_id.0.min(edge_id.1), edge_id.0.max(edge_id.1));
                 assert!(
                     normalized_node_0_edges.contains(&normalized_edge),
-                    "Road {edge_id:?} should be adjacent to settlement at node 0"
+                    "Road {:?} should be adjacent to settlement at node 0",
+                    edge_id
                 );
             }
         }
@@ -903,7 +909,9 @@ mod tests {
 
                     assert!(
                         is_adjacent_to_settlement || is_adjacent_to_first_road,
-                        "Road {edge_id:?} should be adjacent to either settlement at node 0 or first road {first_edge:?}"
+                        "Road {:?} should be adjacent to either settlement at node 0 or first road {:?}",
+                        edge_id,
+                        first_edge
                     );
                 }
             }

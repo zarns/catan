@@ -117,7 +117,7 @@ impl GreedyPlayer {
         }
 
         let duration = start.elapsed();
-        println!(
+        log::debug!(
             "Greedy took {:?} to make a decision among {} actions with win rate {:.2}% (sequential)",
             duration,
             playable_actions.len(),
@@ -167,7 +167,7 @@ impl GreedyPlayer {
         }
 
         let duration = start.elapsed();
-        println!(
+        log::debug!(
             "Greedy took {:?} to make a decision among {} actions with win rate {:.2}% (parallel)",
             duration,
             playable_actions.len(),

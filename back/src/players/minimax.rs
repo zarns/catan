@@ -121,7 +121,7 @@ impl BotPlayer for AlphaBetaPlayer {
         }
 
         let duration = start.elapsed();
-        println!(
+        log::debug!(
             "AlphaBeta (depth {}) took {:?} to evaluate {} actions (best value: {:.2})",
             self.depth,
             duration,

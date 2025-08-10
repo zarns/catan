@@ -11,9 +11,9 @@ use crate::application::GameService;
 use crate::errors::CatanResult;
 use crate::game::Game;
 use crate::state::State;
+use log::LevelFilter;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use log::LevelFilter;
 
 /// WebSocket message types for client-server communication
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,11 +61,17 @@ pub enum WsMessage {
 
     // Request MCTS/Monte Carlo analysis over WebSocket
     #[serde(rename = "mcts_analyze")]
-    MctsAnalyze { game_id: String, simulations: Option<u32> },
+    MctsAnalyze {
+        game_id: String,
+        simulations: Option<u32>,
+    },
 
     // Analysis result message with win probabilities per color
     #[serde(rename = "mcts_analysis")]
-    MctsAnalysis { probabilities: std::collections::HashMap<String, f32>, simulations: u32 },
+    MctsAnalysis {
+        probabilities: std::collections::HashMap<String, f32>,
+        simulations: u32,
+    },
 }
 
 // Convert array action format to PlayerAction enum
@@ -378,7 +384,10 @@ impl WebSocketService {
                                 );
                                 // Restore previous log level
                                 log::set_max_level(prev_level);
-                                let msg = WsMessage::MctsAnalysis { probabilities: probs, simulations: sims_capped as u32 };
+                                let msg = WsMessage::MctsAnalysis {
+                                    probabilities: probs,
+                                    simulations: sims_capped as u32,
+                                };
                                 let _ = broadcaster.send((req_game_id.clone(), msg));
                             }
                         }
@@ -476,7 +485,10 @@ impl WebSocketService {
                     }
                 }
             }
-            WsMessage::MctsAnalyze { game_id: req_game_id, simulations } => {
+            WsMessage::MctsAnalyze {
+                game_id: req_game_id,
+                simulations,
+            } => {
                 // Run analysis asynchronously to avoid blocking the message loop
                 let sims = simulations.unwrap_or(100) as usize;
                 let broadcaster = broadcaster.clone();
@@ -485,7 +497,10 @@ impl WebSocketService {
                     if let Ok(game) = game_service.get_game(&req_game_id).await {
                         if let Some(state) = &game.state {
                             let probs = Self::compute_win_probabilities(state.clone(), &game, sims);
-                            let msg = WsMessage::MctsAnalysis { probabilities: probs, simulations: sims as u32 };
+                            let msg = WsMessage::MctsAnalysis {
+                                probabilities: probs,
+                                simulations: sims as u32,
+                            };
                             let _ = broadcaster.send((req_game_id.clone(), msg));
                         }
                     }

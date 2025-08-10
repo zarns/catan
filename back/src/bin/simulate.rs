@@ -34,12 +34,12 @@ fn main() {
         i += 1;
     }
 
-    println!("🎮 Catan Game Simulation");
-    println!("=======================");
-    println!("Configuration:");
-    println!("  - Players: {} ({})", players_config, players_config.len());
-    println!("  - Number of games: {num_games}");
-    println!("  - Verbose: {verbose}");
+    log::info!("🎮 Catan Game Simulation");
+    log::info!("=======================");
+    log::info!("Configuration:");
+    log::info!("  - Players: {} ({})", players_config, players_config.len());
+    log::info!("  - Number of games: {num_games}");
+    log::info!("  - Verbose: {verbose}");
 
     let mut wins = vec![0; players_config.len()];
     let mut total_turns = 0;
@@ -47,7 +47,7 @@ fn main() {
 
     for game_num in 0..num_games {
         if num_games > 1 {
-            println!("\n🎯 Game {} of {}", game_num + 1, num_games);
+            log::info!("\n🎯 Game {} of {}", game_num + 1, num_games);
         }
 
         let result = simulate_single_game(players_config.len() as u8, verbose);
@@ -57,31 +57,31 @@ fn main() {
                 total_turns += turns;
                 completed_games += 1;
                 if num_games > 1 {
-                    println!("  Winner: Player {winner} in {turns} turns");
+                    log::info!("  Winner: Player {winner} in {turns} turns");
                 }
             }
             None => {
                 if num_games > 1 {
-                    println!("  Game did not complete within turn limit");
+                    log::warn!("  Game did not complete within turn limit");
                 }
             }
         }
     }
 
     if num_games > 1 {
-        println!("\n📊 Tournament Results:");
-        println!("====================");
+        log::info!("\n📊 Tournament Results:");
+        log::info!("====================");
         for (i, &win_count) in wins.iter().enumerate() {
             let win_rate = if completed_games > 0 {
                 (win_count as f64 / completed_games as f64) * 100.0
             } else {
                 0.0
             };
-            println!("Player {i}: {win_count} wins ({win_rate:.1}%)");
+            log::info!("Player {i}: {win_count} wins ({win_rate:.1}%)");
         }
-        println!("Completed games: {completed_games}/{num_games}");
+        log::info!("Completed games: {completed_games}/{num_games}");
         if completed_games > 0 {
-            println!(
+            log::info!(
                 "Average turns per game: {:.1}",
                 total_turns as f64 / completed_games as f64
             );
@@ -94,7 +94,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     let mut game = simulate_bot_game(num_players);
 
     if verbose {
-        println!(
+        log::debug!(
             "✅ Created game with real State and {} players",
             game.players.len()
         );
@@ -103,24 +103,24 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     // Print initial state
     if let Some(ref state) = game.state {
         if verbose {
-            println!("🏁 Initial state:");
-            println!(
+            log::debug!("🏁 Initial state:");
+            log::debug!(
                 "   - Is initial build phase: {}",
                 state.is_initial_build_phase()
             );
-            println!("   - Current player: {}", state.get_current_color());
-            println!(
+            log::debug!("   - Current player: {}", state.get_current_color());
+            log::debug!(
                 "   - Players: {:?}",
                 game.players.iter().map(|p| &p.name).collect::<Vec<_>>()
             );
-            println!("📊 Initial Victory Points:");
+            log::debug!("📊 Initial Victory Points:");
             // Show initial victory points breakdown
             for color in 0..state.get_num_players() {
                 let vp = state.get_actual_victory_points(color);
                 let settlements = state.get_settlements(color).len();
                 let cities = state.get_cities(color).len();
                 let roads = state.get_roads_by_color()[color as usize];
-                println!(
+                log::debug!(
                     "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                 );
             }
@@ -133,7 +133,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     let mut last_vp_log = 0;
 
     if verbose {
-        println!("🎯 Starting simulation with MAX_TURNS = {MAX_TURNS}");
+        log::info!("🎯 Starting simulation with MAX_TURNS = {MAX_TURNS}");
     }
 
     while turn_count < MAX_TURNS {
@@ -141,20 +141,20 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         if let Some(ref state) = game.state {
             if let Some(winner) = state.winner() {
                 if verbose {
-                    println!("🎉 GAME WON! Player {winner} is the winner!");
-                    println!("📊 Final Victory Points:");
+                    log::info!("🎉 GAME WON! Player {winner} is the winner!");
+                    log::info!("📊 Final Victory Points:");
                     // Show final victory points breakdown
                     for color in 0..state.get_num_players() {
                         let vp = state.get_actual_victory_points(color);
                         let settlements = state.get_settlements(color).len();
                         let cities = state.get_cities(color).len();
                         let roads = state.get_roads_by_color()[color as usize];
-                        println!(
+                        log::info!(
                             "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                         );
                     }
                 }
-                println!("✅ Game completed in {turn_count} turns");
+                log::info!("✅ Game completed in {turn_count} turns");
                 return Some((winner, turn_count));
             }
         }
@@ -166,14 +166,14 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
             (actions, player)
         } else {
             if verbose {
-                println!("❌ No game state available!");
+                log::error!("❌ No game state available!");
             }
             break;
         };
 
         // Log turn info every 10 turns or for debugging
         if verbose && (turn_count % 10 == 0 || turn_count < 5) {
-            println!(
+            log::debug!(
                 "\n🎯 Turn {}: Player {} has {} actions",
                 turn_count + 1,
                 current_player,
@@ -183,13 +183,13 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
 
         if available_actions.is_empty() {
             if verbose {
-                println!("❌ No actions available! This is a bug.");
+                log::error!("❌ No actions available! This is a bug.");
                 if let Some(ref state) = game.state {
-                    println!("🔍 Debug info:");
-                    println!("   - Phase: {:?}", state.get_action_prompt());
-                    println!("   - Is initial: {}", state.is_initial_build_phase());
-                    println!("   - Is discarding: {}", state.is_discarding());
-                    println!("   - Is moving robber: {}", state.is_moving_robber());
+                    log::debug!("🔍 Debug info:");
+                    log::debug!("   - Phase: {:?}", state.get_action_prompt());
+                    log::debug!("   - Is initial: {}", state.is_initial_build_phase());
+                    log::debug!("   - Is discarding: {}", state.is_discarding());
+                    log::debug!("   - Is moving robber: {}", state.is_moving_robber());
                     state.log_victory_points();
                 }
             }
@@ -199,10 +199,10 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         // Show first few available actions for debugging (only early turns)
         if verbose && turn_count < 5 {
             if available_actions.len() <= 5 {
-                println!("   Available actions: {available_actions:?}");
+                log::debug!("   Available actions: {available_actions:?}");
             } else {
-                println!("   First 3 actions: {:?}", &available_actions[..3]);
-                println!("   ... and {} more", available_actions.len() - 3);
+                log::debug!("   First 3 actions: {:?}", &available_actions[..3]);
+                log::debug!("   ... and {} more", available_actions.len() - 3);
             }
         }
 
@@ -216,12 +216,16 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
 
                 // Log player's resources
                 let hand = state.get_player_hand(current_player);
-                println!(
+                log::debug!(
                     "   📊 Player {current_player} status: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                 );
-                println!(
+                log::debug!(
                     "   💰 Resources: Wood={}, Brick={}, Sheep={}, Wheat={}, Ore={}",
-                    hand[0], hand[1], hand[2], hand[3], hand[4]
+                    hand[0],
+                    hand[1],
+                    hand[2],
+                    hand[3],
+                    hand[4]
                 );
             }
         }
@@ -230,7 +234,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
         let action = choose_best_action(&available_actions);
 
         if verbose && (turn_count % 10 == 0 || turn_count < 5) {
-            println!("🤖 Player {current_player} action: {action:?}");
+            log::debug!("🤖 Player {current_player} action: {action:?}");
         }
 
         // Apply the action using real game logic
@@ -247,7 +251,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                 ));
 
         if should_log_vp && turn_count != last_vp_log {
-            println!("📊 Victory Points Status (Turn {}):", turn_count + 1);
+            log::info!("📊 Victory Points Status (Turn {}):", turn_count + 1);
             if let Some(ref state) = game.state {
                 // Custom victory points logging that actually shows the values
                 for color in 0..state.get_num_players() {
@@ -255,7 +259,7 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
                     let settlements = state.get_settlements(color).len();
                     let cities = state.get_cities(color).len();
                     let roads = state.get_roads_by_color()[color as usize];
-                    println!(
+                    log::info!(
                         "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                     );
                 }
@@ -272,16 +276,16 @@ fn simulate_single_game(num_players: u8, verbose: bool) -> Option<(u8, u32)> {
     }
 
     if turn_count >= MAX_TURNS && verbose {
-        println!("⏰ Simulation ended after {MAX_TURNS} turns (max reached)");
+        log::info!("⏰ Simulation ended after {MAX_TURNS} turns (max reached)");
         if let Some(ref state) = game.state {
-            println!("📊 Final Victory Points:");
+            log::info!("📊 Final Victory Points:");
             // Show final victory points breakdown
             for color in 0..state.get_num_players() {
                 let vp = state.get_actual_victory_points(color);
                 let settlements = state.get_settlements(color).len();
                 let cities = state.get_cities(color).len();
                 let roads = state.get_roads_by_color()[color as usize];
-                println!(
+                log::info!(
                         "   🏆 Player {color}: {vp} VP (settlements: {settlements}, cities: {cities}, roads: {roads})"
                     );
             }

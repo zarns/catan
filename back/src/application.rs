@@ -34,22 +34,22 @@ impl GameService {
 
     /// Create a new game with the specified configuration
     pub async fn create_game(&self, num_players: u8, bot_type: &str) -> CatanResult<GameId> {
-        println!("🏭 DEBUG GameService::create_game:");
-        println!("  - num_players: {num_players}");
-        println!("  - bot_type: '{bot_type}'");
+        log::info!("🏭 DEBUG GameService::create_game:");
+        log::info!("  - num_players: {num_players}");
+        log::info!("  - bot_type: '{bot_type}'");
 
         let game_id = Uuid::new_v4().to_string();
-        println!("  - Generated game_id: {game_id}");
+        log::info!("  - Generated game_id: {game_id}");
 
         // Create the game instance using the appropriate function
         let game = match bot_type {
             "human" => {
-                println!("  - Creating human vs bots game");
+                log::info!("  - Creating human vs bots game");
                 // For human vs bots mode, use the specialized function
                 crate::game::start_human_vs_catanatron("Human".to_string(), num_players - 1)
             }
             _ => {
-                println!("  - Creating all-bot game");
+                log::info!("  - Creating all-bot game");
                 // For other modes, use the regular Game::new
                 let player_names: Vec<String> =
                     (0..num_players).map(|i| format!("Bot {}", i + 1)).collect();
@@ -68,10 +68,10 @@ impl GameService {
         let mut game = game;
         game.id = game_id.clone();
 
-        println!("  - Game created with {} players", game.players.len());
-        println!("  - Current color: {:?}", game.current_color);
-        println!("  - Current prompt: {:?}", game.current_prompt);
-        println!(
+        log::info!("  - Game created with {} players", game.players.len());
+        log::info!("  - Current color: {:?}", game.current_color);
+        log::info!("  - Current prompt: {:?}", game.current_prompt);
+        log::info!(
             "  - Available actions: {}",
             game.current_playable_actions.len()
         );
@@ -86,11 +86,11 @@ impl GameService {
 
             let player_obj = if bot_type == "human" && i == 0 {
                 // First player is human in human vs bots mode
-                println!("  - Creating human player: {}", player.name);
+                log::info!("  - Creating human player: {}", player.name);
                 PlayerFactory::create_human(player_id, player.name.clone(), color)
             } else {
                 // All other players are bots
-                println!("  - Creating bot player: {}", player.name);
+                log::info!("  - Creating bot player: {}", player.name);
                 PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
             };
 
@@ -108,36 +108,36 @@ impl GameService {
             game_players.insert(game_id.clone(), players);
         }
 
-        println!("🏭 END GameService::create_game debug\n");
+        log::info!("🏭 END GameService::create_game debug\n");
 
         Ok(game_id)
     }
 
     /// Get a game by ID
     pub async fn get_game(&self, game_id: &str) -> CatanResult<Game> {
-        println!("📖 DEBUG GameService::get_game for game_id: {game_id}");
+        log::info!("📖 DEBUG GameService::get_game for game_id: {game_id}");
 
         let games = self.games.read().await;
 
         if let Some(game_arc) = games.get(game_id) {
             let mut game = game_arc.write().await;
-            println!("  - Found game, updating metadata...");
+            log::debug!("  - Found game, updating metadata...");
             // Update metadata before returning
             game.update_metadata_from_state();
 
-            println!("  - Final game state:");
-            println!("    - Current color: {:?}", game.current_color);
-            println!("    - Current prompt: {:?}", game.current_prompt);
-            println!(
+            log::debug!("  - Final game state:");
+            log::debug!("    - Current color: {:?}", game.current_color);
+            log::debug!("    - Current prompt: {:?}", game.current_prompt);
+            log::debug!(
                 "    - Available actions: {}",
                 game.current_playable_actions.len()
             );
-            println!("    - Bot colors: {:?}", game.bot_colors);
-            println!("📖 END GameService::get_game debug\n");
+            log::debug!("    - Bot colors: {:?}", game.bot_colors);
+            log::debug!("📖 END GameService::get_game debug\n");
 
             Ok(game.clone())
         } else {
-            println!("❌ Game not found: {game_id}");
+            log::warn!("❌ Game not found: {game_id}");
             Err(CatanError::Game(GameError::GameNotFound {
                 game_id: game_id.to_string(),
             }))
