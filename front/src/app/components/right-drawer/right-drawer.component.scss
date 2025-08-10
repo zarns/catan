@@ -133,6 +133,11 @@
   &.orange .probability-value {
     color: vars.$player-orange;
   }
+
+  &.white .player-color,
+  &.white .probability-value {
+    color: vars.$player-white;
+  }
 }
 
 .player-color {
@@ -162,6 +167,10 @@
 
     .orange & {
       background-color: vars.$player-orange;
+    }
+
+    .white & {
+      background-color: vars.$player-white;
     }
   }
 }
