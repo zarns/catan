@@ -5,6 +5,7 @@ use catan::players::{
 };
 use std::collections::HashMap;
 use std::env;
+use std::time::Instant;
 
 fn main() {
     env_logger::init();
@@ -50,6 +51,7 @@ fn main() {
     log::info!("  - Verbose: {verbose}");
 
     let num_players = players_config.len();
+    let tournament_start = Instant::now();
     let mut wins = vec![0u32; num_players];
     let mut total_turns: u64 = 0;
     let mut completed_games: u32 = 0;
@@ -177,6 +179,20 @@ fn main() {
             total_turns as f64 / completed_games as f64
         );
     }
+
+    // Timing summary
+    let elapsed = tournament_start.elapsed();
+    let total_secs = elapsed.as_secs_f64();
+    let denom = if completed_games > 0 {
+        completed_games as f64
+    } else {
+        num_games as f64
+    };
+    let per_game_secs = if denom > 0.0 { total_secs / denom } else { 0.0 };
+    println!(
+        "Total time: {:.3}s | Avg time per game: {:.3}s",
+        total_secs, per_game_secs
+    );
 }
 
 enum SimOutcome {
