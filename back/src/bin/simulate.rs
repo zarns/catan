@@ -69,7 +69,7 @@ fn main() {
     let mut no_actions_vp_sum: u64 = 0; // sum of total VP across players at no-actions
 
     // Build bot lineup from players_config (R,G,W,A)
-    let bots = build_bots_from_config(&players_config);
+    let (bots, bot_labels) = build_bots_from_config(&players_config);
 
     for game_num in 0..num_games {
         if num_games > 1 {
@@ -87,7 +87,8 @@ fn main() {
                     vp_sum_sq[i] += (vp as u128) * (vp as u128);
                 }
                 if num_games > 1 {
-                    log::info!("  Winner: Player {winner} in {turns} turns");
+                    let label = bot_labels[winner as usize].as_str();
+                    log::info!("  Winner: Player {winner} ({label}) in {turns} turns");
                 }
             }
             SimOutcome::Timeout {
@@ -133,8 +134,9 @@ fn main() {
         } else {
             (0.0, 0.0)
         };
+        let label = &bot_labels[i];
         println!(
-            "Player {i}: {win_count} wins ({win_rate:.1}%), mean VP: {mean_vp:.2} ± {std_vp:.2}"
+            "Player {i} ({label}): {win_count} wins ({win_rate:.1}%), mean VP: {mean_vp:.2} ± {std_vp:.2}"
         );
     }
     println!("Completed games: {completed_games}/{num_games}");
@@ -531,34 +533,49 @@ fn simulate_single_game(
 /// Prioritizes building actions over basic actions like EndTurn
 // removed unused choose_best_action helper; decisions now come from configured bots
 
-fn build_bots_from_config(config: &str) -> Vec<Box<dyn BotPlayer>> {
+fn build_bots_from_config(config: &str) -> (Vec<Box<dyn BotPlayer>>, Vec<String>) {
     let colors = ["red", "blue", "white", "orange"]; // cosmetic only
-    config
-        .chars()
-        .enumerate()
-        .map(|(i, c)| match c {
-            'G' | 'g' => Box::new(GreedyPlayer::new(
-                format!("player_{i}"),
-                format!("Greedy {i}"),
-                colors[i % colors.len()].to_string(),
-            )) as Box<dyn BotPlayer>,
-            'W' | 'w' => Box::new(WeightedRandomPlayer::new(
-                format!("player_{i}"),
-                format!("Weighted {i}"),
-                colors[i % colors.len()].to_string(),
-            )) as Box<dyn BotPlayer>,
-            'A' | 'a' => Box::new(AlphaBetaPlayer::new(
-                format!("player_{i}"),
-                format!("AlphaBeta {i}"),
-                colors[i % colors.len()].to_string(),
-            )) as Box<dyn BotPlayer>,
-            _ => Box::new(RandomPlayer::new(
-                format!("player_{i}"),
-                format!("Random {i}"),
-                colors[i % colors.len()].to_string(),
-            )) as Box<dyn BotPlayer>,
-        })
-        .collect()
+    let mut bots: Vec<Box<dyn BotPlayer>> = Vec::new();
+    let mut labels: Vec<String> = Vec::new();
+
+    for (i, c) in config.chars().enumerate() {
+        match c {
+            'G' | 'g' => {
+                bots.push(Box::new(GreedyPlayer::new(
+                    format!("player_{i}"),
+                    format!("Greedy {i}"),
+                    colors[i % colors.len()].to_string(),
+                )));
+                labels.push("Greedy".to_string());
+            }
+            'W' | 'w' => {
+                bots.push(Box::new(WeightedRandomPlayer::new(
+                    format!("player_{i}"),
+                    format!("Weighted {i}"),
+                    colors[i % colors.len()].to_string(),
+                )));
+                labels.push("WeightedRandom".to_string());
+            }
+            'A' | 'a' => {
+                bots.push(Box::new(AlphaBetaPlayer::new(
+                    format!("player_{i}"),
+                    format!("AlphaBeta {i}"),
+                    colors[i % colors.len()].to_string(),
+                )));
+                labels.push("AlphaBeta".to_string());
+            }
+            _ => {
+                bots.push(Box::new(RandomPlayer::new(
+                    format!("player_{i}"),
+                    format!("Random {i}"),
+                    colors[i % colors.len()].to_string(),
+                )));
+                labels.push("Random".to_string());
+            }
+        }
+    }
+
+    (bots, labels)
 }
 
 fn collect_final_vps(state: &catan::state::State) -> Vec<u8> {
