@@ -713,7 +713,7 @@ impl WebSocketService {
                 }
                 let mut rng = thread_rng();
                 if let Some(action) = actions.choose(&mut rng) {
-                    state.apply_action(action.clone());
+                    state.apply_action(*action);
                 } else {
                     break;
                 }
@@ -728,7 +728,7 @@ impl WebSocketService {
                 .players
                 .get(idx)
                 .map(|p| p.color.clone())
-                .unwrap_or_else(|| format!("player_{}", idx));
+                .unwrap_or_else(|| format!("player_{idx}"));
             probs.insert(key, (*count as f32 / total) * 100.0);
         }
         probs
