@@ -1,6 +1,7 @@
 use axum::extract::ws::{Message, WebSocket};
 use futures::{sink::SinkExt, stream::StreamExt};
 use log;
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -11,7 +12,6 @@ use crate::application::GameService;
 use crate::errors::CatanResult;
 use crate::game::Game;
 use crate::state::State;
-use log::LevelFilter;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -64,6 +64,8 @@ pub enum WsMessage {
     MctsAnalyze {
         game_id: String,
         simulations: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        request_id: Option<String>,
     },
 
     // Analysis result message with win probabilities per color
@@ -71,6 +73,8 @@ pub enum WsMessage {
     MctsAnalysis {
         probabilities: std::collections::HashMap<String, f32>,
         simulations: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        request_id: Option<String>,
     },
 }
 
@@ -344,62 +348,6 @@ impl WebSocketService {
         // Debug: Log the exact message received
         log::debug!("🔍 WebSocket received raw message: {}", text);
 
-        // Try to parse as a generic JSON first to see the structure
-        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&text) {
-            log::debug!("🔍 Parsed as JSON: {:#}", json_value);
-            if let Some(msg_type) = json_value.get("type") {
-                log::debug!("🔍 Message type: {}", msg_type);
-            }
-        }
-
-        // Parse the incoming message or handle special-case messages
-        // Fast-path: if this is an analysis request, handle it without full enum deserialization
-        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&text) {
-            if let Some(t) = json_value.get("type").and_then(|v| v.as_str()) {
-                if t == "mcts_analyze" {
-                    let req_game_id = json_value
-                        .get("game_id")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let simulations = json_value
-                        .get("simulations")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(100) as usize;
-
-                    let broadcaster = broadcaster.clone();
-                    let game_service = game_service.clone();
-                    tokio::spawn(async move {
-                        let start = std::time::Instant::now();
-                        if let Ok(game) = game_service.get_game(&req_game_id).await {
-                            if let Some(state) = &game.state {
-                                let sims_capped = simulations.clamp(10, 200);
-                                // Temporarily suppress info/debug logs during analysis
-                                let prev_level = log::max_level();
-                                log::set_max_level(LevelFilter::Error);
-                                let probs = WebSocketService::compute_win_probabilities(
-                                    state.clone(),
-                                    &game,
-                                    sims_capped,
-                                );
-                                // Restore previous log level
-                                log::set_max_level(prev_level);
-                                let msg = WsMessage::MctsAnalysis {
-                                    probabilities: probs,
-                                    simulations: sims_capped as u32,
-                                };
-                                let _ = broadcaster.send((req_game_id.clone(), msg));
-                            }
-                        }
-                        let elapsed = start.elapsed();
-                        log::debug!("MCTS analyze completed in {:?}", elapsed);
-                    });
-
-                    return Ok(());
-                }
-            }
-        }
-
         // Parse the incoming message
         let ws_message: WsMessage = serde_json::from_str(&text).map_err(|e| {
             log::error!("❌ Failed to deserialize WebSocket message: {}", e);
@@ -488,6 +436,7 @@ impl WebSocketService {
             WsMessage::MctsAnalyze {
                 game_id: req_game_id,
                 simulations,
+                request_id,
             } => {
                 // Run analysis asynchronously to avoid blocking the message loop
                 let sims = simulations.unwrap_or(100) as usize;
@@ -496,10 +445,18 @@ impl WebSocketService {
                 tokio::spawn(async move {
                     if let Ok(game) = game_service.get_game(&req_game_id).await {
                         if let Some(state) = &game.state {
-                            let probs = Self::compute_win_probabilities(state.clone(), &game, sims);
+                            let sims_capped = sims.clamp(10, 200);
+                            // Temporarily suppress non-error logs during analysis
+                            let prev_level = log::max_level();
+                            log::set_max_level(LevelFilter::Error);
+                            let probs =
+                                Self::compute_win_probabilities(state.clone(), &game, sims_capped);
+                            // Restore previous log level
+                            log::set_max_level(prev_level);
                             let msg = WsMessage::MctsAnalysis {
                                 probabilities: probs,
-                                simulations: sims as u32,
+                                simulations: sims_capped as u32,
+                                request_id,
                             };
                             let _ = broadcaster.send((req_game_id.clone(), msg));
                         }

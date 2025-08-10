@@ -43,9 +43,6 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 
 
 # TODO
-- implement rightdrawer
-  - backend mcts endpoint
-- Fix cargo test - failed tests
 - Add play against catanatron buttons
 - Cleanup
   - Evaluate frontend conversion serialized enums and remove unnecessary conversions — PARTIAL (typed action helpers)
@@ -57,14 +54,12 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - stop highlighting clickable nodes for bot players on bot turns
 - Resource distribution mismatch between sheep/wood??
 - Can build settlements during other player's turn
-- Robber starts in middle
 
 ## Cleanup Progress (tracking)
 
 - Backend logging
   - Switched noisy `println!` to `log::debug!` in `back/src/state_vector.rs` (deterministic seating) — DONE
   - Converted test `println!` in `back/src/state/move_application.rs` to `log::debug!` — DONE
-  - Note: Replace remaining diagnostic `println!` in `back/src/game.rs`, `back/src/application.rs`, and `back/src/bin/simulate.rs` with `log` macros as follow-up (kept for current verbose CLI UX) — TODO
 
 - Longest road logic
   - Fixed enemy-node handling; count terminal edge but do not traverse through — DONE
@@ -76,8 +71,6 @@ Inspired by [bcollazo's Catanatron](https://github.com/bcollazo/catanatron). Lic
 - Frontend typing and actions
   - `buildRoadAction` now takes tuple `[number, number]`; `buildSettlementAction`/`buildCityAction` use `number` — DONE
   - `WebsocketService.sendPlayerAction` parameter `gameId` marked unused (not sent in payload) — DONE
-  - Future: introduce `request_id` correlation for websocket responses — TODO
+
 
 - Future safe-guards
-  - Replace unwraps in `MapInstance` getters with safe defaults — TODO
-  - Normalize edge storage to single canonical key — TODO

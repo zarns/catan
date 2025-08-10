@@ -33,12 +33,10 @@ impl<K: std::hash::Hash + Eq + Clone, V> OrderedHashMap<K, V> {
             .filter_map(move |key| self.map.get(key).map(|value| (key, value)))
     }
 
-    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.keys.len()
     }
 
-    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }

@@ -1,9 +1,9 @@
 import { Component, Input, OnInit } from '@angular/core';
+import { filter, take } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { environment } from '../../../environments/environment';
 import { WebsocketService } from '../../services/websocket.service';
 
 @Component({
@@ -114,7 +114,15 @@ import { WebsocketService } from '../../services/websocket.service';
   styleUrls: ['./right-drawer.component.scss'],
 })
 export class RightDrawerComponent implements OnInit {
-  @Input() gameState: any;
+  @Input() gameState: {
+    game?: {
+      players: Array<{ name?: string; color: string }>;
+      current_player_index: number;
+      turns?: number;
+    };
+    status?: string;
+    winning_color?: string;
+  } | null = null;
   @Input() gameId: string = '';
   @Input() isOpen: boolean = true;
   @Input() isMobile: boolean = false;
@@ -153,15 +161,18 @@ export class RightDrawerComponent implements OnInit {
     this.error = null;
 
     // Send MCTS analyze request over WebSocket; listen for analysis message
-    const sub = this.websocket.messages$.subscribe((message: any) => {
-      if (message.type === 'mcts_analysis') {
+    const requestId = Math.random().toString(36).slice(2);
+    const sub = this.websocket.messages$
+      .pipe(
+        filter((m: any) => m?.type === 'mcts_analysis' && (!m.request_id || m.request_id === requestId)),
+        take(1)
+      )
+      .subscribe((message: any) => {
         this.mctsResults = message.probabilities || null;
         this.lastSimulations = message.simulations ?? null;
         this.loading = false;
-        sub.unsubscribe();
-      }
-    });
-    this.websocket.sendMessage({ type: 'mcts_analyze', game_id: this.gameId, simulations: 50 });
+      });
+    this.websocket.sendMessage({ type: 'mcts_analyze', game_id: this.gameId, simulations: 50, request_id: requestId });
   }
 
   getMctsResultsArray(): { color: string; probability: number }[] {
