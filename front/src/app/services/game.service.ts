@@ -126,7 +126,7 @@ export interface GameState {
 }
 
 export interface GameConfig {
-  mode: 'HUMAN_VS_CATANATRON' | 'RANDOM_BOTS' | 'CATANATRON_BOTS';
+  mode: 'HUMAN_VS_CATANATRON' | 'HUMAN_VS_RANDOM' | 'RANDOM_BOTS' | 'CATANATRON_BOTS';
   num_players: number;
 }
 

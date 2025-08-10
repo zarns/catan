@@ -1,10 +1,10 @@
+use log::LevelFilter;
 use std::f64;
-use std::time::Instant;
 
 use crate::enums::Action;
 use crate::state::State;
 
-const DEFAULT_DEPTH: i32 = 4;
+const DEFAULT_DEPTH: i32 = 6;
 const MAX_ORDERED_ACTIONS: usize = 12; // beam size for ordering
 
 use super::BotPlayer;
@@ -202,8 +202,11 @@ impl BotPlayer for AlphaBetaPlayer {
             return playable_actions[0];
         }
 
-        let start = Instant::now();
         let my_color = state.get_current_color();
+
+        // Suppress all logs globally during search
+        let prev_level = log::max_level();
+        log::set_max_level(LevelFilter::Off);
 
         let mut best_action = playable_actions[0];
         let mut best_value = f64::NEG_INFINITY;
@@ -226,14 +229,9 @@ impl BotPlayer for AlphaBetaPlayer {
             }
         }
 
-        let duration = start.elapsed();
-        log::debug!(
-            "AlphaBeta (depth {}) took {:?} to evaluate {} actions (best value: {:.2})",
-            self.depth,
-            duration,
-            playable_actions.len(),
-            best_value
-        );
+        // Restore previous logging level after search
+        log::set_max_level(prev_level);
+        // Do not log timing by default to keep simulations quiet
 
         best_action
     }

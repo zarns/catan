@@ -9,6 +9,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 // Define GameMode enum locally in the component
 enum GameMode {
   HUMAN_VS_CATANATRON = 'HUMAN_VS_CATANATRON',
+  HUMAN_VS_RANDOM = 'HUMAN_VS_RANDOM',
   RANDOM_BOTS = 'RANDOM_BOTS',
   CATANATRON_BOTS = 'CATANATRON_BOTS',
 }
@@ -56,6 +57,9 @@ enum GameMode {
           <div class="action-buttons">
             <button class="action-button primary" (click)="startGame(GameMode.HUMAN_VS_CATANATRON)">
               PLAY AGAINST CATANATRON
+            </button>
+            <button class="action-button secondary" (click)="startGame(GameMode.HUMAN_VS_RANDOM)">
+              PLAY AGAINST RANDOM
             </button>
             <button class="action-button secondary" (click)="startGame(GameMode.RANDOM_BOTS)">
               WATCH RANDOM BOTS
@@ -295,6 +299,8 @@ export class HomeComponent implements OnInit {
     switch (mode) {
       case GameMode.HUMAN_VS_CATANATRON:
         return 'HUMAN_VS_CATANATRON';
+      case GameMode.HUMAN_VS_RANDOM:
+        return 'HUMAN_VS_RANDOM' as any;
       case GameMode.RANDOM_BOTS:
         return 'RANDOM_BOTS';
       case GameMode.CATANATRON_BOTS:

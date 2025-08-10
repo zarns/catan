@@ -19,6 +19,7 @@ use catan::websocket::WebSocketService;
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum GameMode {
     HumanVsCatanatron,
+    HumanVsRandom,
     RandomBots,
     CatanatronBots,
 }
@@ -77,10 +78,12 @@ async fn create_game(
     );
 
     // Determine bot type from config
+    // We pass a descriptive string through to GameService so it can select bot logic per mode
     let bot_type = match config.mode {
         GameMode::RandomBots => "random",
-        GameMode::HumanVsCatanatron => "human", // First player human, rest bots
-        GameMode::CatanatronBots => "random",   // All bots for now
+        GameMode::HumanVsCatanatron => "human_alphabeta", // First player human, bots use AlphaBeta
+        GameMode::HumanVsRandom => "human_random",        // First player human, bots random
+        GameMode::CatanatronBots => "random",             // All bots for now
     };
 
     // Delegate to game service (clean separation)

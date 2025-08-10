@@ -222,6 +222,7 @@ impl PlayerFactory {
     ) -> PlayerResult<Player> {
         match bot_type {
             "random" => Ok(Self::create_random_bot(id, name, color)),
+            "alphabeta" => Ok(Self::create_random_bot(id, name, color)),
             _ => Err(PlayerError::StrategyError {
                 details: format!("Unknown bot type: {bot_type}"),
             }),

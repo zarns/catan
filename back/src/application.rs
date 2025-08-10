@@ -22,6 +22,7 @@ use crate::player_system::{Player, PlayerFactory};
 pub struct GameService {
     games: Arc<RwLock<HashMap<GameId, Arc<RwLock<Game>>>>>,
     players: Arc<RwLock<HashMap<GameId, Vec<Player>>>>,
+    bot_modes: Arc<RwLock<HashMap<GameId, String>>>,
 }
 
 impl GameService {
@@ -29,6 +30,7 @@ impl GameService {
         Self {
             games: Arc::new(RwLock::new(HashMap::new())),
             players: Arc::new(RwLock::new(HashMap::new())),
+            bot_modes: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -43,7 +45,7 @@ impl GameService {
 
         // Create the game instance using the appropriate function
         let game = match bot_type {
-            "human" => {
+            "human_alphabeta" | "human_random" => {
                 log::info!("  - Creating human vs bots game");
                 // For human vs bots mode, use the specialized function
                 crate::game::start_human_vs_catanatron("Human".to_string(), num_players - 1)
@@ -84,14 +86,26 @@ impl GameService {
             let player_id = format!("player_{i}");
             let color = colors[i % colors.len()].to_string();
 
-            let player_obj = if bot_type == "human" && i == 0 {
+            let player_obj = if (bot_type == "human_alphabeta" || bot_type == "human_random")
+                && i == 0
+            {
                 // First player is human in human vs bots mode
                 log::info!("  - Creating human player: {}", player.name);
                 PlayerFactory::create_human(player_id, player.name.clone(), color)
             } else {
                 // All other players are bots
                 log::info!("  - Creating bot player: {}", player.name);
-                PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
+                match bot_type {
+                    // For human_alphabeta, the real AlphaBeta is invoked directly in process_bot_turn.
+                    // Here we can use a placeholder (random strategy) for player metadata.
+                    "human_alphabeta" => {
+                        PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
+                    }
+                    "human_random" => {
+                        PlayerFactory::create_random_bot(player_id, player.name.clone(), color)
+                    }
+                    _ => PlayerFactory::create_random_bot(player_id, player.name.clone(), color),
+                }
             };
 
             players.push(player_obj);
@@ -106,6 +120,12 @@ impl GameService {
         {
             let mut game_players = self.players.write().await;
             game_players.insert(game_id.clone(), players);
+        }
+
+        // Store bot mode for this game for later decision routing
+        {
+            let mut modes = self.bot_modes.write().await;
+            modes.insert(game_id.clone(), bot_type.to_string());
         }
 
         log::info!("🏭 END GameService::create_game debug\n");
@@ -315,19 +335,22 @@ impl GameService {
             return Ok(None);
         }
 
-        // Get available actions with proper validation and error handling
-        let available_actions = if let Some(ref state) = game.state {
-            // Get actions from the game state and convert them
-            let state_actions = state.generate_playable_actions();
-            let converted_actions: Vec<PlayerAction> = state_actions
-                .into_iter()
-                .map(|action| action.into())
-                .collect();
+        // Determine bot mode for this game
+        let bot_mode = {
+            let modes = self.bot_modes.read().await;
+            modes
+                .get(game_id)
+                .cloned()
+                .unwrap_or_else(|| "random".to_string())
+        };
 
-            if converted_actions.is_empty() {
+        // Get available actions with proper validation and error handling
+        let available_actions: Vec<PlayerAction> = if let Some(ref state) = game.state {
+            let state_actions = state.generate_playable_actions();
+            if state_actions.is_empty() {
                 vec![PlayerAction::EndTurn]
             } else {
-                converted_actions
+                state_actions.iter().map(|a| (*a).into()).collect()
             }
         } else {
             log::error!(
@@ -378,11 +401,32 @@ impl GameService {
         }
 
         // Let the bot decide what action to take with timeout protection
-        let decision_result = tokio::time::timeout(
-            tokio::time::Duration::from_secs(5), // 5 second timeout for bot decisions
-            current_player.decide_action(&game.game_state, &available_actions),
-        )
-        .await;
+        let decision_result = if bot_mode == "human_alphabeta" {
+            // Use backend AlphaBetaPlayer on the internal state for bots
+            use crate::enums::Action as EnumAction;
+            use crate::players::{minimax::AlphaBetaPlayer, BotPlayer as _};
+
+            if let Some(ref state) = game.state {
+                let state_actions: Vec<EnumAction> = state.generate_playable_actions();
+                let ab = AlphaBetaPlayer::new(
+                    "alphabeta_bot".to_string(),
+                    "AlphaBeta Bot".to_string(),
+                    "gray".to_string(),
+                );
+                // Run synchronously within timeout wrapper
+                let decided_internal = ab.decide(state, &state_actions);
+                let decided_player_action: PlayerAction = decided_internal.into();
+                Ok(Ok(decided_player_action))
+            } else {
+                Ok(Ok(PlayerAction::EndTurn))
+            }
+        } else {
+            tokio::time::timeout(
+                tokio::time::Duration::from_secs(5),
+                current_player.decide_action(&game.game_state, &available_actions),
+            )
+            .await
+        };
 
         match decision_result {
             Ok(Ok(action)) => {
