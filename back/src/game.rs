@@ -885,7 +885,7 @@ fn update_players_from_state(players: &mut [Player], state: &State) {
                 .insert(EnumResource::Ore, player_hand[4] as u32);
         }
 
-        // Get development cards
+        // Get development cards (indices: 0=Knight, 1=YearOfPlenty, 2=Monopoly, 3=RoadBuilding, 4=VictoryPoint)
         player.dev_cards.clear();
         let player_dev_hand = state.get_player_devhand(color_idx);
         if player_dev_hand.len() >= 5 {
@@ -893,16 +893,16 @@ fn update_players_from_state(players: &mut [Player], state: &State) {
                 player.dev_cards.push(DevCard::Knight);
             }
             for _ in 0..(player_dev_hand[1]) {
-                player.dev_cards.push(DevCard::VictoryPoint);
-            }
-            for _ in 0..(player_dev_hand[2]) {
-                player.dev_cards.push(DevCard::RoadBuilding);
-            }
-            for _ in 0..(player_dev_hand[3]) {
                 player.dev_cards.push(DevCard::YearOfPlenty);
             }
-            for _ in 0..(player_dev_hand[4]) {
+            for _ in 0..(player_dev_hand[2]) {
                 player.dev_cards.push(DevCard::Monopoly);
+            }
+            for _ in 0..(player_dev_hand[3]) {
+                player.dev_cards.push(DevCard::RoadBuilding);
+            }
+            for _ in 0..(player_dev_hand[4]) {
+                player.dev_cards.push(DevCard::VictoryPoint);
             }
         }
 
