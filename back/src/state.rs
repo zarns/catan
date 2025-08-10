@@ -68,12 +68,21 @@ impl State {
             config, config.num_players
         );
 
-        let vector = initialize_state(config.num_players);
+        let mut vector = initialize_state(config.num_players);
         debug!(
             "State::new: vector initialized, length={}, seating_order={:?}",
             vector.len(),
             &vector[seating_order_slice(config.num_players as usize)]
         );
+
+        // Ensure robber starts on the desert tile
+        let desert_tile_id = map_instance
+            .land_tiles
+            .values()
+            .find(|lt| lt.resource.is_none())
+            .map(|lt| lt.id)
+            .expect("Desert tile not found in map_instance");
+        vector[ROBBER_TILE_INDEX] = desert_tile_id;
 
         let board_buildable_ids = map_instance.land_nodes().clone();
         let buildings = HashMap::new();
