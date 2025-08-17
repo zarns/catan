@@ -15,6 +15,7 @@ pub trait BotPlayer {
 pub mod greedy;
 pub mod human;
 pub mod minimax;
+pub mod value;
 pub mod random;
 pub mod weighted_random;
 // pub mod mcts;  // Keep disabled for now - may need fixes
@@ -23,6 +24,7 @@ pub mod weighted_random;
 pub use self::greedy::GreedyPlayer;
 pub use self::human::HumanPlayer;
 pub use self::minimax::AlphaBetaPlayer;
+pub use self::value::ValueFunctionPlayer;
 pub use self::random::RandomPlayer;
 pub use self::weighted_random::WeightedRandomPlayer;
 

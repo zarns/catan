@@ -1,7 +1,8 @@
 use catan::enums::Action;
 use catan::game::*;
 use catan::players::{
-    AlphaBetaPlayer, BotPlayer, GreedyPlayer, RandomPlayer, WeightedRandomPlayer,
+    AlphaBetaPlayer, BotPlayer, GreedyPlayer, RandomPlayer, ValueFunctionPlayer,
+    WeightedRandomPlayer,
 };
 use std::collections::HashMap;
 use std::env;
@@ -547,6 +548,15 @@ fn build_bots_from_config(config: &str) -> (Vec<Box<dyn BotPlayer>>, Vec<String>
 
     for (i, c) in config.chars().enumerate() {
         match c {
+            'V' | 'v' => {
+                bots.push(Box::new(ValueFunctionPlayer::new(
+                    format!("player_{i}"),
+                    format!("Value {i}"),
+                    colors[i % colors.len()].to_string(),
+                    i as u8,
+                )));
+                labels.push("Value".to_string());
+            }
             'G' | 'g' => {
                 bots.push(Box::new(GreedyPlayer::new(
                     format!("player_{i}"),
