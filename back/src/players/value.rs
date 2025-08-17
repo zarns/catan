@@ -46,6 +46,26 @@ impl Default for ValueWeights {
     }
 }
 
+impl ValueWeights {
+    pub fn contender() -> Self {
+        Self {
+            public_vps: 300000000000001.94,
+            production: 100000002.04188395,
+            enemy_production: -99999998.03389844,
+            num_tiles: 2.91440418,
+            reachable_production_0: 2.03820085,
+            reachable_production_1: 10002.018773150001,
+            buildable_nodes: 1001.86278466,
+            longest_road: 12.1273885,
+            hand_synergy: 102.40606877,
+            hand_resources: 2.43644327,
+            discard_penalty: -3.00141993,
+            hand_devs: 10.7216698,
+            army_size: 12.93844622,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ValueFunctionPlayer {
     pub id: String,

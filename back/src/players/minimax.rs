@@ -7,8 +7,8 @@ use crate::state::State;
 use rand::Rng;
 use std::collections::HashMap;
 
-const DEFAULT_DEPTH: i32 = 4;
-const MAX_ORDERED_ACTIONS: usize = 12; // beam size for ordering
+const DEFAULT_DEPTH: i32 = 5; // deeper search; tune time/beam accordingly
+const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for strength at the cost of time
 
 use super::BotPlayer;
 
@@ -19,10 +19,42 @@ pub struct AlphaBetaPlayer {
     pub name: String,
     pub color: String,
     depth: i32,
-    max_time_ms: u64,
+    time_profile: SearchTimeProfile,
     weights: ValueWeights,
-    tt: std::cell::RefCell<HashMap<(u64, i32), (f64, i8)>>, // (hash, depth) -> (value, flag: -1=alpha, 0=exact, 1=beta)
+    tt: std::cell::RefCell<HashMap<(u64, i32), (f64, i8, Option<Action>)>>, // (hash, depth) -> (value, flag: -1=alpha, 0=exact, 1=beta, best_move)
     epsilon: Option<f64>,
+    killer_moves: std::cell::RefCell<HashMap<i32, (Option<Action>, Option<Action>)>>, // depth -> (killer1, killer2)
+    history_scores: std::cell::RefCell<HashMap<Action, i64>>, // action -> score
+}
+
+#[derive(Clone, Copy)]
+pub struct SearchTimeProfile {
+    pub fast_ms: u64,
+    pub slow_ms: u64,
+    pub slow_branch_threshold: usize,
+}
+
+impl SearchTimeProfile {
+    pub const FAST: Self = Self {
+        fast_ms: 80,
+        slow_ms: 120,
+        slow_branch_threshold: 12,
+    };
+    pub const BALANCED: Self = Self {
+        fast_ms: 100,
+        slow_ms: 150,
+        slow_branch_threshold: 14,
+    };
+    pub const DEEP: Self = Self {
+        fast_ms: 150,
+        slow_ms: 250,
+        slow_branch_threshold: 16,
+    };
+    pub const ULTRA: Self = Self {
+        fast_ms: 10000,
+        slow_ms: 10000,
+        slow_branch_threshold: 12,
+    };
 }
 
 impl AlphaBetaPlayer {
@@ -32,10 +64,12 @@ impl AlphaBetaPlayer {
             name,
             color,
             depth: DEFAULT_DEPTH,
-            max_time_ms: 50,
-            weights: ValueWeights::default(),
+            time_profile: SearchTimeProfile::ULTRA,
+            weights: ValueWeights::contender(),
             tt: std::cell::RefCell::new(HashMap::new()),
             epsilon: None,
+            killer_moves: std::cell::RefCell::new(HashMap::new()),
+            history_scores: std::cell::RefCell::new(HashMap::new()),
         }
     }
 
@@ -45,10 +79,12 @@ impl AlphaBetaPlayer {
             name,
             color,
             depth,
-            max_time_ms: 50,
-            weights: ValueWeights::default(),
+            time_profile: SearchTimeProfile::ULTRA,
+            weights: ValueWeights::contender(),
             tt: std::cell::RefCell::new(HashMap::new()),
             epsilon: None,
+            killer_moves: std::cell::RefCell::new(HashMap::new()),
+            history_scores: std::cell::RefCell::new(HashMap::new()),
         }
     }
 
@@ -58,7 +94,6 @@ impl AlphaBetaPlayer {
         name: String,
         color: String,
         depth: i32,
-        max_time_ms: u64,
         weights: ValueWeights,
         epsilon: Option<f64>,
     ) -> Self {
@@ -67,21 +102,33 @@ impl AlphaBetaPlayer {
             name,
             color,
             depth,
-            max_time_ms,
+            time_profile: SearchTimeProfile {
+                fast_ms: 100,
+                slow_ms: 150,
+                slow_branch_threshold: 14,
+            },
             weights,
             tt: std::cell::RefCell::new(HashMap::new()),
             epsilon,
+            killer_moves: std::cell::RefCell::new(HashMap::new()),
+            history_scores: std::cell::RefCell::new(HashMap::new()),
         }
     }
 
-    pub fn set_max_time_ms(&mut self, ms: u64) {
-        self.max_time_ms = ms;
-    }
     pub fn set_weights(&mut self, weights: ValueWeights) {
         self.weights = weights;
     }
     pub fn set_epsilon(&mut self, epsilon: Option<f64>) {
         self.epsilon = epsilon;
+    }
+
+    /// Configure a dual time profile: use `slow_ms` when branching is large, otherwise `fast_ms`.
+    pub fn set_time_profile(&mut self, fast_ms: u64, slow_ms: u64, slow_branch_threshold: usize) {
+        self.time_profile = SearchTimeProfile {
+            fast_ms,
+            slow_ms,
+            slow_branch_threshold,
+        };
     }
 
     /// Evaluate the game state from the perspective of the given player using ValueWeights
@@ -252,8 +299,8 @@ impl AlphaBetaPlayer {
                     self.evaluate_relative(&ns, my_color)
                 }
             };
-            // Weighted sum to bias ordering. Static dominates to keep stability.
-            let combined = static_score * 1.0 + quick_eval * 0.01;
+            // Weighted sum to bias ordering. Slightly increase shallow eval weight.
+            let combined = static_score * 1.0 + quick_eval * 0.03;
             scored.push((combined, a));
         }
         scored.sort_by(|(sa, _), (sb, _)| sb.partial_cmp(sa).unwrap_or(std::cmp::Ordering::Equal));
@@ -519,7 +566,9 @@ impl AlphaBetaPlayer {
     ) -> f64 {
         // Transposition lookup
         let state_hash = state.compute_hash64();
-        if let Some(&(v, flag)) = self.tt.borrow().get(&(state_hash, depth)) {
+        let mut tt_move: Option<Action> = None;
+        if let Some(&(v, flag, best_mv)) = self.tt.borrow().get(&(state_hash, depth)) {
+            tt_move = best_mv;
             match flag {
                 0 => return v, // exact
                 -1 => {
@@ -555,23 +604,51 @@ impl AlphaBetaPlayer {
         if pruned_actions.is_empty() {
             return self.evaluate_relative(state, my_color);
         }
-        let ordered_actions = self.order_actions(state, &pruned_actions);
+        let mut ordered_actions = self.order_actions(state, &pruned_actions);
+        // Prefer TT-best move
+        if let Some(mv) = tt_move {
+            if let Some(pos) = ordered_actions.iter().position(|&a| a == mv) {
+                if pos != 0 {
+                    let mv2 = ordered_actions.remove(pos);
+                    ordered_actions.insert(0, mv2);
+                }
+            }
+        }
 
         let is_maximizing = state.get_current_color() == my_color;
+        let alpha_orig = alpha;
         if is_maximizing {
             let mut best_value = f64::NEG_INFINITY;
-            for action in ordered_actions {
-                let value = self.evaluate_action_with_chance(
-                    state, depth, alpha, beta, my_color, action, deadline,
-                );
+            let mut best_mv: Option<Action> = None;
+            for (idx, action) in ordered_actions.iter().copied().enumerate() {
+                let mut value;
+                if idx == 0 {
+                    value = self.evaluate_action_with_chance(
+                        state, depth, alpha, beta, my_color, action, deadline,
+                    );
+                } else {
+                    // PVS null-window probe
+                    let probe_beta = (alpha + 1e-6).min(beta);
+                    value = self.evaluate_action_with_chance(
+                        state, depth, alpha, probe_beta, my_color, action, deadline,
+                    );
+                    if value > alpha && value < beta {
+                        value = self.evaluate_action_with_chance(
+                            state, depth, alpha, beta, my_color, action, deadline,
+                        );
+                    }
+                }
                 if value > best_value {
                     best_value = value;
+                    best_mv = Some(action);
                 }
                 if value > alpha {
                     alpha = value;
                 }
                 if alpha >= beta {
-                    break; // beta cut-off
+                    self.record_killer(depth, Some(action));
+                    self.bump_history(action, depth);
+                    break;
                 }
                 if let Some(dl) = deadline {
                     if std::time::Instant::now() >= dl {
@@ -579,8 +656,7 @@ impl AlphaBetaPlayer {
                     }
                 }
             }
-            // Store in TT
-            let flag = if best_value <= alpha {
+            let flag = if best_value <= alpha_orig {
                 -1
             } else if best_value >= beta {
                 1
@@ -589,22 +665,39 @@ impl AlphaBetaPlayer {
             };
             self.tt
                 .borrow_mut()
-                .insert((state_hash, depth), (best_value, flag));
+                .insert((state_hash, depth), (best_value, flag, best_mv));
             best_value
         } else {
             let mut best_value = f64::INFINITY;
-            for action in ordered_actions {
-                let value = self.evaluate_action_with_chance(
-                    state, depth, alpha, beta, my_color, action, deadline,
-                );
+            let mut best_mv: Option<Action> = None;
+            for (idx, action) in ordered_actions.iter().copied().enumerate() {
+                let mut value;
+                if idx == 0 {
+                    value = self.evaluate_action_with_chance(
+                        state, depth, alpha, beta, my_color, action, deadline,
+                    );
+                } else {
+                    let probe_beta = (alpha + 1e-6).min(beta);
+                    value = self.evaluate_action_with_chance(
+                        state, depth, alpha, probe_beta, my_color, action, deadline,
+                    );
+                    if value > alpha && value < beta {
+                        value = self.evaluate_action_with_chance(
+                            state, depth, alpha, beta, my_color, action, deadline,
+                        );
+                    }
+                }
                 if value < best_value {
                     best_value = value;
+                    best_mv = Some(action);
                 }
                 if value < beta {
                     beta = value;
                 }
                 if beta <= alpha {
-                    break; // alpha cut-off
+                    self.record_killer(depth, Some(action));
+                    self.bump_history(action, depth);
+                    break;
                 }
                 if let Some(dl) = deadline {
                     if std::time::Instant::now() >= dl {
@@ -612,7 +705,7 @@ impl AlphaBetaPlayer {
                     }
                 }
             }
-            let flag = if best_value <= alpha {
+            let flag = if best_value <= alpha_orig {
                 -1
             } else if best_value >= beta {
                 1
@@ -621,9 +714,27 @@ impl AlphaBetaPlayer {
             };
             self.tt
                 .borrow_mut()
-                .insert((state_hash, depth), (best_value, flag));
+                .insert((state_hash, depth), (best_value, flag, best_mv));
             best_value
         }
+    }
+
+    fn record_killer(&self, depth: i32, action: Option<Action>) {
+        if action.is_none() {
+            return;
+        }
+        let mut killers = self.killer_moves.borrow_mut();
+        let entry = killers.entry(depth).or_insert((None, None));
+        if entry.0 != action {
+            entry.1 = entry.0;
+            entry.0 = action;
+        }
+    }
+
+    fn bump_history(&self, action: Action, depth: i32) {
+        let mut hist = self.history_scores.borrow_mut();
+        let e = hist.entry(action).or_insert(0);
+        *e += (depth as i64).max(1);
     }
 }
 
@@ -650,7 +761,12 @@ impl BotPlayer for AlphaBetaPlayer {
         }
 
         use std::time::Instant;
-        let deadline = Instant::now() + std::time::Duration::from_millis(self.max_time_ms);
+        let ms = if playable_actions.len() >= self.time_profile.slow_branch_threshold {
+            self.time_profile.slow_ms
+        } else {
+            self.time_profile.fast_ms
+        };
+        let deadline = Instant::now() + std::time::Duration::from_millis(ms);
 
         let mut best_action = playable_actions[0];
         let mut best_value = f64::NEG_INFINITY;
