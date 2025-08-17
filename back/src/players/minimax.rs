@@ -8,10 +8,12 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
-const DEFAULT_DEPTH: i32 = 5; // deeper search; tune time/beam accordingly
+const DEFAULT_DEPTH: i32 = 4; // reduced default depth per request
 const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for strength at the cost of time
 const PVS_EPS: f64 = 1e-6;
 const ASPIRATION_WINDOW: f64 = 50.0;
+const LMR_MIN_DEPTH: i32 = 3; // enable reductions only at sufficient depth
+const LMR_LATE_INDEX: usize = 4; // reduce depth for moves after this index
 
 use super::BotPlayer;
 
@@ -56,18 +58,18 @@ pub struct SearchTimeProfile {
 
 impl SearchTimeProfile {
     pub const FAST: Self = Self {
-        fast_ms: 80,
-        slow_ms: 120,
+        fast_ms: 60,
+        slow_ms: 100,
         slow_branch_threshold: 12,
     };
     pub const BALANCED: Self = Self {
-        fast_ms: 100,
-        slow_ms: 150,
+        fast_ms: 80,
+        slow_ms: 130,
         slow_branch_threshold: 14,
     };
     pub const DEEP: Self = Self {
-        fast_ms: 150,
-        slow_ms: 250,
+        fast_ms: 100,
+        slow_ms: 180,
         slow_branch_threshold: 16,
     };
     pub const ULTRA: Self = Self {
@@ -84,7 +86,7 @@ impl AlphaBetaPlayer {
             name,
             color,
             depth: DEFAULT_DEPTH,
-            time_profile: SearchTimeProfile::ULTRA,
+            time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::contender(),
             tt: std::cell::RefCell::new(HashMap::new()),
             epsilon: None,
@@ -99,7 +101,7 @@ impl AlphaBetaPlayer {
             name,
             color,
             depth,
-            time_profile: SearchTimeProfile::ULTRA,
+            time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::contender(),
             tt: std::cell::RefCell::new(HashMap::new()),
             epsilon: None,
@@ -680,11 +682,14 @@ impl AlphaBetaPlayer {
                 } else {
                     // PVS null-window probe
                     let probe_beta = (alpha + PVS_EPS).min(beta);
+                    // Late Move Reductions for late, non-tactical moves
+                    let reduce = depth >= LMR_MIN_DEPTH && idx >= LMR_LATE_INDEX;
+                    let probe_depth = if reduce { depth - 1 } else { depth };
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
                         &SearchCtx {
-                            depth,
+                            depth: probe_depth,
                             alpha,
                             beta: probe_beta,
                             my_color,
@@ -753,11 +758,14 @@ impl AlphaBetaPlayer {
                     );
                 } else {
                     let probe_beta = (alpha + PVS_EPS).min(beta);
+                    // Late Move Reductions for late, non-tactical moves
+                    let reduce = depth >= LMR_MIN_DEPTH && idx >= LMR_LATE_INDEX;
+                    let probe_depth = if reduce { depth - 1 } else { depth };
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
                         &SearchCtx {
-                            depth,
+                            depth: probe_depth,
                             alpha,
                             beta: probe_beta,
                             my_color,
