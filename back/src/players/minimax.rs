@@ -1072,7 +1072,11 @@ impl AlphaBetaPlayer {
                     // PVS null-window probe with guard for valid finite window
                     let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
                     let probe_alpha = alpha;
-                    let probe_beta = if use_pvs { (alpha + PVS_EPS).min(beta) } else { beta };
+                    let probe_beta = if use_pvs {
+                        (alpha + PVS_EPS).min(beta)
+                    } else {
+                        beta
+                    };
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
                     // Futility pruning at shallow depths for quiet moves (maximizing only)
                     if is_maximizing && depth <= 2 && self.is_quiet_move(action) {
@@ -1165,7 +1169,11 @@ impl AlphaBetaPlayer {
                 } else {
                     let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
                     let probe_alpha = alpha;
-                    let probe_beta = if use_pvs { (alpha + PVS_EPS).min(beta) } else { beta };
+                    let probe_beta = if use_pvs {
+                        (alpha + PVS_EPS).min(beta)
+                    } else {
+                        beta
+                    };
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
                     // Do not apply maximizing-style futility at minimizing nodes
                     let probe_depth = (depth - reduce_by).max(1);
