@@ -18,15 +18,15 @@ const LMR_LATE_INDEX: usize = 4; // reduce depth for moves after this index
 const SHALLOW_EVAL_WEIGHT: f64 = 0.10; // higher to improve ordering
 const HISTORY_WEIGHT: f64 = 0.001; // make history matter
 const KILLER_BONUS: f64 = 100.0; // scale to static scores
-const ASPIRATION_MIN_WINDOW: f64 = 15.0; // tighter initial window
+const ASPIRATION_MIN_WINDOW: f64 = 25.0; // slightly wider for depth-5 stability
 
 use super::BotPlayer;
 
 /// Alpha-Beta Minimax Player
 /// Uses the minimax algorithm to choose actions
 // Type aliases to simplify complex types
-type TtKey = (u64, i32);
-type TtEntry = (f64, i8, Option<Action>);
+type TtKey = u64;
+type TtEntry = (f64, i8, Option<Action>, i32); // (value, flag, best_move, depth)
 type TtMap = HashMap<TtKey, TtEntry>;
 type KillerPair = (Option<Action>, Option<Action>);
 type KillerMap = HashMap<i32, KillerPair>;
@@ -74,8 +74,8 @@ impl SearchTimeProfile {
         slow_branch_threshold: 14,
     };
     pub const DEEP: Self = Self {
-        fast_ms: 100,
-        slow_ms: 180,
+        fast_ms: 250,
+        slow_ms: 450,
         slow_branch_threshold: 16,
     };
     pub const ULTRA: Self = Self {
@@ -373,6 +373,25 @@ impl AlphaBetaPlayer {
                 | A::ConfirmTrade { .. }
                 | A::CancelTrade { .. }
                 | A::EndTurn { .. }
+        )
+    }
+
+    #[inline]
+    fn is_tactical_move(&self, action: Action) -> bool {
+        use crate::enums::Action as A;
+        matches!(
+            action,
+            A::BuildCity { .. }
+                | A::BuildSettlement { .. }
+                | A::BuyDevelopmentCard { .. }
+                | A::PlayKnight { .. }
+                | A::PlayRoadBuilding { .. }
+                | A::PlayYearOfPlenty { .. }
+                | A::PlayMonopoly { .. }
+                | A::MoveRobber {
+                    victim_opt: Some(_),
+                    ..
+                }
         )
     }
 
@@ -922,21 +941,24 @@ impl AlphaBetaPlayer {
         // Transposition lookup
         let state_hash = state.compute_hash64();
         let mut tt_move: Option<Action> = None;
-        if let Some(&(v, flag, best_mv)) = self.tt.borrow().get(&(state_hash, depth)) {
+        if let Some(&(v, flag, best_mv, entry_depth)) = self.tt.borrow().get(&state_hash) {
             tt_move = best_mv;
-            match flag {
-                0 => return v, // exact
-                -1 => {
-                    if v <= alpha {
-                        return v;
-                    }
-                } // alpha bound
-                1 => {
-                    if v >= beta {
-                        return v;
-                    }
-                } // beta bound
-                _ => {}
+            // Only use TT bounds/cutoffs if stored depth covers current depth
+            if entry_depth >= depth {
+                match flag {
+                    0 => return v, // exact
+                    -1 => {
+                        if v <= alpha {
+                            return v;
+                        }
+                    } // alpha bound
+                    1 => {
+                        if v >= beta {
+                            return v;
+                        }
+                    } // beta bound
+                    _ => {}
+                }
             }
         }
         // Base case: terminal depth or game over
@@ -964,9 +986,28 @@ impl AlphaBetaPlayer {
             return self.evaluate_relative(state, my_color);
         }
         let mut ordered_actions = self.order_actions(state, &pruned_actions, depth);
-        // Move-count pruning at shallow depths: keep only top-N quiet moves beyond a cap
-        if depth <= 2 && ordered_actions.len() > 10 {
-            ordered_actions.truncate(10);
+        // Move-count pruning only at depth 1 and preserve tactical moves
+        if depth == 1 && ordered_actions.len() > 10 {
+            let mut kept: Vec<Action> = Vec::with_capacity(10);
+            for a in &ordered_actions {
+                if self.is_tactical_move(*a) {
+                    kept.push(*a);
+                }
+                if kept.len() >= 10 {
+                    break;
+                }
+            }
+            if kept.len() < 10 {
+                for a in &ordered_actions {
+                    if !self.is_tactical_move(*a) {
+                        kept.push(*a);
+                        if kept.len() >= 10 {
+                            break;
+                        }
+                    }
+                }
+            }
+            ordered_actions = kept;
         }
         // Prefer TT-best move
         if let Some(mv) = tt_move {
@@ -1001,8 +1042,8 @@ impl AlphaBetaPlayer {
                     // PVS null-window probe with graduated LMR for quiet late moves
                     let probe_beta = (alpha + PVS_EPS).min(beta);
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
-                    // Futility pruning at shallow depths for quiet moves
-                    if depth <= 2 && self.is_quiet_move(action) {
+                    // Futility pruning at shallow depths for quiet moves (maximizing only)
+                    if is_maximizing && depth <= 2 && self.is_quiet_move(action) {
                         let eval = self.evaluate_relative(state, my_color);
                         let margin = if depth == 1 { 100.0 } else { 200.0 };
                         if eval + margin < alpha {
@@ -1062,9 +1103,15 @@ impl AlphaBetaPlayer {
             } else {
                 0
             };
-            self.tt
-                .borrow_mut()
-                .insert((state_hash, depth), (best_value, flag, best_mv));
+            // Depth-preferred replacement
+            let mut tt = self.tt.borrow_mut();
+            let replace = match tt.get(&state_hash) {
+                Some(&(_, _, _, d)) => depth >= d,
+                None => true,
+            };
+            if replace {
+                tt.insert(state_hash, (best_value, flag, best_mv, depth));
+            }
             best_value
         } else {
             let mut best_value = f64::INFINITY;
@@ -1086,14 +1133,7 @@ impl AlphaBetaPlayer {
                 } else {
                     let probe_beta = (alpha + PVS_EPS).min(beta);
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
-                    // Futility pruning at shallow depths for quiet moves
-                    if depth <= 2 && self.is_quiet_move(action) {
-                        let eval = self.evaluate_relative(state, my_color);
-                        let margin = if depth == 1 { 100.0 } else { 200.0 };
-                        if eval + margin < alpha {
-                            continue;
-                        }
-                    }
+                    // Do not apply maximizing-style futility at minimizing nodes
                     let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
@@ -1145,9 +1185,14 @@ impl AlphaBetaPlayer {
             } else {
                 0
             };
-            self.tt
-                .borrow_mut()
-                .insert((state_hash, depth), (best_value, flag, best_mv));
+            let mut tt = self.tt.borrow_mut();
+            let replace = match tt.get(&state_hash) {
+                Some(&(_, _, _, d)) => depth >= d,
+                None => true,
+            };
+            if replace {
+                tt.insert(state_hash, (best_value, flag, best_mv, depth));
+            }
             best_value
         }
     }
@@ -1298,6 +1343,14 @@ impl BotPlayer for AlphaBetaPlayer {
             } else {
                 stable_iterations = 0;
                 last_best = best_action;
+            }
+        }
+
+        // Periodic history decay to avoid stale biases
+        if !self.history_scores.borrow().is_empty() {
+            let mut hist = self.history_scores.borrow_mut();
+            for v in hist.values_mut() {
+                *v /= 2;
             }
         }
 
