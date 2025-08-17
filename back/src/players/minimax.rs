@@ -6,14 +6,34 @@ use crate::enums::Action;
 use crate::state::State;
 use rand::Rng;
 use std::collections::HashMap;
+use std::time::Instant;
 
 const DEFAULT_DEPTH: i32 = 5; // deeper search; tune time/beam accordingly
 const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for strength at the cost of time
+const PVS_EPS: f64 = 1e-6;
+const ASPIRATION_WINDOW: f64 = 50.0;
 
 use super::BotPlayer;
 
 /// Alpha-Beta Minimax Player
 /// Uses the minimax algorithm to choose actions
+// Type aliases to simplify complex types
+type TtKey = (u64, i32);
+type TtEntry = (f64, i8, Option<Action>);
+type TtMap = HashMap<TtKey, TtEntry>;
+type KillerPair = (Option<Action>, Option<Action>);
+type KillerMap = HashMap<i32, KillerPair>;
+type HistoryMap = HashMap<Action, i64>;
+
+#[derive(Clone, Copy)]
+struct SearchCtx {
+    depth: i32,
+    alpha: f64,
+    beta: f64,
+    my_color: u8,
+    deadline: Option<Instant>,
+}
+
 pub struct AlphaBetaPlayer {
     pub id: String,
     pub name: String,
@@ -21,10 +41,10 @@ pub struct AlphaBetaPlayer {
     depth: i32,
     time_profile: SearchTimeProfile,
     weights: ValueWeights,
-    tt: std::cell::RefCell<HashMap<(u64, i32), (f64, i8, Option<Action>)>>, // (hash, depth) -> (value, flag: -1=alpha, 0=exact, 1=beta, best_move)
+    tt: std::cell::RefCell<TtMap>, // (hash, depth) -> (value, flag: -1=alpha, 0=exact, 1=beta, best_move)
     epsilon: Option<f64>,
-    killer_moves: std::cell::RefCell<HashMap<i32, (Option<Action>, Option<Action>)>>, // depth -> (killer1, killer2)
-    history_scores: std::cell::RefCell<HashMap<Action, i64>>, // action -> score
+    killer_moves: std::cell::RefCell<KillerMap>, // depth -> (killer1, killer2)
+    history_scores: std::cell::RefCell<HistoryMap>, // action -> score
 }
 
 #[derive(Clone, Copy)]
@@ -406,23 +426,14 @@ impl AlphaBetaPlayer {
     }
 
     /// Evaluate an action, expanding stochastic outcomes into an expected value when needed.
-    fn evaluate_action_with_chance(
-        &self,
-        state: &State,
-        depth: i32,
-        alpha: f64,
-        beta: f64,
-        my_color: u8,
-        action: Action,
-        deadline: Option<std::time::Instant>,
-    ) -> f64 {
+    fn evaluate_action_with_chance(&self, state: &State, action: Action, ctx: &SearchCtx) -> f64 {
         match action {
             Action::Roll {
                 color,
                 dice_opt: None,
             } => {
                 // Expectation over dice outcomes
-                self.roll_expectation(state, depth, alpha, beta, my_color, color, deadline)
+                self.roll_expectation(state, color, ctx)
             }
             Action::BuyDevelopmentCard { color } => {
                 // Expectation over dev card identities based on remaining bank composition
@@ -431,7 +442,14 @@ impl AlphaBetaPlayer {
                 if total == 0 {
                     let mut next_state = state.clone();
                     next_state.apply_action(action);
-                    return self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline);
+                    return self.minimax(
+                        &next_state,
+                        ctx.depth - 1,
+                        ctx.alpha,
+                        ctx.beta,
+                        ctx.my_color,
+                        ctx.deadline,
+                    );
                 }
                 let mut expected = 0.0;
                 for (card_idx, &cnt) in counts.iter().enumerate() {
@@ -442,10 +460,17 @@ impl AlphaBetaPlayer {
                     let mut next_state = state.clone();
                     // Simulate the outcome for this specific card type deterministically
                     next_state.simulate_buy_dev_card_outcome(color, card_idx);
-                    let v = self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline);
+                    let v = self.minimax(
+                        &next_state,
+                        ctx.depth - 1,
+                        ctx.alpha,
+                        ctx.beta,
+                        ctx.my_color,
+                        ctx.deadline,
+                    );
                     expected += p * v;
-                    if let Some(dl) = deadline {
-                        if std::time::Instant::now() >= dl {
+                    if let Some(dl) = ctx.deadline {
+                        if Instant::now() >= dl {
                             break;
                         }
                     }
@@ -470,12 +495,18 @@ impl AlphaBetaPlayer {
                         .id;
                     next_state.set_robber_tile(tile_id);
                     next_state.clear_is_moving_robber();
-                    return self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline);
+                    return self.minimax(
+                        &next_state,
+                        ctx.depth - 1,
+                        ctx.alpha,
+                        ctx.beta,
+                        ctx.my_color,
+                        ctx.deadline,
+                    );
                 }
 
                 let mut expected = 0.0;
-                for res_idx in 0..5 {
-                    let count = victim_hand[res_idx];
+                for (res_idx, &count) in victim_hand.iter().enumerate() {
                     if count == 0 {
                         continue;
                     }
@@ -491,10 +522,17 @@ impl AlphaBetaPlayer {
                     // Transfer one resource from victim to mover
                     next_state.from_player_to_player(victim, color, res_idx as u8, 1);
                     next_state.clear_is_moving_robber();
-                    let v = self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline);
+                    let v = self.minimax(
+                        &next_state,
+                        ctx.depth - 1,
+                        ctx.alpha,
+                        ctx.beta,
+                        ctx.my_color,
+                        ctx.deadline,
+                    );
                     expected += p * v;
-                    if let Some(dl) = deadline {
-                        if std::time::Instant::now() >= dl {
+                    if let Some(dl) = ctx.deadline {
+                        if Instant::now() >= dl {
                             break;
                         }
                     }
@@ -504,22 +542,20 @@ impl AlphaBetaPlayer {
             _ => {
                 let mut next_state = state.clone();
                 next_state.apply_action(action);
-                self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline)
+                self.minimax(
+                    &next_state,
+                    ctx.depth - 1,
+                    ctx.alpha,
+                    ctx.beta,
+                    ctx.my_color,
+                    ctx.deadline,
+                )
             }
         }
     }
 
     /// Expectiminimax handling for rolling dice: average over dice outcomes
-    fn roll_expectation(
-        &self,
-        state: &State,
-        depth: i32,
-        alpha: f64,
-        beta: f64,
-        my_color: u8,
-        color_to_roll: u8,
-        deadline: Option<std::time::Instant>,
-    ) -> f64 {
+    fn roll_expectation(&self, state: &State, color_to_roll: u8, ctx: &SearchCtx) -> f64 {
         // Probabilities for sums 2..12 over two fair dice
         const SUM_PROBS: [(u8, f64, (u8, u8)); 11] = [
             (2, 1.0 / 36.0, (1, 1)),
@@ -537,8 +573,8 @@ impl AlphaBetaPlayer {
 
         let mut expected = 0.0;
         for &(_sum, prob, pair) in &SUM_PROBS {
-            if let Some(dl) = deadline {
-                if std::time::Instant::now() >= dl {
+            if let Some(dl) = ctx.deadline {
+                if Instant::now() >= dl {
                     break;
                 }
             }
@@ -548,7 +584,14 @@ impl AlphaBetaPlayer {
                 dice_opt: Some(pair),
             });
             // After rolling, it is still the same player's turn; do not negate here
-            let v = self.minimax(&next_state, depth - 1, alpha, beta, my_color, deadline);
+            let v = self.minimax(
+                &next_state,
+                ctx.depth - 1,
+                ctx.alpha,
+                ctx.beta,
+                ctx.my_color,
+                ctx.deadline,
+            );
             expected += prob * v;
         }
         expected
@@ -624,17 +667,23 @@ impl AlphaBetaPlayer {
                 let mut value;
                 if idx == 0 {
                     value = self.evaluate_action_with_chance(
-                        state, depth, alpha, beta, my_color, action, deadline,
+                        state,
+                        action,
+                        &SearchCtx { depth, alpha, beta, my_color, deadline },
                     );
                 } else {
                     // PVS null-window probe
-                    let probe_beta = (alpha + 1e-6).min(beta);
+                    let probe_beta = (alpha + PVS_EPS).min(beta);
                     value = self.evaluate_action_with_chance(
-                        state, depth, alpha, probe_beta, my_color, action, deadline,
+                        state,
+                        action,
+                        &SearchCtx { depth, alpha, beta: probe_beta, my_color, deadline },
                     );
                     if value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
-                            state, depth, alpha, beta, my_color, action, deadline,
+                            state,
+                            action,
+                            &SearchCtx { depth, alpha, beta, my_color, deadline },
                         );
                     }
                 }
@@ -674,16 +723,22 @@ impl AlphaBetaPlayer {
                 let mut value;
                 if idx == 0 {
                     value = self.evaluate_action_with_chance(
-                        state, depth, alpha, beta, my_color, action, deadline,
+                        state,
+                        action,
+                        &SearchCtx { depth, alpha, beta, my_color, deadline },
                     );
                 } else {
-                    let probe_beta = (alpha + 1e-6).min(beta);
+                    let probe_beta = (alpha + PVS_EPS).min(beta);
                     value = self.evaluate_action_with_chance(
-                        state, depth, alpha, probe_beta, my_color, action, deadline,
+                        state,
+                        action,
+                        &SearchCtx { depth, alpha, beta: probe_beta, my_color, deadline },
                     );
                     if value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
-                            state, depth, alpha, beta, my_color, action, deadline,
+                            state,
+                            action,
+                            &SearchCtx { depth, alpha, beta, my_color, deadline },
                         );
                     }
                 }
@@ -760,7 +815,6 @@ impl BotPlayer for AlphaBetaPlayer {
             }
         }
 
-        use std::time::Instant;
         let ms = if playable_actions.len() >= self.time_profile.slow_branch_threshold {
             self.time_profile.slow_ms
         } else {
@@ -770,7 +824,7 @@ impl BotPlayer for AlphaBetaPlayer {
 
         let mut best_action = playable_actions[0];
         let mut best_value = f64::NEG_INFINITY;
-        let mut best_candidates: Vec<Action> = Vec::new();
+        // removed unused `best_candidates`
 
         // Iterative deepening from 1..=depth or until time runs out
         for current_depth in 1..=self.depth {
@@ -790,7 +844,7 @@ impl BotPlayer for AlphaBetaPlayer {
                 new_state.apply_action(action);
                 // Aspiration window around previous best to accelerate pruning
                 let (mut a, mut b) = if best_value.is_finite() {
-                    let window = 50.0; // small window; tuned empirically
+                    let window = ASPIRATION_WINDOW; // small window; tuned empirically
                     (best_value - window, best_value + window)
                 } else {
                     (f64::NEG_INFINITY, f64::INFINITY)
@@ -839,7 +893,6 @@ impl BotPlayer for AlphaBetaPlayer {
                     let mut rng = rand::thread_rng();
                     let idx = rng.gen_range(0..round_candidates.len());
                     best_action = round_candidates[idx];
-                    best_candidates = round_candidates;
                 } else {
                     best_action = round_best_action;
                 }
