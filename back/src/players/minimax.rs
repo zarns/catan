@@ -227,7 +227,7 @@ impl AlphaBetaPlayer {
         let ore = hand.get(4).copied().unwrap_or(0) as i32;
         let sheep = hand.get(2).copied().unwrap_or(0) as i32;
         let brick = hand.get(1).copied().unwrap_or(0) as i32;
-        let wood = hand.get(0).copied().unwrap_or(0) as i32;
+        let wood = hand.first().copied().unwrap_or(0) as i32;
 
         let distance_to_city = ((2 - wheat).max(0) + (3 - ore).max(0)) as f64 / 5.0;
         let distance_to_settlement =
@@ -360,7 +360,7 @@ impl AlphaBetaPlayer {
             return pruned;
         }
         // Base filtered list (no maritime pruning needed; move_generation already uses best port rates)
-        let mut filtered: Vec<Action> = actions.to_vec();
+        let filtered: Vec<Action> = actions.to_vec();
 
         // Robber compression: keep only the most impactful MoveRobber action (if any)
         let mut best_idx: Option<usize> = None;
