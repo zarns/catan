@@ -19,6 +19,7 @@ const SHALLOW_EVAL_WEIGHT: f64 = 0.10; // higher to improve ordering
 const HISTORY_WEIGHT: f64 = 0.001; // make history matter
 const KILLER_BONUS: f64 = 100.0; // scale to static scores
 const ASPIRATION_MIN_WINDOW: f64 = 25.0; // slightly wider for depth-5 stability
+const ENABLE_SEARCH_DEBUG: bool = false; // flip to true to emit debug logs
 
 use super::BotPlayer;
 
@@ -74,8 +75,8 @@ impl SearchTimeProfile {
         slow_branch_threshold: 14,
     };
     pub const DEEP: Self = Self {
-        fast_ms: 250,
-        slow_ms: 450,
+        fast_ms: 2000,
+        slow_ms: 2000,
         slow_branch_threshold: 16,
     };
     pub const ULTRA: Self = Self {
@@ -967,7 +968,16 @@ impl AlphaBetaPlayer {
             if depth == 0 && state.winner().is_none() {
                 return self.quiescence_eval(state, my_color);
             }
-            return self.evaluate_relative(state, my_color);
+            let eval = self.evaluate_relative(state, my_color);
+            if ENABLE_SEARCH_DEBUG {
+                log::error!(
+                    "leaf eval: depth=0 my_color={} current={} eval={}",
+                    my_color,
+                    state.get_current_color(),
+                    eval
+                );
+            }
+            return eval;
         }
         if let Some(dl) = deadline {
             if std::time::Instant::now() >= dl {
@@ -977,7 +987,16 @@ impl AlphaBetaPlayer {
 
         let actions = state.generate_playable_actions();
         if actions.is_empty() {
-            return self.evaluate_relative(state, my_color);
+            let eval = self.evaluate_relative(state, my_color);
+            if ENABLE_SEARCH_DEBUG {
+                log::error!(
+                    "no-actions eval: my_color={} current={} eval={}",
+                    my_color,
+                    state.get_current_color(),
+                    eval
+                );
+            }
+            return eval;
         }
 
         // Prune then order actions to improve pruning
@@ -1020,6 +1039,17 @@ impl AlphaBetaPlayer {
         }
 
         let is_maximizing = state.get_current_color() == my_color;
+        if ENABLE_SEARCH_DEBUG {
+            log::error!(
+                "node: depth={} current={} my_color={} is_max={} alpha={} beta={}",
+                depth,
+                state.get_current_color(),
+                my_color,
+                is_maximizing,
+                alpha,
+                beta
+            );
+        }
         let alpha_orig = alpha;
         if is_maximizing {
             let mut best_value = f64::NEG_INFINITY;
@@ -1039,8 +1069,10 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    // PVS null-window probe with graduated LMR for quiet late moves
-                    let probe_beta = (alpha + PVS_EPS).min(beta);
+                    // PVS null-window probe with guard for valid finite window
+                    let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
+                    let probe_alpha = alpha;
+                    let probe_beta = if use_pvs { (alpha + PVS_EPS).min(beta) } else { beta };
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
                     // Futility pruning at shallow depths for quiet moves (maximizing only)
                     if is_maximizing && depth <= 2 && self.is_quiet_move(action) {
@@ -1056,13 +1088,13 @@ impl AlphaBetaPlayer {
                         action,
                         &SearchCtx {
                             depth: probe_depth,
-                            alpha,
+                            alpha: probe_alpha,
                             beta: probe_beta,
                             my_color,
                             deadline,
                         },
                     );
-                    if value > alpha && value < beta {
+                    if use_pvs && value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
@@ -1131,7 +1163,9 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    let probe_beta = (alpha + PVS_EPS).min(beta);
+                    let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
+                    let probe_alpha = alpha;
+                    let probe_beta = if use_pvs { (alpha + PVS_EPS).min(beta) } else { beta };
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
                     // Do not apply maximizing-style futility at minimizing nodes
                     let probe_depth = (depth - reduce_by).max(1);
@@ -1140,13 +1174,13 @@ impl AlphaBetaPlayer {
                         action,
                         &SearchCtx {
                             depth: probe_depth,
-                            alpha,
+                            alpha: probe_alpha,
                             beta: probe_beta,
                             my_color,
                             deadline,
                         },
                     );
-                    if value > alpha && value < beta {
+                    if use_pvs && value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
@@ -1224,9 +1258,13 @@ impl BotPlayer for AlphaBetaPlayer {
 
         let my_color = state.get_current_color();
 
-        // Suppress all logs globally during search
+        // Suppress logs unless debugging search; allow errors when debugging
         let prev_level = log::max_level();
-        log::set_max_level(LevelFilter::Off);
+        if ENABLE_SEARCH_DEBUG {
+            log::set_max_level(LevelFilter::Error);
+        } else {
+            log::set_max_level(LevelFilter::Off);
+        }
 
         // Clear caches to prevent cross-game or cross-position pollution
         self.node_production_cache.borrow_mut().clear();
