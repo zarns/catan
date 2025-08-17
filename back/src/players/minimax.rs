@@ -1196,11 +1196,16 @@ impl BotPlayer for AlphaBetaPlayer {
             }
         }
 
-        let ms = if playable_actions.len() >= self.time_profile.slow_branch_threshold {
+        let ms_base = if playable_actions.len() >= self.time_profile.slow_branch_threshold {
             self.time_profile.slow_ms
         } else {
             self.time_profile.fast_ms
         };
+        // Simple endgame time bump
+        let my_vps_now = state.get_actual_victory_points(my_color) as i32;
+        let to_win = (10 - my_vps_now).max(0);
+        let complexity_factor: f64 = if to_win <= 3 { 1.5 } else { 1.0 };
+        let ms = (ms_base as f64 * complexity_factor) as u64;
         let deadline = Instant::now() + std::time::Duration::from_millis(ms);
 
         let mut best_action = playable_actions[0];
@@ -1238,7 +1243,7 @@ impl BotPlayer for AlphaBetaPlayer {
                 } else {
                     (f64::NEG_INFINITY, f64::INFINITY)
                 };
-                let value = self.minimax(
+                let mut value = self.minimax(
                     &new_state,
                     current_depth - 1,
                     a,
@@ -1246,6 +1251,16 @@ impl BotPlayer for AlphaBetaPlayer {
                     my_color,
                     Some(deadline),
                 );
+                if value <= a || value >= b {
+                    value = self.minimax(
+                        &new_state,
+                        current_depth - 1,
+                        f64::NEG_INFINITY,
+                        f64::INFINITY,
+                        my_color,
+                        Some(deadline),
+                    );
+                }
                 let tol = 1e-6;
                 if value > round_best_value + tol {
                     round_best_value = value;
