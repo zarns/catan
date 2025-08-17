@@ -6,15 +6,19 @@ use std::{
 };
 
 use crate::{
+    deck_slices::{freqdeck_add, freqdeck_sub, DEVCARD_COST},
+    enums::DevCard,
+};
+use crate::{
     enums::{ActionPrompt, GameConfiguration, MapType},
     global_state::GlobalState,
     map_instance::{EdgeId, MapInstance, NodeId},
     state_vector::{
         actual_victory_points_index, initialize_state, player_devhand_slice, player_hand_slice,
         player_played_devhand_slice, seating_order_slice, StateVector, BANK_RESOURCE_SLICE,
-        CURRENT_TICK_SEAT_INDEX, FREE_ROADS_AVAILABLE_INDEX, HAS_PLAYED_DEV_CARD, HAS_ROLLED_INDEX,
-        IS_DISCARDING_INDEX, IS_INITIAL_BUILD_PHASE_INDEX, IS_MOVING_ROBBER_INDEX,
-        ROBBER_TILE_INDEX,
+        CURRENT_TICK_SEAT_INDEX, DEV_BANK_END_INDEX, DEV_BANK_PTR_INDEX, DEV_BANK_START_INDEX,
+        FREE_ROADS_AVAILABLE_INDEX, HAS_PLAYED_DEV_CARD, HAS_ROLLED_INDEX, IS_DISCARDING_INDEX,
+        IS_INITIAL_BUILD_PHASE_INDEX, IS_MOVING_ROBBER_INDEX, ROBBER_TILE_INDEX,
     },
 };
 
@@ -598,6 +602,62 @@ impl State {
 
     pub fn get_last_dice_roll(&self) -> Option<(u8, u8)> {
         self.last_dice_roll
+    }
+
+    /// Compute a stable 64-bit hash of the full public state vector.
+    /// This is used by search transposition tables to recognize repeated states.
+    pub fn compute_hash64(&self) -> u64 {
+        // FNV-1a 64-bit over the state vector
+        let mut hash: u64 = 0xcbf29ce484222325; // offset basis
+        const FNV_PRIME: u64 = 0x100000001b3;
+        for &byte in &self.vector {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash
+    }
+
+    /// Returns counts of remaining development cards in the bank by type index 0..4.
+    /// This is used for chance modeling when buying a development card.
+    pub fn get_remaining_dev_counts(&self) -> [u8; 5] {
+        let mut counts = [0u8; 5];
+        let ptr = self.vector[DEV_BANK_PTR_INDEX] as usize;
+        let start = DEV_BANK_START_INDEX + ptr;
+        let end = DEV_BANK_END_INDEX;
+        if start >= end {
+            return counts;
+        }
+        for &card in &self.vector[start..end] {
+            if (card as usize) < counts.len() {
+                counts[card as usize] = counts[card as usize].saturating_add(1);
+            }
+        }
+        counts
+    }
+
+    /// Simulate the outcome of buying a development card of specific type without
+    /// mutating the development card deck order. This is used for EV branches.
+    /// It spends the resource cost and applies the logical effect (VP for VictoryPoint, otherwise adds to dev hand).
+    pub fn simulate_buy_dev_card_outcome(&mut self, color: u8, card_idx: usize) {
+        // Spend resources and replenish bank
+        freqdeck_sub(self.get_mut_player_hand(color), DEVCARD_COST);
+        freqdeck_add(&mut self.vector[BANK_RESOURCE_SLICE], DEVCARD_COST);
+
+        match card_idx {
+            x if x == DevCard::VictoryPoint as usize => {
+                self.add_victory_points(color, 1);
+            }
+            x if x == DevCard::Knight as usize
+                || x == DevCard::YearOfPlenty as usize
+                || x == DevCard::Monopoly as usize
+                || x == DevCard::RoadBuilding as usize =>
+            {
+                // Add to dev hand
+                let devhand = self.get_mut_player_devhand(color);
+                devhand[card_idx] = devhand[card_idx].saturating_add(1);
+            }
+            _ => {}
+        }
     }
 
     pub fn set_bank_resource(&mut self, resource_index: usize, count: u8) {

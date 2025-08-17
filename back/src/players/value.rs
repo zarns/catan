@@ -129,11 +129,10 @@ impl ValueFunctionPlayer {
         let wood = hand.get(0).copied().unwrap_or(0) as i32;
 
         let distance_to_city = ((2 - wheat).max(0) + (3 - ore).max(0)) as f64 / 5.0;
-        let distance_to_settlement = ((1 - wheat).max(0)
-            + (1 - sheep).max(0)
-            + (1 - brick).max(0)
-            + (1 - wood).max(0)) as f64
-            / 4.0;
+        let distance_to_settlement =
+            ((1 - wheat).max(0) + (1 - sheep).max(0) + (1 - brick).max(0) + (1 - wood).max(0))
+                as f64
+                / 4.0;
         (2.0 - distance_to_city - distance_to_settlement) / 2.0
     }
 
@@ -158,7 +157,11 @@ impl ValueFunctionPlayer {
             enemy_acc += self.value_production(&p, false);
             enemy_cnt += 1.0;
         }
-        let enemy_prod_value = if enemy_cnt > 0.0 { enemy_acc / enemy_cnt } else { 0.0 };
+        let enemy_prod_value = if enemy_cnt > 0.0 {
+            enemy_acc / enemy_cnt
+        } else {
+            0.0
+        };
 
         // Reachable production at 0 and 1 roads: placeholders (0 for now)
         let reachable_production_at_zero = 0.0;
@@ -167,8 +170,16 @@ impl ValueFunctionPlayer {
         // Hand features
         let hand = state.get_player_hand(p0_color);
         let num_in_hand: u8 = hand.iter().copied().sum();
-        let discard_penalty = if num_in_hand > 7 { w.discard_penalty } else { 0.0 };
-        let hand_devs = state.get_player_devhand(p0_color).iter().map(|&x| x as f64).sum::<f64>();
+        let discard_penalty = if num_in_hand > 7 {
+            w.discard_penalty
+        } else {
+            0.0
+        };
+        let hand_devs = state
+            .get_player_devhand(p0_color)
+            .iter()
+            .map(|&x| x as f64)
+            .sum::<f64>();
         let army_size = state.get_played_dev_card_count(p0_color, DevCard::Knight as usize) as f64;
         let hand_synergy = self.hand_synergy(state, p0_color);
 
@@ -177,7 +188,11 @@ impl ValueFunctionPlayer {
         let num_tiles = self.count_my_owned_tiles(state, p0_color) as f64;
 
         // Longest road factor: if cannot build more, weight longest road bonus; else small
-        let longest_road_factor = if num_buildable_nodes == 0.0 { w.longest_road } else { 0.1 };
+        let longest_road_factor = if num_buildable_nodes == 0.0 {
+            w.longest_road
+        } else {
+            0.1
+        };
         let longest_road_length = 0.0; // TODO: add getter or compute per components
 
         vps * w.public_vps
@@ -224,5 +239,3 @@ impl BotPlayer for ValueFunctionPlayer {
         best_action
     }
 }
-
-

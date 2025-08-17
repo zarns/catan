@@ -110,4 +110,28 @@ This document summarizes concrete changes to evolve `back/src/players/minimax.rs
 6. Transposition table + improved ordering (killer/history).
 7. Broaden evaluator features toward parity with Python.
 
+---
+
+## Progress Log
+
+- [x] Switched `minimax.rs` from unconditional negamax to explicit max/min based on `state.get_current_color() == my_color`. This prevents sign flips during same-turn action chains and aligns with Catan’s turn structure.
+- [x] Introduced `prune_actions` hook (currently passthrough) and applied it at root and internal nodes before ordering/beam. This is the insertion point for domain-aware pruning from Python (`list_prunned_actions`).
+- [x] Added `evaluate_action_with_chance` helper and routed dice rolls through the existing expectation logic; non-chance actions recurse without sign flip. This prepares for a general spectrum expansion per action.
+- [x] Added `players/value.rs` with `ValueFunctionPlayer` and tunable `ValueWeights`, plus epsilon-greedy. The evaluator mirrors Python’s base_fn partially using available `State` accessors (public VPs, effective production, basic hand features, buildable nodes, tile coverage, army size). Exported via `players/mod.rs`.
+- [x] Integrated `ValueFunctionPlayer` into `simulate.rs` as 'V'/'v'. Verified dominance vs Random in user run.
+- [x] AlphaBeta: added iterative deepening with a short time budget (`max_time_ms`, default 50ms) and wired a `deadline` through recursion, including `roll_expectation`. Added an initial conservative `prune_actions` rule (drop 1-tile initial settlements).
+- [x] Strengthened AlphaBeta evaluator by reusing the ValueFunction-style features (effective production, enemy production, hand synergy, hand size/penalty, devs, army size, buildable nodes, tile coverage). This should close part of the gap to the Python agent pending chance-node spectrum and richer pruning.
+- [x] Added domain-aware pruning: when a 3:1 port is owned, 4:1 maritime trades are pruned. Retained initial-settlement 1-tile pruning.
+- [x] Implemented probabilistic expectation for robber steals: when moving the robber with a victim, branch over stolen resource based on victim hand composition.
+- [x] Improved move ordering with a shallow (0-ply) evaluator mixed with static action scores to enhance pruning efficiency.
+- [x] Added aspiration windows around the best-so-far at root during iterative deepening to accelerate cutoffs; falls back to full window on fail-high/low.
+- [x] Introduced a simple transposition table keyed by `(hash64, depth)` with alpha/beta/exact flags using a stable FNV-1a hash of the state vector. Integrated into search for early cutoffs and reuse.
+- [x] Added expected-value handling for `BuyDevelopmentCard` using remaining bank composition to weight outcomes (approximate; uses state bank counts).
+- [x] Root policy improvements: optional epsilon-greedy exploration and random tie-breaking among near-equal best root actions.
+- [x] Generalize chance expansion beyond dice (dev buys, robber steals).
+- [x] Add time budget + iterative deepening with best-so-far tracking.
+- [x] Implement domain-aware pruning rules (initial placement, maritime trade, robber compression).
+- [x] Make evaluator pluggable with weight presets and additional features.
+- [x] Add transposition table and improved move ordering heuristics.
+
 
