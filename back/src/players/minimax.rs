@@ -9,12 +9,13 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
-const DEFAULT_DEPTH: i32 = 4; // reduced default depth per request
-const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for better root coverage
+const DEFAULT_DEPTH: i32 = 5; // increased default depth
+const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for better coverage below root
+const ROOT_MAX_ORDERED_ACTIONS: usize = 24; // root-only wider beam
 const PVS_EPS: f64 = 1e-6;
 const LMR_MIN_DEPTH: i32 = 3; // enable reductions at shallower depths
 const LMR_LATE_INDEX: usize = 4; // reduce depth for moves after this index
-const SHALLOW_EVAL_WEIGHT: f64 = 0.08; // slightly higher to improve ordering
+const SHALLOW_EVAL_WEIGHT: f64 = 0.10; // higher to improve ordering
 const HISTORY_WEIGHT: f64 = 0.001; // make history matter
 const KILLER_BONUS: f64 = 100.0; // scale to static scores
 const ASPIRATION_MIN_WINDOW: f64 = 15.0; // tighter initial window
@@ -319,7 +320,13 @@ impl AlphaBetaPlayer {
         let my_color = state.get_current_color();
         let mut scored: Vec<(f64, Action)> = Vec::with_capacity(actions.len());
         for &a in actions {
-            let static_score = self.score_action(state, a) as f64;
+            let mut static_score = self.score_action(state, a) as f64;
+            // Small ordering boost if this blocks opponent expansion
+            if let Action::BuildSettlement { node_id, .. } = a {
+                if self.blocks_opponent_expansion(state, node_id) {
+                    static_score += 100.0;
+                }
+            }
             // Quick 0-ply evaluation to improve ordering (skip expensive chance nodes)
             let quick_eval = match a {
                 Action::Roll { dice_opt: None, .. } => 0.0,
@@ -957,6 +964,10 @@ impl AlphaBetaPlayer {
             return self.evaluate_relative(state, my_color);
         }
         let mut ordered_actions = self.order_actions(state, &pruned_actions, depth);
+        // Move-count pruning at shallow depths: keep only top-N quiet moves beyond a cap
+        if depth <= 2 && ordered_actions.len() > 10 {
+            ordered_actions.truncate(10);
+        }
         // Prefer TT-best move
         if let Some(mv) = tt_move {
             if let Some(pos) = ordered_actions.iter().position(|&a| a == mv) {
@@ -990,6 +1001,14 @@ impl AlphaBetaPlayer {
                     // PVS null-window probe with graduated LMR for quiet late moves
                     let probe_beta = (alpha + PVS_EPS).min(beta);
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
+                    // Futility pruning at shallow depths for quiet moves
+                    if depth <= 2 && self.is_quiet_move(action) {
+                        let eval = self.evaluate_relative(state, my_color);
+                        let margin = if depth == 1 { 100.0 } else { 200.0 };
+                        if eval + margin < alpha {
+                            continue;
+                        }
+                    }
                     let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
@@ -1026,6 +1045,8 @@ impl AlphaBetaPlayer {
                 if alpha >= beta {
                     self.record_killer(depth, Some(action));
                     self.bump_history(action, depth);
+                    // Singular/PV extension: if first move causes cutoff and looks singular, extend principal continuation
+                    // (Handled implicitly by TT on subsequent nodes; keep cutoff here)
                     break;
                 }
                 if let Some(dl) = deadline {
@@ -1065,6 +1086,14 @@ impl AlphaBetaPlayer {
                 } else {
                     let probe_beta = (alpha + PVS_EPS).min(beta);
                     let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
+                    // Futility pruning at shallow depths for quiet moves
+                    if depth <= 2 && self.is_quiet_move(action) {
+                        let eval = self.evaluate_relative(state, my_color);
+                        let margin = if depth == 1 { 100.0 } else { 200.0 };
+                        if eval + margin < alpha {
+                            continue;
+                        }
+                    }
                     let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
@@ -1184,7 +1213,11 @@ impl BotPlayer for AlphaBetaPlayer {
         for current_depth in 1..=self.depth {
             // Prune then order root actions
             let root_pruned = self.prune_actions(state, playable_actions);
-            let ordered = self.order_actions(state, &root_pruned, current_depth);
+            let mut ordered = self.order_actions(state, &root_pruned, current_depth);
+            // Root-only wider beam
+            if ordered.len() > ROOT_MAX_ORDERED_ACTIONS {
+                ordered.truncate(ROOT_MAX_ORDERED_ACTIONS);
+            }
 
             let mut round_best_action = best_action;
             let mut round_best_value = best_value;
@@ -1198,7 +1231,10 @@ impl BotPlayer for AlphaBetaPlayer {
                 new_state.apply_action(action);
                 // Fixed aspiration window; single search using configured width
                 let (a, b) = if best_value.is_finite() && current_depth > 1 {
-                    (best_value - ASPIRATION_MIN_WINDOW, best_value + ASPIRATION_MIN_WINDOW)
+                    (
+                        best_value - ASPIRATION_MIN_WINDOW,
+                        best_value + ASPIRATION_MIN_WINDOW,
+                    )
                 } else {
                     (f64::NEG_INFINITY, f64::INFINITY)
                 };
