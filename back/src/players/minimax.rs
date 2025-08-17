@@ -3,17 +3,21 @@ use std::f64;
 
 use super::value::ValueWeights;
 use crate::enums::Action;
+use crate::map_instance::{EdgeId, NodeId};
 use crate::state::State;
 use rand::Rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
 const DEFAULT_DEPTH: i32 = 4; // reduced default depth per request
-const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for strength at the cost of time
+const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for better root coverage
 const PVS_EPS: f64 = 1e-6;
-const ASPIRATION_WINDOW: f64 = 50.0;
-const LMR_MIN_DEPTH: i32 = 3; // enable reductions only at sufficient depth
+const LMR_MIN_DEPTH: i32 = 3; // enable reductions at shallower depths
 const LMR_LATE_INDEX: usize = 4; // reduce depth for moves after this index
+const SHALLOW_EVAL_WEIGHT: f64 = 0.08; // slightly higher to improve ordering
+const HISTORY_WEIGHT: f64 = 0.001; // make history matter
+const KILLER_BONUS: f64 = 100.0; // scale to static scores
+const ASPIRATION_MIN_WINDOW: f64 = 15.0; // tighter initial window
 
 use super::BotPlayer;
 
@@ -47,6 +51,7 @@ pub struct AlphaBetaPlayer {
     epsilon: Option<f64>,
     killer_moves: std::cell::RefCell<KillerMap>, // depth -> (killer1, killer2)
     history_scores: std::cell::RefCell<HistoryMap>, // action -> score
+    node_production_cache: std::cell::RefCell<HashMap<NodeId, f64>>,
 }
 
 #[derive(Clone, Copy)]
@@ -88,10 +93,11 @@ impl AlphaBetaPlayer {
             depth: DEFAULT_DEPTH,
             time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::contender(),
-            tt: std::cell::RefCell::new(HashMap::new()),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
             epsilon: None,
-            killer_moves: std::cell::RefCell::new(HashMap::new()),
-            history_scores: std::cell::RefCell::new(HashMap::new()),
+            killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
+            history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
         }
     }
 
@@ -103,10 +109,11 @@ impl AlphaBetaPlayer {
             depth,
             time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::contender(),
-            tt: std::cell::RefCell::new(HashMap::new()),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
             epsilon: None,
-            killer_moves: std::cell::RefCell::new(HashMap::new()),
-            history_scores: std::cell::RefCell::new(HashMap::new()),
+            killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
+            history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
         }
     }
 
@@ -130,10 +137,11 @@ impl AlphaBetaPlayer {
                 slow_branch_threshold: 14,
             },
             weights,
-            tt: std::cell::RefCell::new(HashMap::new()),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
             epsilon,
-            killer_moves: std::cell::RefCell::new(HashMap::new()),
-            history_scores: std::cell::RefCell::new(HashMap::new()),
+            killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
+            history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
         }
     }
 
@@ -307,7 +315,7 @@ impl AlphaBetaPlayer {
     }
 
     /// Heuristic move ordering combining static scores with a shallow evaluation.
-    fn order_actions(&self, state: &State, actions: &[Action]) -> Vec<Action> {
+    fn order_actions(&self, state: &State, actions: &[Action], depth: i32) -> Vec<Action> {
         let my_color = state.get_current_color();
         let mut scored: Vec<(f64, Action)> = Vec::with_capacity(actions.len());
         for &a in actions {
@@ -321,8 +329,20 @@ impl AlphaBetaPlayer {
                     self.evaluate_relative(&ns, my_color)
                 }
             };
-            // Weighted sum to bias ordering. Slightly increase shallow eval weight.
-            let combined = static_score * 1.0 + quick_eval * 0.03;
+            // History weight
+            let hist = *self.history_scores.borrow().get(&a).unwrap_or(&0) as f64;
+            // Killer bonus if this action is a killer at this depth
+            let mut killer_bonus = 0.0;
+            if let Some(&(k1, k2)) = self.killer_moves.borrow().get(&depth) {
+                if Some(a) == k1 || Some(a) == k2 {
+                    killer_bonus = KILLER_BONUS;
+                }
+            }
+            // Weighted sum to bias ordering
+            let combined = static_score * 1.0
+                + quick_eval * SHALLOW_EVAL_WEIGHT
+                + hist * HISTORY_WEIGHT
+                + killer_bonus;
             scored.push((combined, a));
         }
         scored.sort_by(|(sa, _), (sb, _)| sb.partial_cmp(sa).unwrap_or(std::cmp::Ordering::Equal));
@@ -333,28 +353,311 @@ impl AlphaBetaPlayer {
             .collect()
     }
 
-    fn score_action(&self, _state: &State, action: Action) -> i32 {
+    #[inline]
+    fn is_quiet_move(&self, action: Action) -> bool {
         use crate::enums::Action as A;
+        matches!(
+            action,
+            A::BuildRoad { .. }
+                | A::MaritimeTrade { .. }
+                | A::OfferTrade { .. }
+                | A::AcceptTrade { .. }
+                | A::RejectTrade { .. }
+                | A::ConfirmTrade { .. }
+                | A::CancelTrade { .. }
+                | A::EndTurn { .. }
+        )
+    }
+
+    #[inline]
+    fn get_lmr_reduction(&self, depth: i32, move_index: usize, is_quiet: bool) -> i32 {
+        if !is_quiet || depth < LMR_MIN_DEPTH {
+            return 0;
+        }
+        // Conservative reductions: only late moves, reduce by 1
+        if depth >= 4 && move_index >= LMR_LATE_INDEX + 4 {
+            return 1;
+        }
+        if depth >= 3 && move_index >= LMR_LATE_INDEX + 2 {
+            return 1;
+        }
+        0
+    }
+
+    fn quiescence_eval(&self, state: &State, my_color: u8) -> f64 {
+        use crate::enums::Action as A;
+        // Look for tactical moves that can change evaluation significantly
+        let actions = state.generate_playable_actions();
+        let mut tactical: Vec<Action> = Vec::new();
+        for &a in &actions {
+            match a {
+                A::BuildCity { .. }
+                | A::BuildSettlement { .. }
+                | A::BuyDevelopmentCard { .. }
+                | A::PlayKnight { .. }
+                | A::PlayRoadBuilding { .. }
+                | A::PlayYearOfPlenty { .. }
+                | A::PlayMonopoly { .. }
+                | A::MoveRobber {
+                    victim_opt: Some(_),
+                    ..
+                } => tactical.push(a),
+                _ => {}
+            }
+            if tactical.len() >= 6 {
+                break;
+            }
+        }
+        if tactical.is_empty() {
+            return self.evaluate_relative(state, my_color);
+        }
+        let is_max = state.get_current_color() == my_color;
+        let mut best = if is_max {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        };
+        for a in tactical {
+            let mut ns = state.clone();
+            ns.apply_action(a);
+            let v = self.evaluate_relative(&ns, my_color);
+            if is_max {
+                if v > best {
+                    best = v;
+                }
+            } else if v < best {
+                best = v;
+            }
+        }
+        best
+    }
+
+    fn score_action(&self, state: &State, action: Action) -> i32 {
+        use crate::enums::Action as A;
+        let my_color = state.get_current_color();
+        let my_vps = state.get_actual_victory_points(my_color);
+        let end_game = my_vps >= 7;
+        let leader = self.get_leader(state);
+        let am_leader = leader == my_color;
+        let leader_vps = state.get_actual_victory_points(leader);
         match action {
-            A::BuildCity { .. } => 1000,
-            A::BuildSettlement { .. } => 800,
-            A::BuildRoad { .. } => 300,
-            A::BuyDevelopmentCard { .. } => 250,
-            A::PlayKnight { .. } => 220,
+            A::BuildCity { node_id, .. } => {
+                let base = if end_game { 1200 } else { 900 };
+                let prod = self.estimate_node_production(state, node_id);
+                base + (prod * 10.0) as i32
+            }
+            A::BuildSettlement { node_id, .. } => {
+                let base = if end_game { 700 } else { 1000 };
+                let prod = self.estimate_node_production(state, node_id);
+                let expansion_bonus = self.count_buildable_from_node(state, node_id) as i32 * 20;
+                let blocks_opponent = self.blocks_opponent_expansion(state, node_id);
+                let defensive_bonus = if blocks_opponent && !am_leader {
+                    150
+                } else {
+                    0
+                };
+                base + (prod * 15.0) as i32 + expansion_bonus + defensive_bonus
+            }
+            A::BuildRoad { edge_id, .. } => {
+                let base = 200;
+                let longest_bonus = if self.in_longest_road_race(state, my_color) {
+                    500
+                } else {
+                    0
+                };
+                let expansion_bonus = if self.opens_settlement_spot(state, edge_id) {
+                    300
+                } else {
+                    0
+                };
+                base + longest_bonus + expansion_bonus
+            }
+            A::BuyDevelopmentCard { .. } => {
+                let hand_size: u8 = state.get_player_hand(my_color).iter().copied().sum();
+                let surplus_bonus = if hand_size > 5 { 100 } else { 0 };
+                let army_bonus = if self.would_claim_largest_army(state, my_color) {
+                    50
+                } else {
+                    0
+                };
+                250 + surplus_bonus + army_bonus
+            }
+            A::PlayKnight { .. } => {
+                let army_bonus = if self.would_claim_largest_army(state, my_color) {
+                    300
+                } else {
+                    0
+                };
+                220 + army_bonus
+            }
             A::PlayRoadBuilding { .. } => 220,
             A::PlayYearOfPlenty { .. } => 200,
             A::PlayMonopoly { .. } => 180,
-            A::MaritimeTrade { .. } => 120,
+            A::MaritimeTrade { .. } => {
+                if self.one_resource_from_building(state, my_color) {
+                    500
+                } else {
+                    120
+                }
+            }
             A::OfferTrade { .. } => 60,
             A::AcceptTrade { .. } => 60,
             A::ConfirmTrade { .. } => 60,
             A::RejectTrade { .. } => 40,
             A::CancelTrade { .. } => 30,
-            A::MoveRobber { .. } => 20,
+            A::MoveRobber {
+                coordinate,
+                victim_opt: Some(victim),
+                ..
+            } => {
+                let impact = self.estimate_robber_impact(state, coordinate, victim);
+                let leader_block_bonus = if victim == leader && leader_vps >= 8 {
+                    500
+                } else if victim == leader {
+                    200
+                } else {
+                    50
+                };
+                10 + leader_block_bonus + (impact * 100.0) as i32
+            }
+            A::MoveRobber { .. } => 5,
             A::Roll { .. } => 10,
             A::Discard { .. } => 0,
-            A::EndTurn { .. } => 0,
+            A::EndTurn { .. } => 1,
         }
+    }
+
+    fn estimate_node_production(&self, state: &State, node_id: NodeId) -> f64 {
+        if let Some(&cached) = self.node_production_cache.borrow().get(&node_id) {
+            return cached;
+        }
+        let mut weighted = 0.0;
+        if let Some(node_prod) = state.get_map_instance().get_node_production(node_id) {
+            for (resource, prob) in node_prod.iter() {
+                let res_idx: u8 = match resource {
+                    crate::enums::Resource::Wood => 0,
+                    crate::enums::Resource::Brick => 1,
+                    crate::enums::Resource::Sheep => 2,
+                    crate::enums::Resource::Wheat => 3,
+                    crate::enums::Resource::Ore => 4,
+                };
+                let scarcity = self.get_resource_scarcity(state, res_idx);
+                weighted += prob * scarcity;
+            }
+        }
+        self.node_production_cache
+            .borrow_mut()
+            .insert(node_id, weighted);
+        weighted
+    }
+
+    fn get_resource_scarcity(&self, _state: &State, resource: u8) -> f64 {
+        match resource {
+            3 | 4 => 1.3, // wheat/ore slightly more valuable
+            _ => 1.0,
+        }
+    }
+
+    fn count_buildable_from_node(&self, state: &State, node_id: NodeId) -> usize {
+        let buildable = state.buildable_node_ids(state.get_current_color());
+        if buildable.contains(&node_id) {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn in_longest_road_race(&self, state: &State, color: u8) -> bool {
+        let roads = state.get_roads_by_color();
+        let my = *roads.get(color as usize).unwrap_or(&0) as i32;
+        let mut max_opponent = 0i32;
+        for (idx, &r) in roads.iter().enumerate() {
+            if idx as u8 != color && (r as i32) > max_opponent {
+                max_opponent = r as i32;
+            }
+        }
+        my >= 4 && my >= max_opponent - 1
+    }
+
+    fn opens_settlement_spot(&self, state: &State, edge_id: EdgeId) -> bool {
+        let buildable = state.buildable_node_ids(state.get_current_color());
+        let board_spots = state.get_map_instance().land_nodes();
+        let (a, b) = edge_id;
+        let a_is_new = board_spots.contains(&a) && !buildable.contains(&a);
+        let b_is_new = board_spots.contains(&b) && !buildable.contains(&b);
+        a_is_new || b_is_new
+    }
+
+    fn would_claim_largest_army(&self, state: &State, color: u8) -> bool {
+        let my_knights =
+            state.get_played_dev_card_count(color, crate::enums::DevCard::Knight as usize) as i32;
+        my_knights + 1 >= 3
+    }
+
+    fn one_resource_from_building(&self, state: &State, color: u8) -> bool {
+        let hand = state.get_player_hand(color);
+        let wood = hand.first().copied().unwrap_or(0) as i32;
+        let brick = hand.get(1).copied().unwrap_or(0) as i32;
+        let sheep = hand.get(2).copied().unwrap_or(0) as i32;
+        let wheat = hand.get(3).copied().unwrap_or(0) as i32;
+        let ore = hand.get(4).copied().unwrap_or(0) as i32;
+        let missing_settlement =
+            (1 - wood).max(0) + (1 - brick).max(0) + (1 - sheep).max(0) + (1 - wheat).max(0);
+        let missing_city = (2 - wheat).max(0) + (3 - ore).max(0);
+        missing_settlement <= 1 || missing_city <= 1
+    }
+
+    fn estimate_robber_impact(
+        &self,
+        state: &State,
+        coordinate: crate::map_template::Coordinate,
+        victim: u8,
+    ) -> f64 {
+        let mut ns = state.clone();
+        if let Some(tile) = ns.get_map_instance().get_land_tile(coordinate) {
+            let before_victim = self.value_production(&ns.get_effective_production(victim), false);
+            let my_color = state.get_current_color();
+            let before_me = self.value_production(&ns.get_effective_production(my_color), false);
+            ns.set_robber_tile(tile.id);
+            let after_victim = self.value_production(&ns.get_effective_production(victim), false);
+            let after_me = self.value_production(&ns.get_effective_production(my_color), false);
+            (before_victim - after_victim) - (before_me - after_me)
+        } else {
+            0.0
+        }
+    }
+
+    fn get_leader(&self, state: &State) -> u8 {
+        let mut best_color = 0u8;
+        let mut best_vp = -1i32;
+        for color in 0..state.get_num_players() {
+            let vp = state.get_actual_victory_points(color) as i32;
+            if vp > best_vp {
+                best_vp = vp;
+                best_color = color;
+            }
+        }
+        best_color
+    }
+
+    fn blocks_opponent_expansion(&self, state: &State, node_id: NodeId) -> bool {
+        let my_color = state.get_current_color();
+        // If any opponent currently has this node buildable, or a neighbor buildable,
+        // then placing here would block their expansion per distance-2 rule.
+        let neighbors: Vec<NodeId> = state.get_map_instance().get_neighbor_nodes(node_id);
+        for opp in 0..state.get_num_players() {
+            if opp == my_color {
+                continue;
+            }
+            let opp_buildable = state.buildable_node_ids(opp);
+            if opp_buildable.contains(&node_id) {
+                return true;
+            }
+            if neighbors.iter().any(|n| opp_buildable.contains(n)) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Domain-aware pruning hook. Currently a passthrough; to be expanded with
@@ -631,6 +934,10 @@ impl AlphaBetaPlayer {
         }
         // Base case: terminal depth or game over
         if depth == 0 || state.winner().is_some() {
+            // Quiescence-lite: if tactical moves available, evaluate best 1-ply tactical
+            if depth == 0 && state.winner().is_none() {
+                return self.quiescence_eval(state, my_color);
+            }
             return self.evaluate_relative(state, my_color);
         }
         if let Some(dl) = deadline {
@@ -649,7 +956,7 @@ impl AlphaBetaPlayer {
         if pruned_actions.is_empty() {
             return self.evaluate_relative(state, my_color);
         }
-        let mut ordered_actions = self.order_actions(state, &pruned_actions);
+        let mut ordered_actions = self.order_actions(state, &pruned_actions, depth);
         // Prefer TT-best move
         if let Some(mv) = tt_move {
             if let Some(pos) = ordered_actions.iter().position(|&a| a == mv) {
@@ -680,11 +987,10 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    // PVS null-window probe
+                    // PVS null-window probe with graduated LMR for quiet late moves
                     let probe_beta = (alpha + PVS_EPS).min(beta);
-                    // Late Move Reductions for late, non-tactical moves
-                    let reduce = depth >= LMR_MIN_DEPTH && idx >= LMR_LATE_INDEX;
-                    let probe_depth = if reduce { depth - 1 } else { depth };
+                    let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
+                    let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
@@ -758,9 +1064,8 @@ impl AlphaBetaPlayer {
                     );
                 } else {
                     let probe_beta = (alpha + PVS_EPS).min(beta);
-                    // Late Move Reductions for late, non-tactical moves
-                    let reduce = depth >= LMR_MIN_DEPTH && idx >= LMR_LATE_INDEX;
-                    let probe_depth = if reduce { depth - 1 } else { depth };
+                    let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
+                    let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
@@ -849,6 +1154,9 @@ impl BotPlayer for AlphaBetaPlayer {
         let prev_level = log::max_level();
         log::set_max_level(LevelFilter::Off);
 
+        // Clear caches to prevent cross-game or cross-position pollution
+        self.node_production_cache.borrow_mut().clear();
+
         // Optional epsilon-greedy exploration at root
         if let Some(eps) = self.epsilon {
             let mut rng = rand::thread_rng();
@@ -871,10 +1179,12 @@ impl BotPlayer for AlphaBetaPlayer {
         // removed unused `best_candidates`
 
         // Iterative deepening from 1..=depth or until time runs out
+        let mut stable_iterations = 0;
+        let mut last_best = best_action;
         for current_depth in 1..=self.depth {
             // Prune then order root actions
             let root_pruned = self.prune_actions(state, playable_actions);
-            let ordered = self.order_actions(state, &root_pruned);
+            let ordered = self.order_actions(state, &root_pruned, current_depth);
 
             let mut round_best_action = best_action;
             let mut round_best_value = best_value;
@@ -886,20 +1196,13 @@ impl BotPlayer for AlphaBetaPlayer {
                 }
                 let mut new_state = state.clone();
                 new_state.apply_action(action);
-                // Aspiration window around previous best to accelerate pruning
-                let (mut a, mut b) = if best_value.is_finite() {
-                    let window = ASPIRATION_WINDOW; // small window; tuned empirically
-                    (best_value - window, best_value + window)
+                // Fixed aspiration window; single search using configured width
+                let (a, b) = if best_value.is_finite() && current_depth > 1 {
+                    (best_value - ASPIRATION_MIN_WINDOW, best_value + ASPIRATION_MIN_WINDOW)
                 } else {
                     (f64::NEG_INFINITY, f64::INFINITY)
                 };
-                if a < f64::NEG_INFINITY / 2.0 {
-                    a = f64::NEG_INFINITY;
-                }
-                if b > f64::INFINITY / 2.0 {
-                    b = f64::INFINITY;
-                }
-                let mut value = self.minimax(
+                let value = self.minimax(
                     &new_state,
                     current_depth - 1,
                     a,
@@ -907,17 +1210,6 @@ impl BotPlayer for AlphaBetaPlayer {
                     my_color,
                     Some(deadline),
                 );
-                // If it fails high/low, re-search with full window
-                if value <= a || value >= b {
-                    value = self.minimax(
-                        &new_state,
-                        current_depth - 1,
-                        f64::NEG_INFINITY,
-                        f64::INFINITY,
-                        my_color,
-                        Some(deadline),
-                    );
-                }
                 let tol = 1e-6;
                 if value > round_best_value + tol {
                     round_best_value = value;
@@ -944,6 +1236,17 @@ impl BotPlayer for AlphaBetaPlayer {
 
             if Instant::now() >= deadline {
                 break;
+            }
+
+            // Early stop if best move is stable
+            if best_action == last_best {
+                stable_iterations += 1;
+                if stable_iterations >= 2 && current_depth >= 3 {
+                    break;
+                }
+            } else {
+                stable_iterations = 0;
+                last_best = best_action;
             }
         }
 
