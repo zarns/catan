@@ -669,7 +669,13 @@ impl AlphaBetaPlayer {
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
-                        &SearchCtx { depth, alpha, beta, my_color, deadline },
+                        &SearchCtx {
+                            depth,
+                            alpha,
+                            beta,
+                            my_color,
+                            deadline,
+                        },
                     );
                 } else {
                     // PVS null-window probe
@@ -677,13 +683,25 @@ impl AlphaBetaPlayer {
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
-                        &SearchCtx { depth, alpha, beta: probe_beta, my_color, deadline },
+                        &SearchCtx {
+                            depth,
+                            alpha,
+                            beta: probe_beta,
+                            my_color,
+                            deadline,
+                        },
                     );
                     if value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
-                            &SearchCtx { depth, alpha, beta, my_color, deadline },
+                            &SearchCtx {
+                                depth,
+                                alpha,
+                                beta,
+                                my_color,
+                                deadline,
+                            },
                         );
                     }
                 }
@@ -725,20 +743,38 @@ impl AlphaBetaPlayer {
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
-                        &SearchCtx { depth, alpha, beta, my_color, deadline },
+                        &SearchCtx {
+                            depth,
+                            alpha,
+                            beta,
+                            my_color,
+                            deadline,
+                        },
                     );
                 } else {
                     let probe_beta = (alpha + PVS_EPS).min(beta);
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
-                        &SearchCtx { depth, alpha, beta: probe_beta, my_color, deadline },
+                        &SearchCtx {
+                            depth,
+                            alpha,
+                            beta: probe_beta,
+                            my_color,
+                            deadline,
+                        },
                     );
                     if value > alpha && value < beta {
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
-                            &SearchCtx { depth, alpha, beta, my_color, deadline },
+                            &SearchCtx {
+                                depth,
+                                alpha,
+                                beta,
+                                my_color,
+                                deadline,
+                            },
                         );
                     }
                 }
