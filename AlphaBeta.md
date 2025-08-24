@@ -1,137 +1,76 @@
-## AlphaBeta (Rust) Improvement Roadmap
+Next Steps: Strengthen AlphaBetaPlayer (Rust)
 
-This document summarizes concrete changes to evolve `back/src/players/minimax.rs` toward the capabilities of the Python Catanatron implementation in `catanatron/players/minimax.py` and its helpers.
+Objective
+Make `AlphaBetaPlayer` stronger and more stable by implementing targeted, engine-grade improvements without changing overall architecture.
 
-### 1) Correct turn semantics (Max/Min instead of unconditional negamax)
-- Problem: Rust negates at every non-roll action. In Catan, many consecutive actions belong to the same player within a single turn (build, buy, play dev, trade, etc.). Negating there undervalues multi-action turns.
-- Plan:
-  - Determine `is_maximizing = state.get_current_color() == my_color` at each node.
-  - Use explicit max/min branches; drop unconditional sign flip. Only the player switch should cause max↔min role change.
-  - Optionally add a `SameTurnAlphaBeta` mode that searches only while `current_color == my_color` (mirrors Python’s `SameTurnAlphaBetaPlayer`).
+Scope (Only real issues/improvements)
+- Transposition Table collisions: add verification to avoid poisoned cutoffs.
+- Futility pruning symmetry: apply conservative futility at minimizing nodes.
+- Late Move Reductions (LMR): replace fixed thresholds with depth/index–aware scaling and re-search when needed.
+- Depth-1 move cap: always keep all tactical moves; cap only quiets.
+- History/killer hygiene: decay history less frequently; reset killers at root.
+- Optional polish: small readability guard for PVS window.
 
-### 2) Generalize chance nodes (expectiminimax "spectrum" per action)
-- Python expands outcomes for any stochastic action via `expand_spectrum`:
-  - Deterministic: END_TURN, BUILD_{SETTLEMENT/ROAD/CITY}, PLAY_{KNIGHT/YOP/ROAD_BUILDING/MONOPOLY}, MARITIME_TRADE, DISCARD
-  - BUY_DEVELOPMENT_CARD: branch over possible card identities weighted by inferred deck composition
-  - ROLL: branch over 2–12 using `number_probability`
-  - MOVE_ROBBER: if a victim exists, branch over stolen resource types uniformly (or by victim hand composition)
-- Plan (Rust):
-  - Introduce `expand_outcomes(state: &State, action: Action) -> Vec<(State, f64)>`.
-  - Compute action value as `Σ p_i * minimax(next_i)`.
-  - Start by wiring existing dice logic; add dev-card purchases and robber steals next.
+Implementation Tasks (in order)
 
-### 3) Domain-aware action pruning before ordering
-- Python’s `list_prunned_actions` removes low-impact or dominated actions prior to search:
-  - Initial placements: prune 1-tile settlement spots
-  - Maritime trade: when a 3:1 port is available, prune 4:1 trades of the same resource
-  - Robber: keep only the most impactful tile placement (max enemy production impact)
-- Plan (Rust):
-  - Add `prune_actions(state, actions) -> Vec<Action>` implementing the above. Keep it conservative to preserve correctness.
-  - Apply pruning, then ordering, then beam.
+1) Transposition Table collision safety
+- Change TT key/entry types:
+  - `type TtKey = (u64, u64);`
+  - `type TtEntry = (f64, i8, Option<Action>, i32);`
+  - `type TtMap = HashMap<TtKey, TtEntry>;`
+- Compute two independent hashes:
+  - Keep `hash_a = state.compute_hash64()`.
+  - Add a second hash `hash_b` via a different seed/table (e.g., `compute_hash64_alt()` or construct a second Zobrist set seeded once at init).
+- Use `(hash_a, hash_b)` as the TT key for insert/lookup.
+- If adding a second hash is not feasible immediately, store a lightweight verifier alongside the entry (e.g., `(side_to_move, robber_tile_id, remaining_dev_counts_checksum)`) and compare on probe; treat mismatches as TT misses.
 
-### 4) Move ordering and beam usage
-- Keep the beam, but order after pruning. Improve ordering with domain signals:
-  - Prioritize actions that increase visible VPs, city/settlement builds, strong robber moves, dev plays that unlock build sequences, etc.
-  - Use recent-best/root-best (killer move) hints when available.
-- Maintain a configurable `MAX_ORDERED_ACTIONS` and allow disabling the beam when the branching factor is already small.
+2) Symmetric futility pruning
+- Remove redundant `is_maximizing &&` in the maximizing futility check.
+- Add a mirrored guard in the minimizing branch for quiet moves at shallow depths:
+  - Compute `eval = evaluate_relative(state, my_color)`.
+  - If `depth == 1 && is_quiet && eval - 100.0 > beta` then `continue;`.
+  - If `depth == 2 && is_quiet && eval - 200.0 > beta` then `continue;`.
+- Keep futility off for tactical moves.
 
-### 5) Time management and iterative deepening
-- Python enforces a deadline to keep move latency predictable.
-- Plan (Rust):
-  - Add a `deadline: Instant` to search; stop when reached.
-  - Implement iterative deepening (1..D) and return best-so-far when time expires.
-  - Optionally use aspiration windows around the previous iteration’s root value for faster convergence.
+3) Depth/index–aware LMR
+- Replace `get_lmr_reduction` with a smooth, conservative formula that excludes PV and tactical moves and never reduces the first few moves:
+```rust
+fn get_lmr_reduction(&self, depth: i32, move_index: usize, is_quiet: bool) -> i32 {
+  if !is_quiet || depth < 3 || move_index < 3 { return 0; }
+  let d = depth as f64;
+  let m = ((move_index + 1).max(1) as f64).ln();
+  let r = (0.8 * d.ln() * m).floor() as i32;
+  r.clamp(0, 2).min(depth - 1)
+}
+```
+- In both max/min loops: apply reduced depth for null-window probes; if the value is inside the window, re-search at full depth/window.
 
-### 6) Evaluation: port the richer Catanatron value function
-- Python’s `value.py` provides a sophisticated, pluggable evaluator with two presets:
-  - `base_fn(DEFAULT_WEIGHTS)` and `contender_fn(CONTENDER_WEIGHTS)`
-  - Features include:
-    - public_vps (huge), production and enemy_production (considering robber), num_tiles covered by owned nodes, reachable_production at 0 and 1 road distance, buildable_nodes, longest_road, hand_synergy (distance to city/settlement), hand_resources count, discard_penalty (>7), hand_devs, army_size (played knights)
-- Plan (Rust):
-  - Extract an `Evaluator` trait with a default implementation mirroring `base_fn`.
-  - Make weights configurable and allow a “contender” preset.
-  - Remove hardcoded `num_players = 4`; derive from state.
-  - Add the necessary feature helpers on `State` to compute production, reachability (0/1 roads initially), bank pressure (discard risk), dev/army metrics, and tile coverage.
+4) Depth-1 move-count pruning refinement
+- At `depth == 1`:
+  - Partition ordered moves into `tactical` and `quiet` using `is_tactical_move`.
+  - Keep all `tactical`.
+  - Fill up to the cap (e.g., 10 total) with `quiet` in order.
+  - This guarantees no tactical move is lost at the frontier.
 
-### 7) Transposition table (TT)
-- Add Zobrist hashing for `State`.
-- Store entries keyed by `(hash, depth)` with value type {Exact, Alpha, Beta} and score.
-- Use TT for cutoff ordering and to avoid re-searching identical substates.
-- Integrate tightly with iterative deepening.
+5) History and killer maintenance
+- History decay: apply decay every N root decisions (e.g., every 10 calls to `decide`) instead of after each decision. Use `/= 2` when decaying.
+- Killer moves: clear the `killer_moves` map at the start of each `decide` call.
 
-### 8) Root policy: tie-breaking and exploration
-- Break ties randomly among equal-best root actions.
-- Optional epsilon-greedy exploration (for self-play/tuning only; off in production).
+6) PVS window readability (optional)
+- Keep the existing guard. Optionally add `if beta - alpha <= PVS_EPS { use_pvs = false; }` for clarity.
 
-### 9) Testing and benchmarking
-- Add deterministic scenarios and regression tests for:
-  - Same-turn sequences (no sign flip)
-  - Spectrum expansion correctness (dice, dev buys, robber steals)
-  - Pruning soundness (no loss of obviously better actions)
-  - Evaluator parity tests against Python on mirrored positions (within tolerance)
-- Benchmark decision time vs. depth/beam and Elo vs. current bot.
+Testing & Validation
+- Unit tests:
+  - LMR: verify no reductions for early or tactical/PV moves; verify reductions increase (0→1→2) with depth/move index.
+  - Futility: confirm quiet moves can be skipped at depth ≤ 2 and not at deeper levels; ensure tactical moves are never skipped.
+  - TT verification: craft synthetic collision test (mock verifier) to ensure mismatches are treated as misses.
+- Integration checks:
+  - Run short tournaments vs `ValueFunctionPlayer` and prior AlphaBeta to confirm strength and stability.
+  - Track average search depth and node count; expect deeper effective depth at same time budget.
 
-### 10) Optional search refinements
-- Quiescence search: extend at “tactical volatility” nodes (e.g., immediate builds/plays) to reduce horizon effects.
-- History heuristic / killer moves to improve ordering beyond static heuristics.
-- Null-move pruning: likely risky with chance nodes; consider only after extensive testing.
-
----
-
-## Notes from catanatron Python code
-
-- File: `catanatron/players/minimax.py`
-  - Uses explicit max/min based on `game.state.current_color() == self.color`.
-  - Expectiminimax via `expand_spectrum(game, actions)` → action → [(next_game, p)] and computes expected values.
-  - Supports pruning through `get_actions()` → `list_prunned_actions(game)`.
-  - Uses deadline (`MAX_SEARCH_TIME_SECS`) and returns best-so-far.
-  - Variants: `SameTurnAlphaBetaPlayer` restricts search to same-player turn.
-
-- File: `catanatron/players/tree_search_utils.py`
-  - `expand_spectrum` covers deterministic actions, `BUY_DEVELOPMENT_CARD`, `ROLL` (2–12 with `number_probability`), and `MOVE_ROBBER` (steal distribution).
-  - `list_prunned_actions` prunes: initial 1-tile settlements, suboptimal maritime trades, and compresses robber moves to the most impactful tile using production features.
-
-- File: `catanatron/players/value.py`
-  - `base_fn` and `contender_fn` with comprehensive features and tuned weights (`DEFAULT_WEIGHTS`, `CONTENDER_WEIGHTS`).
-  - Utility `value_production` mixes production sum and variety bonus.
-  - `get_value_fn` is pluggable; also supports injecting a custom function.
-
-- File: `catanatron/features.py`
-  - Feature extractors for production (with/without robber), reachability (0/1 road distance), hand state, graph/tiles/ports, longest road, expansion, port distances, and game/bank features.
-
----
-
-## Implementation order (recommended)
-1. Turn semantics: replace negamax with explicit max/min; add `SameTurn` option.
-2. Time budget + iterative deepening; keep current evaluator.
-3. Outcome spectrum: extend dice to dev buys and robber steals.
-4. Pruning pass before ordering; then beam-ordering.
-5. Pluggable evaluator and weight sets (port subset of features first: production, enemy production, hand resources, hand synergy, reachable_production_0/1, longest road, army).
-6. Transposition table + improved ordering (killer/history).
-7. Broaden evaluator features toward parity with Python.
-
----
-
-## Progress Log
-
-- [x] Switched `minimax.rs` from unconditional negamax to explicit max/min based on `state.get_current_color() == my_color`. This prevents sign flips during same-turn action chains and aligns with Catan’s turn structure.
-- [x] Introduced `prune_actions` hook (currently passthrough) and applied it at root and internal nodes before ordering/beam. This is the insertion point for domain-aware pruning from Python (`list_prunned_actions`).
-- [x] Added `evaluate_action_with_chance` helper and routed dice rolls through the existing expectation logic; non-chance actions recurse without sign flip. This prepares for a general spectrum expansion per action.
-- [x] Added `players/value.rs` with `ValueFunctionPlayer` and tunable `ValueWeights`, plus epsilon-greedy. The evaluator mirrors Python’s base_fn partially using available `State` accessors (public VPs, effective production, basic hand features, buildable nodes, tile coverage, army size). Exported via `players/mod.rs`.
-- [x] Integrated `ValueFunctionPlayer` into `simulate.rs` as 'V'/'v'. Verified dominance vs Random in user run.
-- [x] AlphaBeta: added iterative deepening with a short time budget (`max_time_ms`, default 50ms) and wired a `deadline` through recursion, including `roll_expectation`. Added an initial conservative `prune_actions` rule (drop 1-tile initial settlements).
-- [x] Strengthened AlphaBeta evaluator by reusing the ValueFunction-style features (effective production, enemy production, hand synergy, hand size/penalty, devs, army size, buildable nodes, tile coverage). This should close part of the gap to the Python agent pending chance-node spectrum and richer pruning.
-- [x] Added domain-aware pruning: when a 3:1 port is owned, 4:1 maritime trades are pruned. Retained initial-settlement 1-tile pruning.
-- [x] Implemented probabilistic expectation for robber steals: when moving the robber with a victim, branch over stolen resource based on victim hand composition.
-- [x] Improved move ordering with a shallow (0-ply) evaluator mixed with static action scores to enhance pruning efficiency.
-- [x] Added aspiration windows around the best-so-far at root during iterative deepening to accelerate cutoffs; falls back to full window on fail-high/low.
-- [x] Introduced a simple transposition table keyed by `(hash64, depth)` with alpha/beta/exact flags using a stable FNV-1a hash of the state vector. Integrated into search for early cutoffs and reuse.
-- [x] Added expected-value handling for `BuyDevelopmentCard` using remaining bank composition to weight outcomes (approximate; uses state bank counts).
-- [x] Root policy improvements: optional epsilon-greedy exploration and random tie-breaking among near-equal best root actions.
-- [x] Generalize chance expansion beyond dice (dev buys, robber steals).
-- [x] Add time budget + iterative deepening with best-so-far tracking.
-- [x] Implement domain-aware pruning rules (initial placement, maritime trade, robber compression).
-- [x] Make evaluator pluggable with weight presets and additional features.
-- [x] Add transposition table and improved move ordering heuristics.
+Future Strength Areas (post above)
+- Evaluation upgrades: improve production/reachability terms; add dynamic scarcity and longest-road reach.
+- Hybrid search: use AlphaBeta tactically and MCTS for strategic planning phases.
+- Learning: train a value network from self-play to replace/augment `evaluate_state`.
 
 

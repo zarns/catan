@@ -9,16 +9,17 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
-const DEFAULT_DEPTH: i32 = 5; // increased default depth
-const MAX_ORDERED_ACTIONS: usize = 20; // wider beam for better coverage below root
-const ROOT_MAX_ORDERED_ACTIONS: usize = 24; // root-only wider beam
+const DEFAULT_DEPTH: i32 = 5; // revert to previous stable depth
+const MAX_ORDERED_ACTIONS: usize = 20; // revert beam
+const ROOT_MAX_ORDERED_ACTIONS: usize = 24; // revert root beam
 const PVS_EPS: f64 = 1e-6;
-const LMR_MIN_DEPTH: i32 = 3; // enable reductions at shallower depths
-const LMR_LATE_INDEX: usize = 4; // reduce depth for moves after this index
-const SHALLOW_EVAL_WEIGHT: f64 = 0.10; // higher to improve ordering
-const HISTORY_WEIGHT: f64 = 0.001; // make history matter
-const KILLER_BONUS: f64 = 100.0; // scale to static scores
-const ASPIRATION_MIN_WINDOW: f64 = 25.0; // slightly wider for depth-5 stability
+const LMR_MIN_DEPTH: i32 = 4; // less aggressive reductions
+const LMR_LATE_INDEX: usize = 6; // start reducing later moves only
+const SHALLOW_EVAL_WEIGHT: f64 = 0.15; // improve ordering quality
+const HISTORY_WEIGHT: f64 = 0.002; // make history matter more
+const KILLER_BONUS: f64 = 150.0; // stronger killer preference
+const ASPIRATION_MIN_WINDOW: f64 = 35.0; // wider window to avoid re-search thrash
+const DEPTH1_QUIET_CAP: usize = 10; // revert frontier cap
 const ENABLE_SEARCH_DEBUG: bool = false; // flip to true to emit debug logs
 
 use super::BotPlayer;
@@ -27,7 +28,8 @@ use super::BotPlayer;
 /// Uses the minimax algorithm to choose actions
 // Type aliases to simplify complex types
 type TtKey = u64;
-type TtEntry = (f64, i8, Option<Action>, i32); // (value, flag, best_move, depth)
+type TtVerifier = (u8, u16, u16); // (current_color, dev_deck_sum, roads_sum)
+type TtEntry = (f64, i8, Option<Action>, i32, TtVerifier); // (value, flag, best_move, depth, verifier)
 type TtMap = HashMap<TtKey, TtEntry>;
 type KillerPair = (Option<Action>, Option<Action>);
 type KillerMap = HashMap<i32, KillerPair>;
@@ -54,6 +56,7 @@ pub struct AlphaBetaPlayer {
     killer_moves: std::cell::RefCell<KillerMap>, // depth -> (killer1, killer2)
     history_scores: std::cell::RefCell<HistoryMap>, // action -> score
     node_production_cache: std::cell::RefCell<HashMap<NodeId, f64>>,
+    decide_counter: std::cell::Cell<usize>,
 }
 
 #[derive(Clone, Copy)]
@@ -100,6 +103,7 @@ impl AlphaBetaPlayer {
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            decide_counter: std::cell::Cell::new(0),
         }
     }
 
@@ -116,6 +120,7 @@ impl AlphaBetaPlayer {
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            decide_counter: std::cell::Cell::new(0),
         }
     }
 
@@ -144,6 +149,7 @@ impl AlphaBetaPlayer {
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
+            decide_counter: std::cell::Cell::new(0),
         }
     }
 
@@ -396,19 +402,14 @@ impl AlphaBetaPlayer {
         )
     }
 
-    #[inline]
     fn get_lmr_reduction(&self, depth: i32, move_index: usize, is_quiet: bool) -> i32 {
-        if !is_quiet || depth < LMR_MIN_DEPTH {
+        if !is_quiet || depth < LMR_MIN_DEPTH || move_index < LMR_LATE_INDEX {
             return 0;
         }
-        // Conservative reductions: only late moves, reduce by 1
-        if depth >= 4 && move_index >= LMR_LATE_INDEX + 4 {
-            return 1;
-        }
-        if depth >= 3 && move_index >= LMR_LATE_INDEX + 2 {
-            return 1;
-        }
-        0
+        let d = depth as f64;
+        let m = ((move_index + 1).max(1) as f64).ln();
+        let r = (0.8 * d.ln() * m).floor() as i32;
+        r.clamp(0, 2).min(depth - 1)
     }
 
     fn quiescence_eval(&self, state: &State, my_color: u8) -> f64 {
@@ -418,6 +419,9 @@ impl AlphaBetaPlayer {
         let mut tactical: Vec<Action> = Vec::new();
         for &a in &actions {
             match a {
+                A::BuildRoad { edge_id, .. } if self.is_impactful_road(state, edge_id) => {
+                    tactical.push(a)
+                }
                 A::BuildCity { .. }
                 | A::BuildSettlement { .. }
                 | A::BuyDevelopmentCard { .. }
@@ -613,6 +617,12 @@ impl AlphaBetaPlayer {
         let a_is_new = board_spots.contains(&a) && !buildable.contains(&a);
         let b_is_new = board_spots.contains(&b) && !buildable.contains(&b);
         a_is_new || b_is_new
+    }
+
+    #[inline]
+    fn is_impactful_road(&self, state: &State, edge_id: EdgeId) -> bool {
+        let my_color = state.get_current_color();
+        self.in_longest_road_race(state, my_color) || self.opens_settlement_spot(state, edge_id)
     }
 
     fn would_claim_largest_army(&self, state: &State, color: u8) -> bool {
@@ -939,26 +949,28 @@ impl AlphaBetaPlayer {
         my_color: u8,
         deadline: Option<std::time::Instant>,
     ) -> f64 {
-        // Transposition lookup
+        // Transposition lookup (with verification)
         let state_hash = state.compute_hash64();
+        let verifier_now = self.tt_verifier(state);
         let mut tt_move: Option<Action> = None;
-        if let Some(&(v, flag, best_mv, entry_depth)) = self.tt.borrow().get(&state_hash) {
-            tt_move = best_mv;
-            // Only use TT bounds/cutoffs if stored depth covers current depth
-            if entry_depth >= depth {
-                match flag {
-                    0 => return v, // exact
-                    -1 => {
-                        if v <= alpha {
-                            return v;
+        if let Some(&(v, flag, best_mv, entry_depth, ver)) = self.tt.borrow().get(&state_hash) {
+            if ver == verifier_now {
+                tt_move = best_mv;
+                if entry_depth >= depth {
+                    match flag {
+                        0 => return v,
+                        -1 => {
+                            if v <= alpha {
+                                return v;
+                            }
                         }
-                    } // alpha bound
-                    1 => {
-                        if v >= beta {
-                            return v;
+                        1 => {
+                            if v >= beta {
+                                return v;
+                            }
                         }
-                    } // beta bound
-                    _ => {}
+                        _ => {}
+                    }
                 }
             }
         }
@@ -1005,26 +1017,22 @@ impl AlphaBetaPlayer {
             return self.evaluate_relative(state, my_color);
         }
         let mut ordered_actions = self.order_actions(state, &pruned_actions, depth);
-        // Move-count pruning only at depth 1 and preserve tactical moves
-        if depth == 1 && ordered_actions.len() > 10 {
-            let mut kept: Vec<Action> = Vec::with_capacity(10);
-            for a in &ordered_actions {
-                if self.is_tactical_move(*a) {
-                    kept.push(*a);
-                }
-                if kept.len() >= 10 {
-                    break;
+        // Move-count pruning only at depth 1: keep all tactical moves, cap only quiets
+        if depth == 1 && ordered_actions.len() > DEPTH1_QUIET_CAP {
+            let mut tactical: Vec<Action> = Vec::new();
+            let mut quiet: Vec<Action> = Vec::new();
+            for &a in &ordered_actions {
+                if self.is_tactical_move(a) {
+                    tactical.push(a);
+                } else {
+                    quiet.push(a);
                 }
             }
-            if kept.len() < 10 {
-                for a in &ordered_actions {
-                    if !self.is_tactical_move(*a) {
-                        kept.push(*a);
-                        if kept.len() >= 10 {
-                            break;
-                        }
-                    }
-                }
+            let cap = DEPTH1_QUIET_CAP;
+            let mut kept: Vec<Action> = Vec::with_capacity(cap);
+            kept.extend(tactical);
+            if kept.len() < cap {
+                kept.extend(quiet.into_iter().take(cap - kept.len()));
             }
             ordered_actions = kept;
         }
@@ -1070,16 +1078,31 @@ impl AlphaBetaPlayer {
                     );
                 } else {
                     // PVS null-window probe with guard for valid finite window
-                    let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
+                    let use_pvs = alpha.is_finite()
+                        && beta.is_finite()
+                        && (alpha + PVS_EPS) < beta
+                        && (beta - alpha) > PVS_EPS;
                     let probe_alpha = alpha;
                     let probe_beta = if use_pvs {
                         (alpha + PVS_EPS).min(beta)
                     } else {
                         beta
                     };
-                    let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
-                    // Futility pruning at shallow depths for quiet moves (maximizing only)
-                    if is_maximizing && depth <= 2 && self.is_quiet_move(action) {
+                    // LMR guard: do not reduce killer or tactical moves
+                    let is_killer = self
+                        .killer_moves
+                        .borrow()
+                        .get(&depth)
+                        .map(|&(k1, k2)| k1 == Some(action) || k2 == Some(action))
+                        .unwrap_or(false);
+                    let is_tactical = self.is_tactical_move(action);
+                    let reduce_by = if is_killer || is_tactical {
+                        0
+                    } else {
+                        self.get_lmr_reduction(depth, idx, self.is_quiet_move(action))
+                    };
+                    // Futility pruning at shallow depths for quiet moves (maximizing)
+                    if depth <= 2 && self.is_quiet_move(action) {
                         let eval = self.evaluate_relative(state, my_color);
                         let margin = if depth == 1 { 100.0 } else { 200.0 };
                         if eval + margin < alpha {
@@ -1142,11 +1165,11 @@ impl AlphaBetaPlayer {
             // Depth-preferred replacement
             let mut tt = self.tt.borrow_mut();
             let replace = match tt.get(&state_hash) {
-                Some(&(_, _, _, d)) => depth >= d,
+                Some(&(_, _, _, d, _)) => depth >= d,
                 None => true,
             };
             if replace {
-                tt.insert(state_hash, (best_value, flag, best_mv, depth));
+                tt.insert(state_hash, (best_value, flag, best_mv, depth, verifier_now));
             }
             best_value
         } else {
@@ -1167,15 +1190,37 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    let use_pvs = alpha.is_finite() && beta.is_finite() && (alpha + PVS_EPS) < beta;
+                    let use_pvs = alpha.is_finite()
+                        && beta.is_finite()
+                        && (alpha + PVS_EPS) < beta
+                        && (beta - alpha) > PVS_EPS;
                     let probe_alpha = alpha;
                     let probe_beta = if use_pvs {
                         (alpha + PVS_EPS).min(beta)
                     } else {
                         beta
                     };
-                    let reduce_by = self.get_lmr_reduction(depth, idx, self.is_quiet_move(action));
-                    // Do not apply maximizing-style futility at minimizing nodes
+                    // LMR guard: do not reduce killer or tactical moves
+                    let is_killer = self
+                        .killer_moves
+                        .borrow()
+                        .get(&depth)
+                        .map(|&(k1, k2)| k1 == Some(action) || k2 == Some(action))
+                        .unwrap_or(false);
+                    let is_tactical = self.is_tactical_move(action);
+                    let reduce_by = if is_killer || is_tactical {
+                        0
+                    } else {
+                        self.get_lmr_reduction(depth, idx, self.is_quiet_move(action))
+                    };
+                    // Futility pruning at shallow depths for quiet moves (minimizing)
+                    if depth <= 2 && self.is_quiet_move(action) {
+                        let eval = self.evaluate_relative(state, my_color);
+                        let margin = if depth == 1 { 100.0 } else { 200.0 };
+                        if eval - margin > beta {
+                            continue;
+                        }
+                    }
                     let probe_depth = (depth - reduce_by).max(1);
                     value = self.evaluate_action_with_chance(
                         state,
@@ -1229,11 +1274,11 @@ impl AlphaBetaPlayer {
             };
             let mut tt = self.tt.borrow_mut();
             let replace = match tt.get(&state_hash) {
-                Some(&(_, _, _, d)) => depth >= d,
+                Some(&(_, _, _, d, _)) => depth >= d,
                 None => true,
             };
             if replace {
-                tt.insert(state_hash, (best_value, flag, best_mv, depth));
+                tt.insert(state_hash, (best_value, flag, best_mv, depth, verifier_now));
             }
             best_value
         }
@@ -1276,6 +1321,10 @@ impl BotPlayer for AlphaBetaPlayer {
 
         // Clear caches to prevent cross-game or cross-position pollution
         self.node_production_cache.borrow_mut().clear();
+        // Reset killers at root and bump decide counter
+        self.killer_moves.borrow_mut().clear();
+        let prev_decides = self.decide_counter.get();
+        self.decide_counter.set(prev_decides.wrapping_add(1));
 
         // Optional epsilon-greedy exploration at root
         if let Some(eps) = self.epsilon {
@@ -1392,8 +1441,8 @@ impl BotPlayer for AlphaBetaPlayer {
             }
         }
 
-        // Periodic history decay to avoid stale biases
-        if !self.history_scores.borrow().is_empty() {
+        // Periodic history decay to avoid stale biases (every 10 decisions)
+        if self.decide_counter.get() % 10 == 0 && !self.history_scores.borrow().is_empty() {
             let mut hist = self.history_scores.borrow_mut();
             for v in hist.values_mut() {
                 *v /= 2;
@@ -1415,5 +1464,19 @@ impl Default for AlphaBetaPlayer {
             "AlphaBeta Player".to_string(),
             "red".to_string(),
         )
+    }
+}
+
+impl AlphaBetaPlayer {
+    #[inline]
+    fn tt_verifier(&self, state: &State) -> TtVerifier {
+        let side = state.get_current_color();
+        let dev_sum: u16 = state
+            .get_remaining_dev_counts()
+            .iter()
+            .map(|&c| c as u16)
+            .sum();
+        let roads_sum: u16 = state.get_roads_by_color().iter().map(|&r| r as u16).sum();
+        (side, dev_sum, roads_sum)
     }
 }
