@@ -1,5 +1,6 @@
 use log::LevelFilter;
 use std::f64;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use super::value::ValueWeights;
 use crate::enums::Action;
@@ -13,14 +14,16 @@ const DEFAULT_DEPTH: i32 = 5; // revert to previous stable depth
 const MAX_ORDERED_ACTIONS: usize = 20; // revert beam
 const ROOT_MAX_ORDERED_ACTIONS: usize = 24; // revert root beam
 const PVS_EPS: f64 = 1e-6;
-const LMR_MIN_DEPTH: i32 = 4; // less aggressive reductions
-const LMR_LATE_INDEX: usize = 6; // start reducing later moves only
+const MIN_EARLY_STOP_DEPTH: i32 = 4; // do not early-stop before this depth
+const LMR_MIN_DEPTH: i32 = 3; // enable reductions a bit earlier
+const LMR_LATE_INDEX: usize = 4; // reduce moves after early ones
 const SHALLOW_EVAL_WEIGHT: f64 = 0.15; // improve ordering quality
 const HISTORY_WEIGHT: f64 = 0.002; // make history matter more
 const KILLER_BONUS: f64 = 150.0; // stronger killer preference
 const ASPIRATION_MIN_WINDOW: f64 = 35.0; // wider window to avoid re-search thrash
 const DEPTH1_QUIET_CAP: usize = 10; // revert frontier cap
 const ENABLE_SEARCH_DEBUG: bool = false; // flip to true to emit debug logs
+const SEARCH_STATS_ENABLED: bool = true; // collect and print SearchStats when true
 
 use super::BotPlayer;
 
@@ -34,6 +37,121 @@ type TtMap = HashMap<TtKey, TtEntry>;
 type KillerPair = (Option<Action>, Option<Action>);
 type KillerMap = HashMap<i32, KillerPair>;
 type HistoryMap = HashMap<Action, i64>;
+
+pub struct SearchStats {
+    pub nodes_searched: AtomicUsize,
+    pub leaf_nodes: AtomicUsize,
+    pub tt_hits: AtomicUsize,
+    pub tt_misses: AtomicUsize,
+    pub tt_cutoffs: AtomicUsize,
+    pub futility_prunes: AtomicUsize,
+    pub lmr_reductions: AtomicUsize,
+    pub pvs_re_searches: AtomicUsize,
+    pub beta_cutoffs: AtomicUsize,
+    pub killer_hits: AtomicUsize,
+    pub max_depth_reached: AtomicUsize,
+    pub avg_depth_sum: AtomicU64,
+    pub avg_depth_count: AtomicUsize,
+    pub timeout_exits: AtomicUsize,
+    pub completed_iterations: AtomicUsize,
+    pub first_move_cutoffs: AtomicUsize,
+    pub total_cutoffs: AtomicUsize,
+}
+
+impl SearchStats {
+    pub fn new() -> Self {
+        Self {
+            nodes_searched: AtomicUsize::new(0),
+            leaf_nodes: AtomicUsize::new(0),
+            tt_hits: AtomicUsize::new(0),
+            tt_misses: AtomicUsize::new(0),
+            tt_cutoffs: AtomicUsize::new(0),
+            futility_prunes: AtomicUsize::new(0),
+            lmr_reductions: AtomicUsize::new(0),
+            pvs_re_searches: AtomicUsize::new(0),
+            beta_cutoffs: AtomicUsize::new(0),
+            killer_hits: AtomicUsize::new(0),
+            max_depth_reached: AtomicUsize::new(0),
+            avg_depth_sum: AtomicU64::new(0),
+            avg_depth_count: AtomicUsize::new(0),
+            timeout_exits: AtomicUsize::new(0),
+            completed_iterations: AtomicUsize::new(0),
+            first_move_cutoffs: AtomicUsize::new(0),
+            total_cutoffs: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn reset(&self) {
+        self.nodes_searched.store(0, Ordering::Relaxed);
+        self.leaf_nodes.store(0, Ordering::Relaxed);
+        self.tt_hits.store(0, Ordering::Relaxed);
+        self.tt_misses.store(0, Ordering::Relaxed);
+        self.tt_cutoffs.store(0, Ordering::Relaxed);
+        self.futility_prunes.store(0, Ordering::Relaxed);
+        self.lmr_reductions.store(0, Ordering::Relaxed);
+        self.pvs_re_searches.store(0, Ordering::Relaxed);
+        self.beta_cutoffs.store(0, Ordering::Relaxed);
+        self.killer_hits.store(0, Ordering::Relaxed);
+        self.max_depth_reached.store(0, Ordering::Relaxed);
+        self.avg_depth_sum.store(0, Ordering::Relaxed);
+        self.avg_depth_count.store(0, Ordering::Relaxed);
+        self.timeout_exits.store(0, Ordering::Relaxed);
+        self.completed_iterations.store(0, Ordering::Relaxed);
+        self.first_move_cutoffs.store(0, Ordering::Relaxed);
+        self.total_cutoffs.store(0, Ordering::Relaxed);
+    }
+
+    pub fn report(&self) -> String {
+        let nodes = self.nodes_searched.load(Ordering::Relaxed);
+        let leaf = self.leaf_nodes.load(Ordering::Relaxed);
+        let tt_hits = self.tt_hits.load(Ordering::Relaxed);
+        let tt_misses = self.tt_misses.load(Ordering::Relaxed);
+        let tt_total = tt_hits + tt_misses;
+        let tt_hit_rate = if tt_total > 0 {
+            (tt_hits as f64 / tt_total as f64) * 100.0
+        } else {
+            0.0
+        };
+        let cutoffs = self.total_cutoffs.load(Ordering::Relaxed);
+        let first_move_cuts = self.first_move_cutoffs.load(Ordering::Relaxed);
+        let move_ordering_quality = if cutoffs > 0 {
+            (first_move_cuts as f64 / cutoffs as f64) * 100.0
+        } else {
+            0.0
+        };
+        let avg_count = self.avg_depth_count.load(Ordering::Relaxed);
+        let avg_depth = if avg_count > 0 {
+            self.avg_depth_sum.load(Ordering::Relaxed) as f64 / avg_count as f64
+        } else {
+            0.0
+        };
+        format!(
+            "Search Stats:\n\
+            - Nodes: {} (leaf: {})\n\
+            - TT: {:.1}% hit rate ({} hits, {} cutoffs)\n\
+            - Pruning: {} futility, {} LMR, {} re-searches\n\
+            - Beta cutoffs: {} (killer hits: {})\n\
+            - Move ordering: {:.1}% first-move cutoffs\n\
+            - Depth: max {}, avg {:.2}\n\
+            - Iterations: {} complete, {} timeouts",
+            nodes,
+            leaf,
+            tt_hit_rate,
+            tt_hits,
+            self.tt_cutoffs.load(Ordering::Relaxed),
+            self.futility_prunes.load(Ordering::Relaxed),
+            self.lmr_reductions.load(Ordering::Relaxed),
+            self.pvs_re_searches.load(Ordering::Relaxed),
+            self.beta_cutoffs.load(Ordering::Relaxed),
+            self.killer_hits.load(Ordering::Relaxed),
+            move_ordering_quality,
+            self.max_depth_reached.load(Ordering::Relaxed),
+            avg_depth,
+            self.completed_iterations.load(Ordering::Relaxed),
+            self.timeout_exits.load(Ordering::Relaxed),
+        )
+    }
+}
 
 #[derive(Clone, Copy)]
 struct SearchCtx {
@@ -57,6 +175,7 @@ pub struct AlphaBetaPlayer {
     history_scores: std::cell::RefCell<HistoryMap>, // action -> score
     node_production_cache: std::cell::RefCell<HashMap<NodeId, f64>>,
     decide_counter: std::cell::Cell<usize>,
+    stats: std::cell::RefCell<SearchStats>,
 }
 
 #[derive(Clone, Copy)]
@@ -104,6 +223,7 @@ impl AlphaBetaPlayer {
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
+            stats: std::cell::RefCell::new(SearchStats::new()),
         }
     }
 
@@ -121,6 +241,7 @@ impl AlphaBetaPlayer {
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
+            stats: std::cell::RefCell::new(SearchStats::new()),
         }
     }
 
@@ -150,6 +271,7 @@ impl AlphaBetaPlayer {
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
+            stats: std::cell::RefCell::new(SearchStats::new()),
         }
     }
 
@@ -319,7 +441,10 @@ impl AlphaBetaPlayer {
             0.0
         };
 
-        my_score - avg_opponent_score
+        let rel = my_score - avg_opponent_score;
+        debug_assert!(rel.is_finite());
+        debug_assert!(rel.abs() < 1e6, "suspicious eval magnitude: {}", rel);
+        rel
     }
 
     /// Heuristic move ordering combining static scores with a shallow evaluation.
@@ -949,30 +1074,60 @@ impl AlphaBetaPlayer {
         my_color: u8,
         deadline: Option<std::time::Instant>,
     ) -> f64 {
+        // Node counter
+        self.stats
+            .borrow()
+            .nodes_searched
+            .fetch_add(1, Ordering::Relaxed);
         // Transposition lookup (with verification)
         let state_hash = state.compute_hash64();
         let verifier_now = self.tt_verifier(state);
         let mut tt_move: Option<Action> = None;
         if let Some(&(v, flag, best_mv, entry_depth, ver)) = self.tt.borrow().get(&state_hash) {
             if ver == verifier_now {
+                self.stats.borrow().tt_hits.fetch_add(1, Ordering::Relaxed);
                 tt_move = best_mv;
                 if entry_depth >= depth {
                     match flag {
-                        0 => return v,
+                        0 => {
+                            self.stats
+                                .borrow()
+                                .tt_cutoffs
+                                .fetch_add(1, Ordering::Relaxed);
+                            return v;
+                        }
                         -1 => {
                             if v <= alpha {
+                                self.stats
+                                    .borrow()
+                                    .tt_cutoffs
+                                    .fetch_add(1, Ordering::Relaxed);
                                 return v;
                             }
                         }
                         1 => {
                             if v >= beta {
+                                self.stats
+                                    .borrow()
+                                    .tt_cutoffs
+                                    .fetch_add(1, Ordering::Relaxed);
                                 return v;
                             }
                         }
                         _ => {}
                     }
                 }
+            } else {
+                self.stats
+                    .borrow()
+                    .tt_misses
+                    .fetch_add(1, Ordering::Relaxed);
             }
+        } else {
+            self.stats
+                .borrow()
+                .tt_misses
+                .fetch_add(1, Ordering::Relaxed);
         }
         // Base case: terminal depth or game over
         if depth == 0 || state.winner().is_some() {
@@ -980,6 +1135,10 @@ impl AlphaBetaPlayer {
             if depth == 0 && state.winner().is_none() {
                 return self.quiescence_eval(state, my_color);
             }
+            self.stats
+                .borrow()
+                .leaf_nodes
+                .fetch_add(1, Ordering::Relaxed);
             let eval = self.evaluate_relative(state, my_color);
             if ENABLE_SEARCH_DEBUG {
                 log::error!(
@@ -1106,10 +1265,20 @@ impl AlphaBetaPlayer {
                         let eval = self.evaluate_relative(state, my_color);
                         let margin = if depth == 1 { 100.0 } else { 200.0 };
                         if eval + margin < alpha {
+                            self.stats
+                                .borrow()
+                                .futility_prunes
+                                .fetch_add(1, Ordering::Relaxed);
                             continue;
                         }
                     }
                     let probe_depth = (depth - reduce_by).max(1);
+                    if reduce_by > 0 {
+                        self.stats
+                            .borrow()
+                            .lmr_reductions
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
@@ -1122,6 +1291,10 @@ impl AlphaBetaPlayer {
                         },
                     );
                     if use_pvs && value > alpha && value < beta {
+                        self.stats
+                            .borrow()
+                            .pvs_re_searches
+                            .fetch_add(1, Ordering::Relaxed);
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
@@ -1143,6 +1316,32 @@ impl AlphaBetaPlayer {
                     alpha = value;
                 }
                 if alpha >= beta {
+                    self.stats
+                        .borrow()
+                        .beta_cutoffs
+                        .fetch_add(1, Ordering::Relaxed);
+                    if idx == 0 {
+                        self.stats
+                            .borrow()
+                            .first_move_cutoffs
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
+                    self.stats
+                        .borrow()
+                        .total_cutoffs
+                        .fetch_add(1, Ordering::Relaxed);
+                    if self
+                        .killer_moves
+                        .borrow()
+                        .get(&depth)
+                        .map(|&(k1, k2)| k1 == Some(action) || k2 == Some(action))
+                        .unwrap_or(false)
+                    {
+                        self.stats
+                            .borrow()
+                            .killer_hits
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
                     self.record_killer(depth, Some(action));
                     self.bump_history(action, depth);
                     // Singular/PV extension: if first move causes cutoff and looks singular, extend principal continuation
@@ -1218,10 +1417,20 @@ impl AlphaBetaPlayer {
                         let eval = self.evaluate_relative(state, my_color);
                         let margin = if depth == 1 { 100.0 } else { 200.0 };
                         if eval - margin > beta {
+                            self.stats
+                                .borrow()
+                                .futility_prunes
+                                .fetch_add(1, Ordering::Relaxed);
                             continue;
                         }
                     }
                     let probe_depth = (depth - reduce_by).max(1);
+                    if reduce_by > 0 {
+                        self.stats
+                            .borrow()
+                            .lmr_reductions
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
                     value = self.evaluate_action_with_chance(
                         state,
                         action,
@@ -1234,6 +1443,10 @@ impl AlphaBetaPlayer {
                         },
                     );
                     if use_pvs && value > alpha && value < beta {
+                        self.stats
+                            .borrow()
+                            .pvs_re_searches
+                            .fetch_add(1, Ordering::Relaxed);
                         value = self.evaluate_action_with_chance(
                             state,
                             action,
@@ -1255,6 +1468,32 @@ impl AlphaBetaPlayer {
                     beta = value;
                 }
                 if beta <= alpha {
+                    self.stats
+                        .borrow()
+                        .beta_cutoffs
+                        .fetch_add(1, Ordering::Relaxed);
+                    if idx == 0 {
+                        self.stats
+                            .borrow()
+                            .first_move_cutoffs
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
+                    self.stats
+                        .borrow()
+                        .total_cutoffs
+                        .fetch_add(1, Ordering::Relaxed);
+                    if self
+                        .killer_moves
+                        .borrow()
+                        .get(&depth)
+                        .map(|&(k1, k2)| k1 == Some(action) || k2 == Some(action))
+                        .unwrap_or(false)
+                    {
+                        self.stats
+                            .borrow()
+                            .killer_hits
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
                     self.record_killer(depth, Some(action));
                     self.bump_history(action, depth);
                     break;
@@ -1321,6 +1560,10 @@ impl BotPlayer for AlphaBetaPlayer {
 
         // Clear caches to prevent cross-game or cross-position pollution
         self.node_production_cache.borrow_mut().clear();
+        // Reset stats at root
+        if SEARCH_STATS_ENABLED {
+            self.stats.borrow().reset();
+        }
         // Reset killers at root and bump decide counter
         self.killer_moves.borrow_mut().clear();
         let prev_decides = self.decide_counter.get();
@@ -1429,15 +1672,48 @@ impl BotPlayer for AlphaBetaPlayer {
                 break;
             }
 
-            // Early stop if best move is stable
+            // Early stop if best move is stable (more lenient):
+            // require 3 consecutive stable picks and only allow after a minimum depth threshold
             if best_action == last_best {
                 stable_iterations += 1;
-                if stable_iterations >= 2 && current_depth >= 3 {
+                if stable_iterations >= 3 && current_depth >= MIN_EARLY_STOP_DEPTH {
                     break;
                 }
             } else {
                 stable_iterations = 0;
                 last_best = best_action;
+            }
+
+            // Track iteration completion/depth
+            if SEARCH_STATS_ENABLED {
+                if Instant::now() < deadline {
+                    self
+                        .stats
+                        .borrow()
+                        .completed_iterations
+                        .fetch_add(1, Ordering::Relaxed);
+                    self
+                        .stats
+                        .borrow()
+                        .max_depth_reached
+                        .store(current_depth as usize, Ordering::Relaxed);
+                    self
+                        .stats
+                        .borrow()
+                        .avg_depth_sum
+                        .fetch_add(current_depth as u64, Ordering::Relaxed);
+                    self
+                        .stats
+                        .borrow()
+                        .avg_depth_count
+                        .fetch_add(1, Ordering::Relaxed);
+                } else {
+                    self
+                        .stats
+                        .borrow()
+                        .timeout_exits
+                        .fetch_add(1, Ordering::Relaxed);
+                }
             }
         }
 
@@ -1447,6 +1723,12 @@ impl BotPlayer for AlphaBetaPlayer {
             for v in hist.values_mut() {
                 *v /= 2;
             }
+        }
+
+        // Report stats
+        if SEARCH_STATS_ENABLED {
+            eprintln!("{}", self.stats.borrow().report());
+            eprintln!("Selected: {:?} with value {:.2}", best_action, best_value);
         }
 
         // Restore previous logging level after search

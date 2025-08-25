@@ -29,19 +29,19 @@ pub struct ValueWeights {
 impl Default for ValueWeights {
     fn default() -> Self {
         Self {
-            public_vps: 3e14,
-            production: 1e8,
-            enemy_production: -1e8,
+            public_vps: 100.0,
+            production: 10.0,
+            enemy_production: -5.0,
             num_tiles: 1.0,
             reachable_production_0: 0.0,
-            reachable_production_1: 1e4,
-            buildable_nodes: 1e3,
-            longest_road: 10.0,
-            hand_synergy: 1e2,
-            hand_resources: 1.0,
+            reachable_production_1: 2.0,
+            buildable_nodes: 1.0,
+            longest_road: 3.0,
+            hand_synergy: 2.0,
+            hand_resources: 0.5,
             discard_penalty: -5.0,
-            hand_devs: 10.0,
-            army_size: 10.1,
+            hand_devs: 1.0,
+            army_size: 5.0,
         }
     }
 }
@@ -49,19 +49,19 @@ impl Default for ValueWeights {
 impl ValueWeights {
     pub fn contender() -> Self {
         Self {
-            public_vps: 300000000000001.94,
-            production: 100000002.04188395,
-            enemy_production: -99999998.03389844,
-            num_tiles: 2.91440418,
-            reachable_production_0: 2.03820085,
-            reachable_production_1: 10002.018773150001,
-            buildable_nodes: 1001.86278466,
-            longest_road: 12.1273885,
-            hand_synergy: 102.40606877,
-            hand_resources: 2.43644327,
-            discard_penalty: -3.00141993,
-            hand_devs: 10.7216698,
-            army_size: 12.93844622,
+            public_vps: 120.0,
+            production: 9.0,
+            enemy_production: -4.5,
+            num_tiles: 1.5,
+            reachable_production_0: 0.0,
+            reachable_production_1: 2.5,
+            buildable_nodes: 1.2,
+            longest_road: 4.0,
+            hand_synergy: 2.5,
+            hand_resources: 0.6,
+            discard_penalty: -5.0,
+            hand_devs: 1.2,
+            army_size: 6.0,
         }
     }
 }
