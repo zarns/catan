@@ -11,19 +11,82 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 const DEFAULT_DEPTH: i32 = 5; // revert to previous stable depth
-const MAX_ORDERED_ACTIONS: usize = 20; // revert beam
-const ROOT_MAX_ORDERED_ACTIONS: usize = 24; // revert root beam
+const MAX_ORDERED_ACTIONS: usize = 18; // slightly narrower beam for deeper search
+const ROOT_MAX_ORDERED_ACTIONS: usize = 20; // narrower root beam
 const PVS_EPS: f64 = 1e-6;
 const MIN_EARLY_STOP_DEPTH: i32 = 4; // do not early-stop before this depth
 const LMR_MIN_DEPTH: i32 = 3; // enable reductions a bit earlier
-const LMR_LATE_INDEX: usize = 4; // reduce moves after early ones
+const LMR_LATE_INDEX: usize = 3; // reduce moves after early ones
 const SHALLOW_EVAL_WEIGHT: f64 = 0.15; // improve ordering quality
-const HISTORY_WEIGHT: f64 = 0.002; // make history matter more
-const KILLER_BONUS: f64 = 150.0; // stronger killer preference
-const ASPIRATION_MIN_WINDOW: f64 = 35.0; // wider window to avoid re-search thrash
+const HISTORY_WEIGHT: f64 = 0.001; // soften history dominance
+const KILLER_BONUS: f64 = 80.0; // reduce killer dominance
+const ASPIRATION_MIN_WINDOW: f64 = 50.0; // widen to reduce re-search churn
 const DEPTH1_QUIET_CAP: usize = 10; // revert frontier cap
 const ENABLE_SEARCH_DEBUG: bool = false; // flip to true to emit debug logs
-const SEARCH_STATS_ENABLED: bool = true; // collect and print SearchStats when true
+const SEARCH_STATS_ENABLED: bool = false; // collect and print SearchStats when true
+
+// Hyperparameters (centralized)
+const FUTILITY_MARGIN_D1: f64 = 100.0;
+const FUTILITY_MARGIN_D2: f64 = 200.0;
+const QUIESCENCE_TACTICAL_CAP: usize = 6;
+const PVS_MIN_DEPTH: i32 = 3;
+
+// LMR coefficients
+const LMR_COEFF: f64 = 0.8;
+const LMR_DEEP_DEPTH_THRESHOLD: i32 = 6;
+const LMR_MAX_REDUCTION_DEFAULT: i32 = 2;
+const LMR_MAX_REDUCTION_DEEP: i32 = 3;
+
+// Longest road race heuristic thresholds
+const LONGEST_ROAD_MIN_MY: i32 = 4;
+const LONGEST_ROAD_OPP_LEEWAY: i32 = 1; // my >= max_opponent - leeway
+
+// Scoring weights and bases
+const SCORE_CITY_BASE_EARLY: i32 = 900;
+const SCORE_CITY_BASE_ENDGAME: i32 = 1200;
+const SCORE_CITY_PROD_WEIGHT: f64 = 10.0;
+
+const SCORE_SETTLEMENT_BASE_EARLY: i32 = 1000;
+const SCORE_SETTLEMENT_BASE_ENDGAME: i32 = 700;
+const SCORE_SETTLEMENT_PROD_WEIGHT: f64 = 15.0;
+const SCORE_SETTLEMENT_EXPANSION_PER_NODE: i32 = 20;
+const SCORE_SETTLEMENT_DEFENSIVE_BONUS: i32 = 150;
+
+const SCORE_ROAD_BASE: i32 = 200;
+const SCORE_ROAD_LONGEST_BONUS: i32 = 500;
+const SCORE_ROAD_EXPANSION_BONUS: i32 = 300;
+
+const SCORE_BUY_DEV_BASE: i32 = 250;
+const SCORE_BUY_DEV_SURPLUS_THRESHOLD: u8 = 5;
+const SCORE_BUY_DEV_SURPLUS_BONUS: i32 = 100;
+const SCORE_BUY_DEV_ARMY_BONUS: i32 = 50;
+
+const SCORE_PLAY_KNIGHT_BASE: i32 = 220;
+const SCORE_PLAY_KNIGHT_ARMY_BONUS: i32 = 300;
+
+const SCORE_PLAY_ROAD_BUILDING_BASE: i32 = 220;
+const SCORE_PLAY_YOP_BASE: i32 = 200;
+const SCORE_PLAY_MONOPOLY_BASE: i32 = 180;
+
+const SCORE_MARITIME_BUILD_BONUS: i32 = 500;
+const SCORE_MARITIME_BASE: i32 = 120;
+
+const SCORE_OFFER_TRADE: i32 = 60;
+const SCORE_ACCEPT_TRADE: i32 = 60;
+const SCORE_CONFIRM_TRADE: i32 = 60;
+const SCORE_REJECT_TRADE: i32 = 40;
+const SCORE_CANCEL_TRADE: i32 = 30;
+
+const SCORE_MOVE_ROBBER_BASE: i32 = 10;
+const SCORE_ROBBER_BLOCK_LEADER_LATE: i32 = 500; // leader_vps >= 8
+const SCORE_ROBBER_BLOCK_LEADER_EARLY: i32 = 200;
+const SCORE_ROBBER_BLOCK_OTHER: i32 = 50;
+const SCORE_ROBBER_IMPACT_SCALE: f64 = 100.0;
+
+const SCORE_MOVE_ROBBER_MIN: i32 = 5; // minimal when unspecified victim
+const SCORE_ROLL: i32 = 10;
+const SCORE_DISCARD: i32 = 0;
+const SCORE_END_TURN: i32 = 1;
 
 use super::BotPlayer;
 
@@ -533,8 +596,13 @@ impl AlphaBetaPlayer {
         }
         let d = depth as f64;
         let m = ((move_index + 1).max(1) as f64).ln();
-        let r = (0.8 * d.ln() * m).floor() as i32;
-        r.clamp(0, 2).min(depth - 1)
+        let mut r = (LMR_COEFF * d.ln() * m).floor() as i32;
+        if depth >= LMR_DEEP_DEPTH_THRESHOLD {
+            r = r.clamp(0, LMR_MAX_REDUCTION_DEEP);
+        } else {
+            r = r.clamp(0, LMR_MAX_REDUCTION_DEFAULT);
+        }
+        r.min(depth - 1)
     }
 
     fn quiescence_eval(&self, state: &State, my_color: u8) -> f64 {
@@ -560,7 +628,7 @@ impl AlphaBetaPlayer {
                 } => tactical.push(a),
                 _ => {}
             }
-            if tactical.len() >= 6 {
+            if tactical.len() >= QUIESCENCE_TACTICAL_CAP {
                 break;
             }
         }
@@ -598,31 +666,42 @@ impl AlphaBetaPlayer {
         let leader_vps = state.get_actual_victory_points(leader);
         match action {
             A::BuildCity { node_id, .. } => {
-                let base = if end_game { 1200 } else { 900 };
+                let base = if end_game {
+                    SCORE_CITY_BASE_ENDGAME
+                } else {
+                    SCORE_CITY_BASE_EARLY
+                };
                 let prod = self.estimate_node_production(state, node_id);
-                base + (prod * 10.0) as i32
+                base + (prod * SCORE_CITY_PROD_WEIGHT) as i32
             }
             A::BuildSettlement { node_id, .. } => {
-                let base = if end_game { 700 } else { 1000 };
+                let base = if end_game {
+                    SCORE_SETTLEMENT_BASE_ENDGAME
+                } else {
+                    SCORE_SETTLEMENT_BASE_EARLY
+                };
                 let prod = self.estimate_node_production(state, node_id);
-                let expansion_bonus = self.count_buildable_from_node(state, node_id) as i32 * 20;
+                let expansion_bonus = self.count_buildable_from_node(state, node_id) as i32
+                    * SCORE_SETTLEMENT_EXPANSION_PER_NODE;
                 let blocks_opponent = self.blocks_opponent_expansion(state, node_id);
                 let defensive_bonus = if blocks_opponent && !am_leader {
-                    150
+                    SCORE_SETTLEMENT_DEFENSIVE_BONUS
                 } else {
                     0
                 };
-                base + (prod * 15.0) as i32 + expansion_bonus + defensive_bonus
+                base + (prod * SCORE_SETTLEMENT_PROD_WEIGHT) as i32
+                    + expansion_bonus
+                    + defensive_bonus
             }
             A::BuildRoad { edge_id, .. } => {
-                let base = 200;
+                let base = SCORE_ROAD_BASE;
                 let longest_bonus = if self.in_longest_road_race(state, my_color) {
-                    500
+                    SCORE_ROAD_LONGEST_BONUS
                 } else {
                     0
                 };
                 let expansion_bonus = if self.opens_settlement_spot(state, edge_id) {
-                    300
+                    SCORE_ROAD_EXPANSION_BONUS
                 } else {
                     0
                 };
@@ -630,37 +709,41 @@ impl AlphaBetaPlayer {
             }
             A::BuyDevelopmentCard { .. } => {
                 let hand_size: u8 = state.get_player_hand(my_color).iter().copied().sum();
-                let surplus_bonus = if hand_size > 5 { 100 } else { 0 };
-                let army_bonus = if self.would_claim_largest_army(state, my_color) {
-                    50
+                let surplus_bonus = if hand_size > SCORE_BUY_DEV_SURPLUS_THRESHOLD {
+                    SCORE_BUY_DEV_SURPLUS_BONUS
                 } else {
                     0
                 };
-                250 + surplus_bonus + army_bonus
+                let army_bonus = if self.would_claim_largest_army(state, my_color) {
+                    SCORE_BUY_DEV_ARMY_BONUS
+                } else {
+                    0
+                };
+                SCORE_BUY_DEV_BASE + surplus_bonus + army_bonus
             }
             A::PlayKnight { .. } => {
                 let army_bonus = if self.would_claim_largest_army(state, my_color) {
-                    300
+                    SCORE_PLAY_KNIGHT_ARMY_BONUS
                 } else {
                     0
                 };
-                220 + army_bonus
+                SCORE_PLAY_KNIGHT_BASE + army_bonus
             }
-            A::PlayRoadBuilding { .. } => 220,
-            A::PlayYearOfPlenty { .. } => 200,
-            A::PlayMonopoly { .. } => 180,
+            A::PlayRoadBuilding { .. } => SCORE_PLAY_ROAD_BUILDING_BASE,
+            A::PlayYearOfPlenty { .. } => SCORE_PLAY_YOP_BASE,
+            A::PlayMonopoly { .. } => SCORE_PLAY_MONOPOLY_BASE,
             A::MaritimeTrade { .. } => {
                 if self.one_resource_from_building(state, my_color) {
-                    500
+                    SCORE_MARITIME_BUILD_BONUS
                 } else {
-                    120
+                    SCORE_MARITIME_BASE
                 }
             }
-            A::OfferTrade { .. } => 60,
-            A::AcceptTrade { .. } => 60,
-            A::ConfirmTrade { .. } => 60,
-            A::RejectTrade { .. } => 40,
-            A::CancelTrade { .. } => 30,
+            A::OfferTrade { .. } => SCORE_OFFER_TRADE,
+            A::AcceptTrade { .. } => SCORE_ACCEPT_TRADE,
+            A::ConfirmTrade { .. } => SCORE_CONFIRM_TRADE,
+            A::RejectTrade { .. } => SCORE_REJECT_TRADE,
+            A::CancelTrade { .. } => SCORE_CANCEL_TRADE,
             A::MoveRobber {
                 coordinate,
                 victim_opt: Some(victim),
@@ -668,18 +751,20 @@ impl AlphaBetaPlayer {
             } => {
                 let impact = self.estimate_robber_impact(state, coordinate, victim);
                 let leader_block_bonus = if victim == leader && leader_vps >= 8 {
-                    500
+                    SCORE_ROBBER_BLOCK_LEADER_LATE
                 } else if victim == leader {
-                    200
+                    SCORE_ROBBER_BLOCK_LEADER_EARLY
                 } else {
-                    50
+                    SCORE_ROBBER_BLOCK_OTHER
                 };
-                10 + leader_block_bonus + (impact * 100.0) as i32
+                SCORE_MOVE_ROBBER_BASE
+                    + leader_block_bonus
+                    + (impact * SCORE_ROBBER_IMPACT_SCALE) as i32
             }
-            A::MoveRobber { .. } => 5,
-            A::Roll { .. } => 10,
-            A::Discard { .. } => 0,
-            A::EndTurn { .. } => 1,
+            A::MoveRobber { .. } => SCORE_MOVE_ROBBER_MIN,
+            A::Roll { .. } => SCORE_ROLL,
+            A::Discard { .. } => SCORE_DISCARD,
+            A::EndTurn { .. } => SCORE_END_TURN,
         }
     }
 
@@ -732,7 +817,7 @@ impl AlphaBetaPlayer {
                 max_opponent = r as i32;
             }
         }
-        my >= 4 && my >= max_opponent - 1
+        my >= LONGEST_ROAD_MIN_MY && my >= max_opponent - LONGEST_ROAD_OPP_LEEWAY
     }
 
     fn opens_settlement_spot(&self, state: &State, edge_id: EdgeId) -> bool {
@@ -1236,8 +1321,9 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    // PVS null-window probe with guard for valid finite window
-                    let use_pvs = alpha.is_finite()
+                    // PVS null-window probe with guard for valid finite window and sufficient depth
+                    let use_pvs = depth >= PVS_MIN_DEPTH
+                        && alpha.is_finite()
                         && beta.is_finite()
                         && (alpha + PVS_EPS) < beta
                         && (beta - alpha) > PVS_EPS;
@@ -1263,7 +1349,11 @@ impl AlphaBetaPlayer {
                     // Futility pruning at shallow depths for quiet moves (maximizing)
                     if depth <= 2 && self.is_quiet_move(action) {
                         let eval = self.evaluate_relative(state, my_color);
-                        let margin = if depth == 1 { 100.0 } else { 200.0 };
+                        let margin = if depth == 1 {
+                            FUTILITY_MARGIN_D1
+                        } else {
+                            FUTILITY_MARGIN_D2
+                        };
                         if eval + margin < alpha {
                             self.stats
                                 .borrow()
@@ -1389,7 +1479,8 @@ impl AlphaBetaPlayer {
                         },
                     );
                 } else {
-                    let use_pvs = alpha.is_finite()
+                    let use_pvs = depth >= PVS_MIN_DEPTH
+                        && alpha.is_finite()
                         && beta.is_finite()
                         && (alpha + PVS_EPS) < beta
                         && (beta - alpha) > PVS_EPS;
@@ -1415,7 +1506,11 @@ impl AlphaBetaPlayer {
                     // Futility pruning at shallow depths for quiet moves (minimizing)
                     if depth <= 2 && self.is_quiet_move(action) {
                         let eval = self.evaluate_relative(state, my_color);
-                        let margin = if depth == 1 { 100.0 } else { 200.0 };
+                        let margin = if depth == 1 {
+                            FUTILITY_MARGIN_D1
+                        } else {
+                            FUTILITY_MARGIN_D2
+                        };
                         if eval - margin > beta {
                             self.stats
                                 .borrow()
@@ -1687,29 +1782,24 @@ impl BotPlayer for AlphaBetaPlayer {
             // Track iteration completion/depth
             if SEARCH_STATS_ENABLED {
                 if Instant::now() < deadline {
-                    self
-                        .stats
+                    self.stats
                         .borrow()
                         .completed_iterations
                         .fetch_add(1, Ordering::Relaxed);
-                    self
-                        .stats
+                    self.stats
                         .borrow()
                         .max_depth_reached
                         .store(current_depth as usize, Ordering::Relaxed);
-                    self
-                        .stats
+                    self.stats
                         .borrow()
                         .avg_depth_sum
                         .fetch_add(current_depth as u64, Ordering::Relaxed);
-                    self
-                        .stats
+                    self.stats
                         .borrow()
                         .avg_depth_count
                         .fetch_add(1, Ordering::Relaxed);
                 } else {
-                    self
-                        .stats
+                    self.stats
                         .borrow()
                         .timeout_exits
                         .fetch_add(1, Ordering::Relaxed);
@@ -1717,8 +1807,8 @@ impl BotPlayer for AlphaBetaPlayer {
             }
         }
 
-        // Periodic history decay to avoid stale biases (every 10 decisions)
-        if self.decide_counter.get() % 10 == 0 && !self.history_scores.borrow().is_empty() {
+        // Periodic history decay to avoid stale biases (every 5 decisions)
+        if self.decide_counter.get() % 5 == 0 && !self.history_scores.borrow().is_empty() {
             let mut hist = self.history_scores.borrow_mut();
             for v in hist.values_mut() {
                 *v /= 2;
