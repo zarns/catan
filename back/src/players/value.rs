@@ -29,26 +29,6 @@ pub struct ValueWeights {
 impl Default for ValueWeights {
     fn default() -> Self {
         Self {
-            public_vps: 100.0,
-            production: 10.0,
-            enemy_production: -5.0,
-            num_tiles: 1.0,
-            reachable_production_0: 0.0,
-            reachable_production_1: 2.0,
-            buildable_nodes: 1.0,
-            longest_road: 3.0,
-            hand_synergy: 2.0,
-            hand_resources: 0.5,
-            discard_penalty: -5.0,
-            hand_devs: 1.0,
-            army_size: 5.0,
-        }
-    }
-}
-
-impl ValueWeights {
-    pub fn contender() -> Self {
-        Self {
             public_vps: 120.0,
             production: 9.0,
             enemy_production: -4.5,
@@ -65,6 +45,8 @@ impl ValueWeights {
         }
     }
 }
+
+impl ValueWeights {}
 
 #[derive(Debug, Clone)]
 pub struct ValueFunctionPlayer {
