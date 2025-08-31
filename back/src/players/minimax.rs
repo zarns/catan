@@ -10,29 +10,29 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::time::Instant;
 
-const DEFAULT_DEPTH: i32 = 5; // revert to previous stable depth
-const MAX_ORDERED_ACTIONS: usize = 18; // slightly narrower beam for deeper search
+const DEFAULT_DEPTH: i32 = 6; // revert to previous stable depth
+const MAX_ORDERED_ACTIONS: usize = 24; // slightly narrower beam for deeper search
 const ROOT_MAX_ORDERED_ACTIONS: usize = 20; // narrower root beam
 const PVS_EPS: f64 = 1e-6;
 const MIN_EARLY_STOP_DEPTH: i32 = 4; // do not early-stop before this depth
-const LMR_MIN_DEPTH: i32 = 3; // enable reductions a bit earlier
-const LMR_LATE_INDEX: usize = 3; // reduce moves after early ones
+const LMR_MIN_DEPTH: i32 = 2; // enable reductions a bit earlier
+const LMR_LATE_INDEX: usize = 1; // reduce moves after early ones
 const SHALLOW_EVAL_WEIGHT: f64 = 0.15; // improve ordering quality
 const HISTORY_WEIGHT: f64 = 0.001; // soften history dominance
 const KILLER_BONUS: f64 = 80.0; // reduce killer dominance
 const ASPIRATION_MIN_WINDOW: f64 = 50.0; // widen to reduce re-search churn
 const DEPTH1_QUIET_CAP: usize = 10; // revert frontier cap
 const ENABLE_SEARCH_DEBUG: bool = false; // flip to true to emit debug logs
-const SEARCH_STATS_ENABLED: bool = false; // collect and print SearchStats when true
+const SEARCH_STATS_ENABLED: bool = true; // collect and print SearchStats when true
 
 // Hyperparameters (centralized)
-const FUTILITY_MARGIN_D1: f64 = 100.0;
-const FUTILITY_MARGIN_D2: f64 = 200.0;
-const QUIESCENCE_TACTICAL_CAP: usize = 6;
+const FUTILITY_MARGIN_D1: f64 = 150.0;
+const FUTILITY_MARGIN_D2: f64 = 300.0;
+const QUIESCENCE_TACTICAL_CAP: usize = 10;
 const PVS_MIN_DEPTH: i32 = 3;
 
 // LMR coefficients
-const LMR_COEFF: f64 = 0.8;
+const LMR_COEFF: f64 = 1.2;
 const LMR_DEEP_DEPTH_THRESHOLD: i32 = 6;
 const LMR_MAX_REDUCTION_DEFAULT: i32 = 2;
 const LMR_MAX_REDUCTION_DEEP: i32 = 3;
