@@ -329,6 +329,14 @@ impl State {
         &self.roads_by_color
     }
 
+    /// Returns a list of canonical road edges owned by the given color
+    pub fn get_roads_for_color(&self, color: u8) -> Vec<EdgeId> {
+        self.roads
+            .iter()
+            .filter_map(|(&edge, &owner)| if owner == color { Some(edge) } else { None })
+            .collect()
+    }
+
     /// Debug method to log current victory points for all players
     /// Call this occasionally to track VP progression
     pub fn log_victory_points(&self) {
@@ -602,6 +610,15 @@ impl State {
 
     pub fn get_last_dice_roll(&self) -> Option<(u8, u8)> {
         self.last_dice_roll
+    }
+
+    // Expose special awards for hashing and diagnostics
+    pub fn get_longest_road_color(&self) -> Option<u8> {
+        self.longest_road_color
+    }
+
+    pub fn get_largest_army_color(&self) -> Option<u8> {
+        self.largest_army_color
     }
 
     /// Compute a stable 64-bit hash of the full public state vector.

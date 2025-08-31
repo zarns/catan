@@ -7,6 +7,8 @@ use crate::enums::Action;
 use crate::map_instance::{EdgeId, NodeId};
 use crate::state::State;
 use rand::Rng;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -90,12 +92,227 @@ const SCORE_END_TURN: i32 = 1;
 
 use super::BotPlayer;
 
+/// Zobrist hashing keys for fast and reliable position identification
+struct ZobristKeys {
+    settlements: [[u64; 54]; 4],           // [player][node_id]
+    cities: [[u64; 54]; 4],                // [player][node_id]
+    roads: [[u64; 72]; 4],                 // [player][edge_index]
+    player_resources: [[[u64; 20]; 5]; 4], // [player][resource_type][amount]
+    dev_cards_hand: [[[u64; 10]; 5]; 4],   // [player][card_type][count]
+    dev_cards_played: [[[u64; 10]; 5]; 4], // [player][card_type][count]
+    robber_position: [u64; 19],            // [tile_id]
+    longest_road: [u64; 5],                // [player_with_longest_road or 4 for none]
+    largest_army: [u64; 5],                // [player_with_largest_army or 4 for none]
+    current_player: [u64; 4],
+    tick_seat: [u64; 4],
+    has_rolled: u64,
+    is_moving_robber: u64,
+    is_discarding: u64,
+
+    // Edge index mapping to avoid collisions: (min_node,max_node) -> index 0..N-1
+    edge_index: std::cell::RefCell<Option<HashMap<EdgeId, usize>>>,
+}
+
+impl ZobristKeys {
+    fn new() -> Self {
+        let mut rng = XorShiftRng::seed_from_u64(0x1337BEEF);
+
+        let mut keys = ZobristKeys {
+            settlements: [[0; 54]; 4],
+            cities: [[0; 54]; 4],
+            roads: [[0; 72]; 4],
+            player_resources: [[[0; 20]; 5]; 4],
+            dev_cards_hand: [[[0; 10]; 5]; 4],
+            dev_cards_played: [[[0; 10]; 5]; 4],
+            robber_position: [0; 19],
+            longest_road: [0; 5],
+            largest_army: [0; 5],
+            current_player: [0; 4],
+            tick_seat: [0; 4],
+            has_rolled: rng.gen(),
+            is_moving_robber: rng.gen(),
+            is_discarding: rng.gen(),
+            edge_index: std::cell::RefCell::new(None),
+        };
+
+        for p in 0..4 {
+            for n in 0..54 {
+                keys.settlements[p][n] = rng.gen();
+                keys.cities[p][n] = rng.gen();
+            }
+            for e in 0..72 {
+                keys.roads[p][e] = rng.gen();
+            }
+            for r in 0..5 {
+                for amt in 0..20 {
+                    keys.player_resources[p][r][amt] = rng.gen();
+                }
+                for cnt in 0..10 {
+                    keys.dev_cards_hand[p][r][cnt] = rng.gen();
+                    keys.dev_cards_played[p][r][cnt] = rng.gen();
+                }
+            }
+            keys.current_player[p] = rng.gen();
+            keys.tick_seat[p] = rng.gen();
+        }
+
+        for t in 0..19 {
+            keys.robber_position[t] = rng.gen();
+        }
+
+        for i in 0..5 {
+            keys.longest_road[i] = rng.gen();
+            keys.largest_army[i] = rng.gen();
+        }
+
+        keys
+    }
+
+    fn compute_hash(&self, state: &State) -> u64 {
+        let mut hash = 0u64;
+
+        // Current player
+        hash ^= self.current_player[state.get_current_color() as usize];
+        // Current tick seat (position in seating order)
+        let seat = state.get_current_tick_seat() as usize;
+        if seat < 4 {
+            hash ^= self.tick_seat[seat];
+        }
+
+        let num_players = state.get_num_players();
+        for p in 0..num_players {
+            // Settlements
+            for building in state.get_settlements(p) {
+                if let crate::state::Building::Settlement(_, node) = building {
+                    if (node as usize) < 54 {
+                        hash ^= self.settlements[p as usize][node as usize];
+                    }
+                }
+            }
+            // Cities
+            for building in state.get_cities(p) {
+                if let crate::state::Building::City(_, node) = building {
+                    if (node as usize) < 54 {
+                        hash ^= self.cities[p as usize][node as usize];
+                    }
+                }
+            }
+            // Roads: iterate via neighbor edges to avoid allocations, but dedup with owner's color
+            // Safer option: iterate over all roads map via new iterator (future improvement).
+            for edge in state.get_roads_for_color(p) {
+                let idx = self.edge_to_index(state, edge);
+                if idx < 72 {
+                    hash ^= self.roads[p as usize][idx];
+                }
+            }
+            // Resources in hand
+            let hand = state.get_player_hand(p);
+            for (res_idx, &amount) in hand.iter().enumerate() {
+                if res_idx < 5 && (amount as usize) < 20 {
+                    hash ^= self.player_resources[p as usize][res_idx][amount as usize];
+                }
+            }
+            // Dev cards in hand
+            let dev_hand = state.get_player_devhand(p);
+            for (card_idx, &count) in dev_hand.iter().enumerate() {
+                if card_idx < 5 && (count as usize) < 10 {
+                    hash ^= self.dev_cards_hand[p as usize][card_idx][count as usize];
+                }
+            }
+            // Played dev cards (Victory Points are not "played", so only 4 types)
+            for card_idx in 0..4 {
+                let played = state.get_played_dev_card_count(p, card_idx);
+                if (played as usize) < 10 {
+                    hash ^= self.dev_cards_played[p as usize][card_idx][played as usize];
+                }
+            }
+        }
+
+        // Robber
+        let robber_tile = state.get_robber_tile() as usize;
+        if robber_tile < 19 {
+            hash ^= self.robber_position[robber_tile];
+        }
+        // Phase flags
+        if state.current_player_rolled() {
+            hash ^= self.has_rolled;
+        }
+        if state.is_moving_robber() {
+            hash ^= self.is_moving_robber;
+        }
+        if state.is_discarding() {
+            hash ^= self.is_discarding;
+        }
+
+        // Initial placement phase flag
+        if state.is_initial_build_phase() {
+            // Reuse one of the award keys to avoid adding another scalar; robust enough
+            hash ^= self.longest_road[4];
+        }
+
+        // Second round of initial placement (if detectable)
+        if state.is_initial_build_phase() {
+            let (_total_settlements, _total_roads, phase1_complete, _phase2_complete) =
+                state.get_initial_placement_progress();
+            if phase1_complete {
+                // Use a distinct key position for phase two marker
+                hash ^= self.largest_army[4];
+            }
+        }
+
+        // Longest Road holder (or none=4)
+        let lr_idx = state
+            .get_longest_road_color()
+            .map(|c| c as usize)
+            .unwrap_or(4);
+        hash ^= self.longest_road[lr_idx];
+
+        // Largest Army holder (or none=4)
+        let la_idx = state
+            .get_largest_army_color()
+            .map(|c| c as usize)
+            .unwrap_or(4);
+        hash ^= self.largest_army[la_idx];
+
+        hash
+    }
+
+    fn edge_to_index(&self, state: &State, edge: EdgeId) -> usize {
+        // Bijective mapping using the actual board's land_edges set
+        if self.edge_index.borrow().is_none() {
+            let mut map: HashMap<EdgeId, usize> = HashMap::new();
+            let mut edges: Vec<EdgeId> = state
+                .get_map_instance()
+                .land_edges
+                .iter()
+                .copied()
+                .collect();
+            // Canonicalize and sort for determinism
+            for e in edges.iter_mut() {
+                let (a, b) = *e;
+                *e = (a.min(b), a.max(b));
+            }
+            edges.sort_unstable();
+            for (i, e) in edges.into_iter().enumerate() {
+                map.insert(e, i);
+            }
+            *self.edge_index.borrow_mut() = Some(map);
+        }
+        let (a, b) = edge;
+        let canon = (a.min(b), a.max(b));
+        if let Some(idx) = self.edge_index.borrow().as_ref().unwrap().get(&canon) {
+            *idx % 72
+        } else {
+            0
+        }
+    }
+}
+
 /// Alpha-Beta Minimax Player
 /// Uses the minimax algorithm to choose actions
 // Type aliases to simplify complex types
 type TtKey = u64;
-type TtVerifier = (u8, u16, u16); // (current_color, dev_deck_sum, roads_sum)
-type TtEntry = (f64, i8, Option<Action>, i32, TtVerifier); // (value, flag, best_move, depth, verifier)
+type TtEntry = (f64, i8, Option<Action>, i32, u32); // (value, flag, best_move, depth, generation)
 type TtMap = HashMap<TtKey, TtEntry>;
 type KillerPair = (Option<Action>, Option<Action>);
 type KillerMap = HashMap<i32, KillerPair>;
@@ -232,13 +449,16 @@ pub struct AlphaBetaPlayer {
     depth: i32,
     time_profile: SearchTimeProfile,
     weights: ValueWeights,
-    tt: std::cell::RefCell<TtMap>, // (hash, depth) -> (value, flag: -1=alpha, 0=exact, 1=beta, best_move)
+    tt: std::cell::RefCell<TtMap>, // zobrist -> (value, flag, best_move, depth, generation)
+    tt_alt: std::cell::RefCell<TtMap>, // small always-replace table
+    tt_generation: std::cell::Cell<u32>,
     epsilon: Option<f64>,
     killer_moves: std::cell::RefCell<KillerMap>, // depth -> (killer1, killer2)
     history_scores: std::cell::RefCell<HistoryMap>, // action -> score
     node_production_cache: std::cell::RefCell<HashMap<NodeId, f64>>,
     decide_counter: std::cell::Cell<usize>,
     stats: std::cell::RefCell<SearchStats>,
+    zobrist: ZobristKeys,
 }
 
 #[derive(Clone, Copy)]
@@ -280,13 +500,16 @@ impl AlphaBetaPlayer {
             depth: DEFAULT_DEPTH,
             time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::default(),
-            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 22)),
+            tt_alt: std::cell::RefCell::new(HashMap::with_capacity(1 << 20)),
+            tt_generation: std::cell::Cell::new(0),
             epsilon: None,
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
             stats: std::cell::RefCell::new(SearchStats::new()),
+            zobrist: ZobristKeys::new(),
         }
     }
 
@@ -298,13 +521,16 @@ impl AlphaBetaPlayer {
             depth,
             time_profile: SearchTimeProfile::DEEP,
             weights: ValueWeights::default(),
-            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 22)),
+            tt_alt: std::cell::RefCell::new(HashMap::with_capacity(1 << 20)),
+            tt_generation: std::cell::Cell::new(0),
             epsilon: None,
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
             stats: std::cell::RefCell::new(SearchStats::new()),
+            zobrist: ZobristKeys::new(),
         }
     }
 
@@ -328,13 +554,16 @@ impl AlphaBetaPlayer {
                 slow_branch_threshold: 14,
             },
             weights,
-            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 18)),
+            tt: std::cell::RefCell::new(HashMap::with_capacity(1 << 22)),
+            tt_alt: std::cell::RefCell::new(HashMap::with_capacity(1 << 20)),
+            tt_generation: std::cell::Cell::new(0),
             epsilon,
             killer_moves: std::cell::RefCell::new(HashMap::with_capacity(512)),
             history_scores: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             node_production_cache: std::cell::RefCell::new(HashMap::with_capacity(1024)),
             decide_counter: std::cell::Cell::new(0),
             stats: std::cell::RefCell::new(SearchStats::new()),
+            zobrist: ZobristKeys::new(),
         }
     }
 
@@ -1164,49 +1393,77 @@ impl AlphaBetaPlayer {
             .borrow()
             .nodes_searched
             .fetch_add(1, Ordering::Relaxed);
-        // Transposition lookup (with verification)
-        let state_hash = state.compute_hash64();
-        let verifier_now = self.tt_verifier(state);
+        // Transposition lookup with Zobrist hash
+        let state_hash = self.compute_zobrist_hash(state);
+        let generation_now = self.tt_generation.get();
         let mut tt_move: Option<Action> = None;
-        if let Some(&(v, flag, best_mv, entry_depth, ver)) = self.tt.borrow().get(&state_hash) {
-            if ver == verifier_now {
-                self.stats.borrow().tt_hits.fetch_add(1, Ordering::Relaxed);
-                tt_move = best_mv;
-                if entry_depth >= depth {
-                    match flag {
-                        0 => {
+        if let Some(&(v, flag, best_mv, entry_depth, _gen)) = self.tt.borrow().get(&state_hash) {
+            self.stats.borrow().tt_hits.fetch_add(1, Ordering::Relaxed);
+            tt_move = best_mv;
+            if entry_depth >= depth {
+                match flag {
+                    0 => {
+                        self.stats
+                            .borrow()
+                            .tt_cutoffs
+                            .fetch_add(1, Ordering::Relaxed);
+                        return v;
+                    }
+                    -1 => {
+                        if v <= alpha {
                             self.stats
                                 .borrow()
                                 .tt_cutoffs
                                 .fetch_add(1, Ordering::Relaxed);
                             return v;
                         }
-                        -1 => {
-                            if v <= alpha {
-                                self.stats
-                                    .borrow()
-                                    .tt_cutoffs
-                                    .fetch_add(1, Ordering::Relaxed);
-                                return v;
-                            }
-                        }
-                        1 => {
-                            if v >= beta {
-                                self.stats
-                                    .borrow()
-                                    .tt_cutoffs
-                                    .fetch_add(1, Ordering::Relaxed);
-                                return v;
-                            }
-                        }
-                        _ => {}
                     }
+                    1 => {
+                        if v >= beta {
+                            self.stats
+                                .borrow()
+                                .tt_cutoffs
+                                .fetch_add(1, Ordering::Relaxed);
+                            return v;
+                        }
+                    }
+                    _ => {}
                 }
-            } else {
-                self.stats
-                    .borrow()
-                    .tt_misses
-                    .fetch_add(1, Ordering::Relaxed);
+            }
+        } else if let Some(&(v, flag, best_mv, entry_depth, _gen)) =
+            self.tt_alt.borrow().get(&state_hash)
+        {
+            self.stats.borrow().tt_hits.fetch_add(1, Ordering::Relaxed);
+            tt_move = best_mv;
+            if entry_depth >= depth {
+                match flag {
+                    0 => {
+                        self.stats
+                            .borrow()
+                            .tt_cutoffs
+                            .fetch_add(1, Ordering::Relaxed);
+                        return v;
+                    }
+                    -1 => {
+                        if v <= alpha {
+                            self.stats
+                                .borrow()
+                                .tt_cutoffs
+                                .fetch_add(1, Ordering::Relaxed);
+                            return v;
+                        }
+                    }
+                    1 => {
+                        if v >= beta {
+                            self.stats
+                                .borrow()
+                                .tt_cutoffs
+                                .fetch_add(1, Ordering::Relaxed);
+                            return v;
+                        }
+                    }
+                    _ => {}
+                }
             }
         } else {
             self.stats
@@ -1451,14 +1708,22 @@ impl AlphaBetaPlayer {
             } else {
                 0
             };
-            // Depth-preferred replacement
+            // Depth-preferred replacement with aging and secondary table
             let mut tt = self.tt.borrow_mut();
             let replace = match tt.get(&state_hash) {
-                Some(&(_, _, _, d, _)) => depth >= d,
+                Some(&(_, _, _, d, g)) => depth > d || (depth == d && g < generation_now),
                 None => true,
             };
             if replace {
-                tt.insert(state_hash, (best_value, flag, best_mv, depth, verifier_now));
+                tt.insert(
+                    state_hash,
+                    (best_value, flag, best_mv, depth, generation_now),
+                );
+            } else {
+                self.tt_alt.borrow_mut().insert(
+                    state_hash,
+                    (best_value, flag, best_mv, depth, generation_now),
+                );
             }
             best_value
         } else {
@@ -1608,11 +1873,19 @@ impl AlphaBetaPlayer {
             };
             let mut tt = self.tt.borrow_mut();
             let replace = match tt.get(&state_hash) {
-                Some(&(_, _, _, d, _)) => depth >= d,
+                Some(&(_, _, _, d, g)) => depth > d || (depth == d && g < generation_now),
                 None => true,
             };
             if replace {
-                tt.insert(state_hash, (best_value, flag, best_mv, depth, verifier_now));
+                tt.insert(
+                    state_hash,
+                    (best_value, flag, best_mv, depth, generation_now),
+                );
+            } else {
+                self.tt_alt.borrow_mut().insert(
+                    state_hash,
+                    (best_value, flag, best_mv, depth, generation_now),
+                );
             }
             best_value
         }
@@ -1663,6 +1936,9 @@ impl BotPlayer for AlphaBetaPlayer {
         self.killer_moves.borrow_mut().clear();
         let prev_decides = self.decide_counter.get();
         self.decide_counter.set(prev_decides.wrapping_add(1));
+        // Increment TT generation per root decision
+        let next_generation = self.tt_generation.get().wrapping_add(1);
+        self.tt_generation.set(next_generation);
 
         // Optional epsilon-greedy exploration at root
         if let Some(eps) = self.epsilon {
@@ -1841,14 +2117,7 @@ impl Default for AlphaBetaPlayer {
 
 impl AlphaBetaPlayer {
     #[inline]
-    fn tt_verifier(&self, state: &State) -> TtVerifier {
-        let side = state.get_current_color();
-        let dev_sum: u16 = state
-            .get_remaining_dev_counts()
-            .iter()
-            .map(|&c| c as u16)
-            .sum();
-        let roads_sum: u16 = state.get_roads_by_color().iter().map(|&r| r as u16).sum();
-        (side, dev_sum, roads_sum)
+    fn compute_zobrist_hash(&self, state: &State) -> u64 {
+        self.zobrist.compute_hash(state)
     }
 }
