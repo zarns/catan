@@ -40,6 +40,8 @@ pub struct AlphaZeroPlayer {
     net: Box<dyn PolicyValueNet>,
     // Persistent search tree reused between moves
     tree: RefCell<Option<SearchTree>>,
+    // Last root policy as normalized visit counts for training collection
+    last_root_policy: RefCell<Vec<(Action, f32)>>,
 }
 
 impl AlphaZeroPlayer {
@@ -58,6 +60,7 @@ impl AlphaZeroPlayer {
             tt: RefCell::new(HashMap::new()),
             net,
             tree: RefCell::new(None),
+            last_root_policy: RefCell::new(Vec::new()),
         }
     }
 
@@ -82,6 +85,7 @@ impl AlphaZeroPlayer {
             tt: RefCell::new(HashMap::new()),
             net,
             tree: RefCell::new(None),
+            last_root_policy: RefCell::new(Vec::new()),
         }
     }
 
@@ -202,7 +206,30 @@ impl AlphaZeroPlayer {
             .net
             .infer_policy_value(&node.state, &node.untried_actions);
         if !pv.priors.is_empty() {
-            node.priors = pv.priors.into_iter().map(|(a, p)| (a, p as f64)).collect();
+            // If priors look uniform (stub net), blend with heuristic to inject information.
+            let mut prior_map: HashMap<Action, f64> = pv
+                .priors
+                .iter()
+                .map(|(a, p)| (*a, *p as f64))
+                .collect();
+            let is_uniform = {
+                let vals: Vec<f64> = prior_map.values().copied().collect();
+                if vals.is_empty() {
+                    false
+                } else {
+                    let first = vals[0];
+                    vals.iter().all(|&v| (v - first).abs() < 1e-6)
+                }
+            };
+            if is_uniform {
+                let heur = self.predict_priors_heuristic(&node.state, &node.untried_actions);
+                for (a, hp) in heur {
+                    if let Some(p) = prior_map.get_mut(&a) {
+                        *p = 0.5 * (*p) + 0.5 * hp;
+                    }
+                }
+            }
+            node.priors = prior_map;
             return;
         }
         // Predict priors for unexpanded actions via heuristic
@@ -463,6 +490,37 @@ impl AlphaZeroPlayer {
             (best_child, best_visits)
         };
 
+        // Capture normalized visit counts at the root for training before re-rooting
+        {
+            let st = self.tree.borrow();
+            let t = st.as_ref().unwrap();
+            let root_idx = t.root;
+            let children = &t.nodes[root_idx].children;
+            let mut visits_sum: f32 = 0.0;
+            let mut tmp: Vec<(Action, f32)> = Vec::with_capacity(children.len());
+            for &child_idx in children {
+                let v = t.nodes[child_idx].visits as f32;
+                let a = t.nodes[child_idx]
+                    .action_from_parent
+                    .expect("Child should have an action");
+                tmp.push((a, v));
+                visits_sum += v;
+            }
+            if visits_sum > 0.0 {
+                for (_a, v) in tmp.iter_mut() {
+                    *v /= visits_sum;
+                }
+            } else if !tmp.is_empty() {
+                let p = 1.0f32 / (tmp.len() as f32);
+                for (_a, v) in tmp.iter_mut() {
+                    *v = p;
+                }
+            }
+            if let Ok(mut slot) = self.last_root_policy.try_borrow_mut() {
+                *slot = tmp;
+            }
+        }
+
         // Re-root for next move
         {
             let mut b = self.tree.borrow_mut();
@@ -473,6 +531,16 @@ impl AlphaZeroPlayer {
         self.tree.borrow().as_ref().unwrap().nodes[best_child]
             .action_from_parent
             .expect("Child should have an action")
+    }
+
+    /// Retrieve and clear the last recorded root policy (visit-count distribution).
+    pub fn take_last_policy(&self) -> Vec<(Action, f32)> {
+        if let Ok(mut slot) = self.last_root_policy.try_borrow_mut() {
+            let out = slot.clone();
+            slot.clear();
+            return out;
+        }
+        Vec::new()
     }
 }
 

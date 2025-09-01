@@ -26,13 +26,23 @@ Build an AlphaZero-style AI for simplified Catan (open hands, no trading) using 
 - Integrated into `simulate.rs` and verified end-to-end play
 - Initial result vs ValueFunction (VZ, n=1): AlphaZero loses; avg 185 turns; ~3.06s/game
 - Added time-bounded search and short playout caps for responsiveness
- - Added smart rollout policy (60/30/10) and deterministic seeding per move
- - Introduced PUCT selection with heuristic priors (net-ready seam), and a tiny TT accumulator
+- Added smart rollout policy (60/30/10) and deterministic seeding per move
+- Introduced PUCT selection with heuristic priors (net-ready seam), and a tiny TT accumulator
+- Increased default search budget: `ALPHAZERO_DEFAULT_SIMULATIONS = 400`, `MCTS_DECIDE_TIME_BUDGET_MS = 500`
+- Added NN scaffolding under `back/src/players/nn/`:
+  - `types.rs` (trait + structs), `noop_impl.rs`, `candle_impl.rs` (device auto-select),
+  - `encoder.rs` with `encode_state_tensor()` stub returning [23,7,7] zeros (CHW) and legal action indexer
+- Wired NN priors path in `zero.rs` to call `PolicyValueNet` (falls back to heuristic if empty)
+ - Added training binary stub `back/src/bin/train.rs` and registered in Cargo; roadmap step for fleshing self-play & training loop
 
 ### Next Immediate Targets
 - Reuse search tree between moves (re-rooting); bootstrap children with TT stats
 - Add basic determinism tests and per-move time budget enforcement tests
-- Prepare Candle integration behind feature flag (`candle`) with stub `AlphaZeroNet`
+- Implement real encoder features (player-relative channels, dice/robber/ports, roads/settlements/cities)
+- Implement minimal ResNet in Candle with GroupNorm and dual heads
+- Masked softmax for policy in fp32; map logits to legal actions via indexer
+- Add loader for `back/models/latest.safetensors`; replace uniform priors with net outputs
+ - Flesh out `train.rs`: self-play collection, replay buffer, losses (CE+0.5*MSE+L2), AdamW, checkpointing
   
 ## Phase 1 – MCTS Foundation (No NN)
 **Goal:** Beat RandomPlayer >80%, approach GreedyPlayer performance

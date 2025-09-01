@@ -37,8 +37,8 @@ async-trait = "0.1"
 
 # CLI tools
 clap = { version = "4.5", features = ["derive"] }
-candle-core = "0.9.1"
-candle-nn = "0.9.1"
+candle-core = { version = "0.9.1", features = ["cuda"] }
+candle-nn = { version = "0.9.1", features = ["cuda"] }
 
 [[bin]]
 name = "simulate"
