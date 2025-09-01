@@ -1,116 +1,358 @@
-# Superhuman Catan AI – Development Roadmap
+# AlphaCatan AI – Development Roadmap v2.0
 
-## Phase 0 – Infrastructure
+## Overview
+Build an AlphaZero-style AI for simplified Catan (open hands, no trading) using Rust and Candle, deployable as 'Z' player in simulate.rs.
+
+**Key Simplifications Working in Your Favor:**
+- Open hands eliminate imperfect information challenges
+- No trading reduces action space complexity by ~70%
+- Fixed board topology suits CNN architectures well
+- Deterministic state transitions (except dice) simplify MCTS
+
+## Phase 0 – Infrastructure & Benchmarking ✓
 - [x] Simulate matches between bots
-- [ ] Ensure `simulate.rs` supports large batch runs
-- [ ] Add win-rate, mean VP, variance tracking
+- [x] Basic win-rate tracking
+- [ ] **Enhanced Metrics Collection**
+  - Track mean VP, variance, game length distributions
+  - Per-phase timing analysis (setup vs main game); branching factor per phase
+  - Action entropy and visit entropy per move (measure exploration vs exploitation)
+  - Elo rating and SPRT gating between checkpoints
+  - Deterministic seeding: record RNG seeds for dice, MCTS, and self-play per game
+  - Persist metrics to CSV/Parquet with a versioned schema for longitudinal analysis
+  - **Validation**: RandomPlayer baseline established (1000+ games)
 
-## Phase 1 – Search-Based Baseline
-**Goal:** Beat `RandomPlayer` without ML  
-- Implement Alpha-Beta or MCTS (no NN)
-- Use static eval function:
-  - Victory Points (VP)
-  - Resource count/variety
-  - Production probability
-- Add action masking to reduce branching factor
+### Current Progress (Week 1)
+- Implemented a minimal single-threaded pure MCTS `AlphaZeroPlayer` ('Z')
+- Integrated into `simulate.rs` and verified end-to-end play
+- Initial result vs ValueFunction (VZ, n=1): AlphaZero loses; avg 185 turns; ~3.06s/game
+- Added time-bounded search and short playout caps for responsiveness
+ - Added smart rollout policy (60/30/10) and deterministic seeding per move
+ - Introduced PUCT selection with heuristic priors (net-ready seam), and a tiny TT accumulator
 
-## Phase 2 – State Encoding
-**Approach:** 7×7×C CNN-friendly tensor (Graph-Tensor Encoding)  
-- Axial hex → 7×7 grid mapping
-- Channels (example):
-  1. Tile type
-  2. Dice value (normalized)
-  3. Robber position
-  4–11. Settlements/cities per player
-  12–15. Roads per player
-  16. Harbors
-  17. Dev cards (open hand)
-  18. Trade ratios / markers
-- Batch encoding for simulation speed
+### Next Immediate Targets
+- Reuse search tree between moves (re-rooting); bootstrap children with TT stats
+- Add basic determinism tests and per-move time budget enforcement tests
+- Prepare Candle integration behind feature flag (`candle`) with stub `AlphaZeroNet`
+  
+## Phase 1 – MCTS Foundation (No NN)
+**Goal:** Beat RandomPlayer >80%, approach GreedyPlayer performance
 
-## Phase 3 – CNN Policy-Value Network
-**Architecture:** ResNet-6, 64 channels, dual heads  
-- **Policy head:** 289 actions (hierarchical or flat)
-- **Value head:** Win probability
-- Integrate with bot for decision-making
+### Core Implementation in `alphaZero.rs`
+- **PUCT-based MCTS** with configurable exploration constant (start c_puct ≈ 1.5–2.0)
+- **Progressive Simulation** (MiniZero approach):
+  - Start with 100 simulations/move
+  - Scale to 800 by endgame
+  - Formula: `sims = min(100 + turn * 20, 800)`
+- **Tree Reuse**: Maintain subtree between moves
+- **Virtual Loss**: -0.3 to -0.5 during parallel expansions
 
-## Phase 4 – Self-Play + Training
-**AlphaZero-style loop:**
-1. MCTS guided by NN policy/value
-2. Store `(state, policy, value)` triples
-3. Train NN with:
-   - Policy loss (cross-entropy)
-   - Value loss (MSE)
-   - L2 regularization
-4. Iterate → stronger agent
+### Chance Handling (Dice & Robber)
+- Prefer explicit chance nodes for dice rolls (expectimax-style with 11 outcomes weighted by probability) for stable backups
+- Alternative: stochastic sampling per simulation (lower branching, higher variance). Choose one and keep consistent with TT hashing
+- Ensure robber-related randomness is represented deterministically in the node/state (e.g., via explicit actions for robber movement and victim selection)
 
-## Phase 5 – Optimization & Extensions
-- GPU acceleration with Candle
-- Memory-efficient batching (contiguous, in-place ops)
-- Parallel self-play workers
-- Add full rules: hidden hands, discard choices
-- Research GNN variant for board-size flexibility
+### Critical Optimizations
+- **Transposition Table** using Zobrist hashing:
+  - Hash: settlements, cities, roads, robber position, bank stocks, largest army/longest road ownership, dev deck composition/remaining, per-player piece stocks, and any flags needed for setup phase
+  - Cache size: 100K positions initially
+- **Progressive Widening** for build phase:
+  - Tie widening to visitation and empirical branching factor rather than a fixed formula
+  - Seed early children using domain priors (production value, connectivity, port leverage)
+- **Smart Rollout Policy** (not random):
+  - 60% exploit: choose highest production value
+  - 30% explore: uniform random
+  - 10% strategic: longest road/largest army progress
+  - Remove rollouts entirely once a value head is integrated
+- **Concurrency & Node Storage**:
+  - Use an arena allocator with stable node indices; hot fields updated via atomics
+  - Keep per-node hot data in a structure-of-arrays layout for cache locality
+  - Shard the TT or use a lock-free map to reduce contention
 
-## AlphaCatan Roadmap (Detailed)
+### Leaf Evaluation (No NN Yet)
+```
+value = w1 * vp_ratio + 
+        w2 * production_score +
+        w3 * resource_diversity +
+        w4 * port_access +
+        w5 * longest_road_potential +
+        w6 * dev_card_value
+```
+Initial weights: [0.4, 0.2, 0.15, 0.1, 0.1, 0.05]
 
-This section refines the plan with concrete milestones and engineering details tailored for a performant Rust backend, efficient NN integration via Candle, and robust benchmarking.
+**Validation Milestone**: 
+- Win rate vs RandomPlayer: >80% (1000 games)
+- Win rate vs GreedyPlayer: >40% (500 games)
+- Average game tree size: 5000-10000 nodes
 
-### Phase 0 — Infra and Bench (strength prerequisites)
-- Determinism: fixed seeds, canonical edge IDs (done), reproducible builds.
-- Simulator UX: batch mode, CSV/JSON metrics (win-rate, mean VP, stdev, turns).
-- Eval harness: head-to-head matrix (Random, Greedy, AlphaBeta, MCTS), ELO, significance tests.
-- CI gates: cargo fmt/clippy/test; nightly “league” run with trend charts.
+### Status
+- Minimal MCTS online (single-thread); no TT/tree reuse yet
+- Using stochastic playouts with caps; selection via average value + exploration
 
-### Phase 1 — MCTS Baseline (drop Alpha-Beta)
-- Core: PUCT MCTS with tree reuse across moves; limit sims/time.
-- Search quality:
-  - Progressive widening for large branching (build phases).
-  - Transposition table (Zobrist hash over roads/buildings/robber/dev state).
-  - Heuristic rollout policy (not random): prioritize high-prod nodes, road connectivity, port usage.
-  - Leaf eval (no NN): weighted features − effective production, resource diversity, distance-to-next-build, longest-road/army potential, 7-risk, dev leverage.
-  - Optional RAVE/AMAF and virtual loss for parallel sims.
-- Hidden info: determinization of unseen hands/dev deck; average over K samples.
-- Action masking: legal-only, and simple trade abstraction before full trading.
-- Measurable goal: >80% vs Random over 1k games; parity or better vs Greedy.
+## Phase 2 – State Encoding & Action Masking
 
-### Phase 2 — State Encoding (keep flexible)
-- Prefer graph-native encoding (roads/nodes/tiles as typed graph) for future GNN.
-- If keeping 7×7 grid, add channels for: Tile type, dice number, robber, ports, per-player settlements/cities/roads, bank rates/hand counts (public), phase flags.
-- Batched encoders; masks for legal actions generated alongside tensors.
+### State Tensor Design (7×7×C or Graph)
+**Recommended: Start with CNN-friendly 7×7 grid** (switch to GNN later if needed)
 
-### Phase 3 — Policy-Value Network (right-size and outputs)
-- Start minimal (ResNet-6 or Tiny GNN); upgrade later.
-- Outputs:
-  - Policy: hierarchical, masked heads — Node actions (settlement/city), Edge actions (road), Dev plays, Trade templates.
-  - Value: win prob from current player perspective.
-- Losses: CE(policy) + MSE(value) + L2; temperature/Dirichlet for exploration.
-- Calibrate value head (ECE/Platt).
+#### Channel Layout (23 channels total):
+```rust
+// Spatial channels (per hex): 0-6
+0: Desert/Water mask
+1-6: Resource types (one-hot)
 
-### Phase 4 — AlphaZero-style Loop
-- Self-play with NN-guided MCTS; store (state, policy, value).
-- Replay buffer (e.g., 1–5M samples), prioritized by novelty/outcome.
-- Train (AdamW, cosine LR, mixed precision), periodic evaluations with gating.
-- Model registry and rollback.
+// Dice channels: 7-8  
+7: Dice number (normalized /12)
+8: Production probability
 
-### Phase 5 — Performance & Completeness
-- Parallel self-play workers; shared inference service (batching).
-- Quantization for inference; memory pools for state clones.
-- Expand rules: discard decisions, domestic trade negotiation (start with templates).
-- Opponent modeling (later).
+// Player pieces (4 players × 3): 9-20
+9-12: Player settlements
+13-16: Player cities  
+17-20: Player roads (edge encoding)
 
-### Phase 6 — Productization
-- Integrate difficulty knobs (sims/time, heuristics weight).
-- Telemetry: per-decision stats (depth, visits, best-k).
-- Safety: timeouts, graceful degradation to heuristic when budget exceeded.
+// Game state: 21-22
+21: Robber position
+22: Harbor types
+```
 
-### Immediate next steps (low-risk, high-impact)
-- Wire MctsPlayer into: Bot decision path; Analyze endpoint (replace rollouts).
-- Add transposition table + progressive widening.
-- Implement leaf evaluation + simple rollout policy.
-- Enhance simulator: batch runs + metrics export.
-- Add request_id already in place to evaluate analyze at scale.
+#### Player-relative encoding & symmetries
+- Encode the current player's pieces/features in fixed channels; rotate other players by seat order
+- Precompute rotational/reflectional symmetry maps for hexes, nodes, and edges; use symmetry augmentation during training
 
-### Milestones
-- M1: MCTS baseline beats Random >80%.
-- M2: With heuristics/TT/widening, beats Greedy by >60%.
-- M3: NN policy/value integrated; strong vs scripted baselines; human evals.
+#### Additional per-state features (non-spatial)
+- Bank stocks (roads/settlements/cities remaining per player; resource bank optional if used)
+- Dev deck composition remaining; flags for largest army/longest road and thresholds
+- Turn number and phase indicators (setup vs main game)
+
+### Action Space Design
+**Hierarchical Action Decomposition** (reduces 1000+ → ~200 actions):
+```rust
+enum ActionType {
+    BuildSettlement(NodeId),  // ~54 nodes
+    BuildCity(NodeId),        // ~54 nodes  
+    BuildRoad(EdgeId),        // ~72 edges
+    PlayDevCard(DevType),     // ~5 types
+    MoveRobber(HexId),       // 19 hexes
+    BuyDevelopmentCard,       // purchase action (consumes resources)
+    ChooseRobberVictim(PlayerId), // when applicable
+    DiscardOnSeven { counts: [u8; 5] }, // if using discard rules
+    SetupPlacement { settlement: NodeId, road: EdgeId }, // initial phase
+    EndTurn,                  // 1 action
+}
+```
+
+### Action Masking Implementation
+- Generate legal move mask alongside state encoding
+- **Off-Policy Invalid Action Masking (Off-PIAM)** approach
+- Mask invalid actions with a numerically stable masked softmax (add large negative to invalid logits)
+- Cache mask computation (changes infrequently)
+
+**Validation**: 
+- State encoding/decoding round-trip test
+- Legal action generation matches game engine 100%
+- Encoding performance: <1ms per state
+
+## Phase 3 – Neural Network Architecture
+
+### Candle-based ResNet Implementation
+```rust
+// In alphaZero.rs
+struct AlphaZeroNet {
+    // Initial convolution
+    conv_block: ConvBlock,     // 3×3, 64 filters
+    
+    // Residual tower (start small)
+    res_blocks: Vec<ResBlock>, // 6 blocks, 64 filters
+    
+    // Dual heads
+    policy_head: PolicyHead,   // Conv → Dense(256) → Dense(actions)
+    value_head: ValueHead,     // Conv → Dense(256) → Dense(1) → tanh
+}
+```
+
+### Key Candle Considerations
+- Use `candle_nn` for layer abstractions
+- Implement custom ResBlock with skip connections
+- Prefer GroupNorm or LayerNorm for stability with small/self-play batches
+- **Critical**: Ensure deterministic forward pass for debugging
+
+### Training Configuration
+- Optimizer: AdamW (lr=0.001, weight_decay=0.0001)
+- Batch size: 32 (memory permitting)
+- Loss: `0.5 * MSE(value) + CrossEntropy(policy) + 0.0001 * L2`
+- **Mixed precision**: Use f16 for forward pass, f32 for gradients
+- Gradient clipping (global norm 1.0–2.0)
+- Cosine learning-rate decay with warmup
+- EMA of parameters for evaluation checkpoints
+- Compute masking/log-softmax for policies in fp32 for numerical safety
+
+**Validation**:
+- Network processes batch of 32 states in <100ms
+- Policy head outputs sum to 1.0 (after softmax)
+- Value head outputs in [-1, 1] range
+
+## Phase 4 – Self-Play Training Loop
+
+### AlphaZero Training Pipeline
+```rust
+// Main training loop in alphaZero.rs
+loop {
+    // 1. Self-play generation (parallel)
+    let games = parallel_self_play(
+        network: &current_net,
+        num_games: 100,
+        mcts_sims: 400,
+        temperature: 1.0 → 0.1 (after move 30)
+    );
+    
+    // 2. Add to replay buffer (circular, 100K positions)
+    replay_buffer.extend(games);
+    
+    // 3. Sample and train
+    for _ in 0..1000 {
+        let batch = replay_buffer.sample(32);
+        train_step(&mut network, batch);
+    }
+    
+    // 4. Evaluate and checkpoint
+    if iteration % 10 == 0 {
+        evaluate_and_save(&network);
+    }
+}
+```
+
+### Critical Implementation Details
+- **Batched inference**: inference worker batches leaf evaluations across threads (max batch size, short flush timeout)
+- **Dirichlet noise** at root: scale α with |legal_actions| (e.g., α ≈ 10 / |A|, clipped to [0.03, 0.5]); ε=0.25
+- **Temperature schedule**: 1.0 for exploration → 0.1 for exploitation
+- **Value target**: Use game outcome (not Q-values initially)
+- **Progressive simulation increase**: Start 100 → 800 over 50 iterations
+- **Replay buffer**: shard to disk, maintain an in-memory recency window; sample with recency bias (e.g., 0.7 recent / 0.3 uniform)
+- **Evaluation & gating**: fixed-seed boards, opponent pool (Random, Greedy, baseline MCTS, last N checkpoints); Elo + SPRT acceptance
+
+### Gumbel Improvements (Phase 4.5)
+- Replace standard PUCT with Gumbel AlphaZero
+- Sample actions without replacement using Gumbel-Max
+- **Proven to improve with limited simulations** (your use case)
+- Apply mask to logits before Gumbel sampling; consider enabling once vanilla MCTS is stable
+
+**Validation Milestones**:
+- Iteration 10: Beats RandomPlayer >95%
+- Iteration 25: Beats GreedyPlayer >60%
+- Iteration 50: Beats pure MCTS >70%
+- Network learns opening preferences (high-production spots)
+
+## Phase 5 – Optimization & Polish
+
+### Performance Optimizations
+- **Batched inference**: Queue leaf evaluations, process together
+- **State caching**: LRU cache for repeated positions
+- **Candle-specific**:
+  - Pre-allocate tensors where possible
+  - Use `no_grad()` context for inference
+  - Profile with `cargo flamegraph`
+- **Node layout & concurrency**:
+  - Structure-of-arrays for hot fields (visits, value_sum, prior)
+  - Contiguous child ranges per node for cache-friendly traversal
+  - Thread pool with work-stealing; sharded locks or lock-free structures to avoid global contention
+- **Device management**:
+  - Automatic device selection; adapt batch size under memory pressure; CPU fallback path
+
+### Integration Requirements
+- Implement `Player` trait for AlphaZeroPlayer
+- Add 'Z' designation in simulate.rs
+- Configuration via TOML/JSON:
+  ```toml
+  [alphazero]
+  model_path = "models/latest.safetensors"
+  mcts_simulations = 800
+  temperature = 0.1
+  use_gpu = true
+  ```
+  - Place implementations under `back/src/players/alphazero_{mcts,net}.rs` and `alphazero.rs`
+  - Centralize hyperparameters and expose via CLI and config; keep defaults minimal and overridable
+
+### Testing & Validation Suite
+```rust
+#[cfg(test)]
+mod tests {
+    // Unit tests for MCTS operations
+    test_mcts_expansion()
+    test_ucb_calculation()
+    test_backup_propagation()
+    
+    // Integration tests
+    test_full_game_play()
+    test_deterministic_play()
+    test_time_constraints()
+}
+```
+Additional testing:
+- Property tests for state encoding/decoding and legality parity (e.g., with `proptest`)
+- Symmetry tests across rotations/reflections
+- Determinism tests under fixed seeds (forward pass and MCTS stats)
+- Time-boxed search stability under wall-clock deadlines
+
+## Expected Pain Points & Solutions
+
+### 1. **Candle Learning Curve**
+- **Issue**: Limited RL examples in Candle ecosystem
+- **Solution**: Reference Candle's MNIST/ResNet examples, implement layers incrementally
+- **Fallback**: Port minimal PyTorch model if needed
+
+### 2. **MCTS Performance**
+- **Issue**: Rust MCTS might be slower than expected initially
+- **Solution**: Profile aggressively; batch inference and use a work-stealing thread pool
+- **Key**: Avoid excessive cloning; use an arena + atomics for thread-safe nodes and sharded/lock-free TT
+
+### 3. **GPU Memory Management**
+- **Issue**: Candle's GPU memory handling differs from PyTorch
+- **Solution**: Explicit tensor cleanup, batch size tuning
+- **Monitor**: GPU memory usage during self-play
+
+### 4. **Training Convergence**
+- **Issue**: Network may overfit to self-play
+- **Solution**: Maintain opponent pool, add noise, use dropout (0.3)
+- **Track**: Policy entropy over time (shouldn't collapse)
+
+### 5. **State Representation Bugs**
+- **Issue**: Mismatch between game state and tensor encoding
+- **Solution**: Extensive unit tests, visual debugging tools
+- **Critical**: Canonical ordering for roads/edges
+
+## Success Metrics
+
+### Week 1-2: MCTS Baseline
+- [ ] Pure MCTS beats RandomPlayer >80%
+- [ ] Tree search handles 10K+ nodes efficiently
+- [ ] Rollout policy shows strategic improvement
+
+### Week 3-4: Neural Network Integration  
+- [ ] Network trains without NaN/Inf issues
+- [ ] Self-play generates diverse games
+- [ ] GPU utilization >60% during training
+
+### Week 5-6: Convergence & Optimization
+- [ ] AlphaZero beats all scripted players
+- [ ] Inference time <100ms per move
+- [ ] Model size <10MB (quantized)
+
+### Final Validation
+- [ ] 100-game match vs best scripted player: >70% win rate
+- [ ] Human playtesting: "feels intelligent"
+- [ ] Deployment: Works seamlessly with 'Z' flag
+
+## Next Steps After MVP
+
+1. **Expand to full Catan rules** (trading, hidden hands)
+2. **Implement GNN architecture** for board flexibility
+3. **Multi-agent training** with different play styles
+4. **Transfer learning** from 4-player to 3/5/6 players
+5. **Explainability**: Attention visualization, move explanations
+
+## Key Research References
+- MiniZero progressive simulation strategies
+- Gumbel AlphaZero for limited budget MCTS
+- Off-PIAM for action masking
+- Candle ResNet examples for architecture patterns
+
+---
+*Remember: Start simple, validate often, profile everything. The simplified rules work in your favor - embrace them for faster iteration!*
