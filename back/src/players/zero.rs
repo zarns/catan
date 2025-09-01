@@ -12,9 +12,9 @@ use crate::state::State;
 use super::BotPlayer;
 
 // Hyperparameters
-const ALPHAZERO_DEFAULT_SIMULATIONS: usize = 50;
+const ALPHAZERO_DEFAULT_SIMULATIONS: usize = 400;
 const ALPHAZERO_EXPLORATION_CONSTANT: f64 = 1.5;
-const MCTS_DECIDE_TIME_BUDGET_MS: u64 = 50;
+const MCTS_DECIDE_TIME_BUDGET_MS: u64 = 500;
 const MCTS_PLAYOUT_MAX_STEPS: usize = 200;
 const SMART_ROLLOUT_EXPLOIT_PCT: f64 = 0.60;
 const SMART_ROLLOUT_EXPLORE_PCT: f64 = 0.30; // remainder is strategic

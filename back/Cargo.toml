@@ -43,3 +43,7 @@ candle-nn = "0.9.1"
 [[bin]]
 name = "simulate"
 path = "src/bin/simulate.rs"
+
+[[bin]]
+name = "train"
+path = "src/bin/train.rs"
