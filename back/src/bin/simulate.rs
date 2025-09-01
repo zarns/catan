@@ -2,7 +2,7 @@ use catan::enums::Action;
 use catan::game::*;
 use catan::players::{
     AlphaBetaPlayer, BotPlayer, GreedyPlayer, RandomPlayer, ValueFunctionPlayer,
-    WeightedRandomPlayer,
+    WeightedRandomPlayer, AlphaZeroPlayer,
 };
 use std::collections::HashMap;
 use std::env;
@@ -71,7 +71,7 @@ fn main() {
     let mut timeout_vp_sum: u64 = 0; // sum of total VP across players at timeout
     let mut no_actions_vp_sum: u64 = 0; // sum of total VP across players at no-actions
 
-    // Build bot lineup from players_config (R,G,W,A)
+    // Build bot lineup from players_config (R,G,W,A,Z)
     let (bots, bot_labels) = build_bots_from_config(&players_config);
 
     for game_num in 0..num_games {
@@ -556,6 +556,14 @@ fn build_bots_from_config(config: &str) -> (Vec<Box<dyn BotPlayer>>, Vec<String>
                     i as u8,
                 )));
                 labels.push("Value".to_string());
+            }
+            'Z' | 'z' => {
+                bots.push(Box::new(AlphaZeroPlayer::new(
+                    format!("player_{i}"),
+                    format!("AlphaZero {i}"),
+                    colors[i % colors.len()].to_string(),
+                )));
+                labels.push("AlphaZero".to_string());
             }
             'G' | 'g' => {
                 bots.push(Box::new(GreedyPlayer::new(

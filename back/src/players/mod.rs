@@ -18,6 +18,7 @@ pub mod minimax;
 pub mod random;
 pub mod value;
 pub mod weighted_random;
+pub mod zero;
 // pub mod mcts;  // Keep disabled for now - may need fixes
 
 // Re-export player implementations for ease of use
@@ -27,5 +28,6 @@ pub use self::minimax::AlphaBetaPlayer;
 pub use self::random::RandomPlayer;
 pub use self::value::ValueFunctionPlayer;
 pub use self::weighted_random::WeightedRandomPlayer;
+pub use self::zero::AlphaZeroPlayer;
 
 // BotPlayer trait is defined above
