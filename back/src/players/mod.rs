@@ -15,6 +15,7 @@ pub trait BotPlayer {
 pub mod greedy;
 pub mod human;
 pub mod minimax;
+pub mod nn;
 pub mod random;
 pub mod value;
 pub mod weighted_random;
@@ -28,6 +29,7 @@ pub use self::minimax::AlphaBetaPlayer;
 pub use self::random::RandomPlayer;
 pub use self::value::ValueFunctionPlayer;
 pub use self::weighted_random::WeightedRandomPlayer;
+// nn module exposes helper to get a default net (feature-gated)
 pub use self::zero::AlphaZeroPlayer;
 
 // BotPlayer trait is defined above

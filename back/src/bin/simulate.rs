@@ -1,8 +1,8 @@
 use catan::enums::Action;
 use catan::game::*;
 use catan::players::{
-    AlphaBetaPlayer, BotPlayer, GreedyPlayer, RandomPlayer, ValueFunctionPlayer,
-    WeightedRandomPlayer, AlphaZeroPlayer,
+    AlphaBetaPlayer, AlphaZeroPlayer, BotPlayer, GreedyPlayer, RandomPlayer, ValueFunctionPlayer,
+    WeightedRandomPlayer,
 };
 use std::collections::HashMap;
 use std::env;

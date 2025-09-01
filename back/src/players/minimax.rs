@@ -433,6 +433,12 @@ impl SearchStats {
     }
 }
 
+impl Default for SearchStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone, Copy)]
 struct SearchCtx {
     depth: i32,
@@ -735,7 +741,7 @@ impl AlphaBetaPlayer {
 
         let rel = my_score - avg_opponent_score;
         debug_assert!(rel.is_finite());
-        debug_assert!(rel.abs() < 1e6, "suspicious eval magnitude: {}", rel);
+        debug_assert!(rel.abs() < 1e6, "suspicious eval magnitude: {rel}");
         rel
     }
 
@@ -2094,7 +2100,7 @@ impl BotPlayer for AlphaBetaPlayer {
         // Report stats
         if SEARCH_STATS_ENABLED {
             eprintln!("{}", self.stats.borrow().report());
-            eprintln!("Selected: {:?} with value {:.2}", best_action, best_value);
+            eprintln!("Selected: {best_action:?} with value {best_value:.2}");
         }
 
         // Restore previous logging level after search
