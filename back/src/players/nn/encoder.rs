@@ -86,7 +86,10 @@ pub fn encode_state_tensor(state: &State, device: &candle::Device) -> candle::Re
     for color in 0..num_players {
         // Settlements
         for b in state.get_settlements(color as u8) {
-            if let Some(adj) = map.get_adjacent_tiles(match b { crate::state::Building::Settlement(_, node) => node, _ => 0 }) {
+            if let Some(adj) = map.get_adjacent_tiles(match b {
+                crate::state::Building::Settlement(_, node) => node,
+                _ => 0,
+            }) {
                 for land in adj {
                     if let Some(&coord) = id_to_coord.get(&land.id) {
                         if let Some((x, y)) = to_grid(coord) {
@@ -98,7 +101,10 @@ pub fn encode_state_tensor(state: &State, device: &candle::Device) -> candle::Re
         }
         // Cities
         for b in state.get_cities(color as u8) {
-            if let Some(adj) = map.get_adjacent_tiles(match b { crate::state::Building::City(_, node) => node, _ => 0 }) {
+            if let Some(adj) = map.get_adjacent_tiles(match b {
+                crate::state::Building::City(_, node) => node,
+                _ => 0,
+            }) {
                 for land in adj {
                     if let Some(&coord) = id_to_coord.get(&land.id) {
                         if let Some((x, y)) = to_grid(coord) {
@@ -157,19 +163,35 @@ fn dice_probability(number: u8) -> f32 {
 
 /// Produce simple fixed-size per-action features for the policy head fusion.
 /// Returns [K, ACTION_FEAT_DIM] in row-major flattened vector.
-pub fn action_features(legal_actions: &[Action]) -> Vec<[f32; crate::players::nn::model::ACTION_FEAT_DIM]> {
+pub fn action_features(
+    legal_actions: &[Action],
+) -> Vec<[f32; crate::players::nn::model::ACTION_FEAT_DIM]> {
     use crate::players::nn::model::ACTION_FEAT_DIM;
     let mut out = Vec::with_capacity(legal_actions.len());
     for a in legal_actions {
         let mut f = [0f32; ACTION_FEAT_DIM];
         match *a {
-            Action::BuildSettlement { .. } => { f[0] = 1.0; }
-            Action::BuildCity { .. } => { f[1] = 1.0; }
-            Action::BuildRoad { .. } => { f[2] = 1.0; }
-            Action::BuyDevelopmentCard { .. } => { f[3] = 1.0; }
-            Action::MoveRobber { .. } => { f[4] = 1.0; }
-            Action::EndTurn { .. } => { f[5] = 1.0; }
-            _ => { f[6] = 1.0; } // other
+            Action::BuildSettlement { .. } => {
+                f[0] = 1.0;
+            }
+            Action::BuildCity { .. } => {
+                f[1] = 1.0;
+            }
+            Action::BuildRoad { .. } => {
+                f[2] = 1.0;
+            }
+            Action::BuyDevelopmentCard { .. } => {
+                f[3] = 1.0;
+            }
+            Action::MoveRobber { .. } => {
+                f[4] = 1.0;
+            }
+            Action::EndTurn { .. } => {
+                f[5] = 1.0;
+            }
+            _ => {
+                f[6] = 1.0;
+            } // other
         }
         out.push(f);
     }

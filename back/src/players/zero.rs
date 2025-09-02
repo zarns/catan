@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::enums::{Action, ActionPrompt};
-use crate::players::nn::{candle_impl::CandleNet, noop_impl::NoopNet, types::PolicyValueNet};
+use crate::players::nn::{candle_impl::CandleNet, types::PolicyValueNet};
 use crate::state::State;
 
 use super::BotPlayer;
@@ -42,14 +42,17 @@ pub struct AlphaZeroPlayer {
     tree: RefCell<Option<SearchTree>>,
     // Last root policy as normalized visit counts for training collection
     last_root_policy: RefCell<Vec<(Action, f32)>>,
+    // Per-instance tuning
+    decide_time_budget_ms: u64,
+    playout_max_steps: usize,
+    // Root action sampling temperature (0 => argmax by visits)
+    root_temperature: f64,
 }
 
 impl AlphaZeroPlayer {
     pub fn new(id: String, name: String, color: String) -> Self {
-        let net: Box<dyn PolicyValueNet> = match CandleNet::new_default_device() {
-            Ok(n) => Box::new(n),
-            Err(_) => Box::new(NoopNet),
-        };
+        let net: Box<dyn PolicyValueNet> =
+            Box::new(CandleNet::new_default_device().expect("Candle device init"));
         Self {
             id,
             name,
@@ -61,6 +64,9 @@ impl AlphaZeroPlayer {
             net,
             tree: RefCell::new(None),
             last_root_policy: RefCell::new(Vec::new()),
+            decide_time_budget_ms: MCTS_DECIDE_TIME_BUDGET_MS,
+            playout_max_steps: MCTS_PLAYOUT_MAX_STEPS,
+            root_temperature: 0.0,
         }
     }
 
@@ -71,10 +77,8 @@ impl AlphaZeroPlayer {
         simulations: usize,
         exploration_constant: f64,
     ) -> Self {
-        let net: Box<dyn PolicyValueNet> = match CandleNet::new_default_device() {
-            Ok(n) => Box::new(n),
-            Err(_) => Box::new(NoopNet),
-        };
+        let net: Box<dyn PolicyValueNet> =
+            Box::new(CandleNet::new_default_device().expect("Candle device init"));
         Self {
             id,
             name,
@@ -86,11 +90,44 @@ impl AlphaZeroPlayer {
             net,
             tree: RefCell::new(None),
             last_root_policy: RefCell::new(Vec::new()),
+            decide_time_budget_ms: MCTS_DECIDE_TIME_BUDGET_MS,
+            playout_max_steps: MCTS_PLAYOUT_MAX_STEPS,
+            root_temperature: 0.0,
         }
     }
 
     pub fn set_seed(&mut self, seed: u64) {
         self.base_seed = seed;
+    }
+
+    /// Construct with full parameter control (useful for training-time speed).
+    pub fn with_parameters_full(
+        id: String,
+        name: String,
+        color: String,
+        simulations: usize,
+        exploration_constant: f64,
+        decide_time_budget_ms: u64,
+        playout_max_steps: usize,
+        root_temperature: f64,
+    ) -> Self {
+        let net: Box<dyn PolicyValueNet> =
+            Box::new(CandleNet::new_default_device().expect("Candle device init"));
+        Self {
+            id,
+            name,
+            color,
+            simulations,
+            exploration_constant,
+            base_seed: DEFAULT_BASE_SEED,
+            tt: RefCell::new(HashMap::new()),
+            net,
+            tree: RefCell::new(None),
+            last_root_policy: RefCell::new(Vec::new()),
+            decide_time_budget_ms,
+            playout_max_steps,
+            root_temperature,
+        }
     }
 }
 
@@ -207,11 +244,8 @@ impl AlphaZeroPlayer {
             .infer_policy_value(&node.state, &node.untried_actions);
         if !pv.priors.is_empty() {
             // If priors look uniform (stub net), blend with heuristic to inject information.
-            let mut prior_map: HashMap<Action, f64> = pv
-                .priors
-                .iter()
-                .map(|(a, p)| (*a, *p as f64))
-                .collect();
+            let mut prior_map: HashMap<Action, f64> =
+                pv.priors.iter().map(|(a, p)| (*a, *p as f64)).collect();
             let is_uniform = {
                 let vals: Vec<f64> = prior_map.values().copied().collect();
                 if vals.is_empty() {
@@ -328,7 +362,7 @@ impl AlphaZeroPlayer {
             self.ensure_priors(t.nodes.get_mut(t.root).expect("root exists"));
         }
 
-        let deadline = Instant::now() + Duration::from_millis(MCTS_DECIDE_TIME_BUDGET_MS);
+        let deadline = Instant::now() + Duration::from_millis(self.decide_time_budget_ms);
         for sim in 0..self.simulations {
             let mut rng = self.new_rng_for_state(root_state, sim as u64);
             if Instant::now() >= deadline {
@@ -434,11 +468,29 @@ impl AlphaZeroPlayer {
                 }
             };
 
-            // Simulation
+            // Leaf evaluation: prefer network value; fallback to short rollout
             let reward = {
-                let st = self.tree.borrow();
-                let t = st.as_ref().unwrap();
-                simulate_random_playout(&t.nodes[expanded_index].state, root_player, &mut rng)
+                // Net value in [-1,1] → map to [0,1] for backup consistency
+                let val_opt = {
+                    let st = self.tree.borrow();
+                    let t = st.as_ref().unwrap();
+                    let leaf_state = &t.nodes[expanded_index].state;
+                    let actions = leaf_state.generate_playable_actions();
+                    let pv = self.net.infer_policy_value(leaf_state, &actions);
+                    Some(pv.value)
+                };
+                if let Some(v) = val_opt {
+                    ((v as f64) + 1.0) * 0.5
+                } else {
+                    let st = self.tree.borrow();
+                    let t = st.as_ref().unwrap();
+                    simulate_random_playout(
+                        &t.nodes[expanded_index].state,
+                        root_player,
+                        &mut rng,
+                        self.playout_max_steps,
+                    )
+                }
             };
 
             // Backpropagation
@@ -478,16 +530,48 @@ impl AlphaZeroPlayer {
             let st = self.tree.borrow();
             let t = st.as_ref().unwrap();
             let root_idx = t.root;
-            let mut best_child = t.nodes[root_idx].children[0];
-            let mut best_visits = t.nodes[best_child].visits;
-            for &child_idx in &t.nodes[root_idx].children {
+            let children = &t.nodes[root_idx].children;
+            // Greedy argmax fallback
+            let mut argmax_child = children[0];
+            let mut argmax_vis = t.nodes[argmax_child].visits;
+            for &child_idx in children {
                 let v = t.nodes[child_idx].visits;
-                if v > best_visits {
-                    best_visits = v;
-                    best_child = child_idx;
+                if v > argmax_vis {
+                    argmax_vis = v;
+                    argmax_child = child_idx;
                 }
             }
-            (best_child, best_visits)
+            // Temperature sampling from visit distribution if enabled
+            if self.root_temperature > 0.0 && children.len() > 1 {
+                let tau = self.root_temperature;
+                let mut weights: Vec<f64> = children
+                    .iter()
+                    .map(|&c| (t.nodes[c].visits as f64).max(1e-9).powf(1.0 / tau))
+                    .collect();
+                let sum: f64 = weights.iter().copied().sum::<f64>().max(1e-12);
+                for w in weights.iter_mut() {
+                    *w /= sum;
+                }
+                let mut rng = self.new_rng_for_state(root_state, 0);
+                let r: f64 = rng.gen::<f64>();
+                let mut cum = 0.0;
+                let mut chosen_opt: Option<usize> = None;
+                for (i, p) in weights.iter().copied().enumerate() {
+                    cum += p;
+                    if r <= cum || i == weights.len() - 1 {
+                        chosen_opt = Some(i);
+                        break;
+                    }
+                }
+                if let Some(i) = chosen_opt {
+                    let chosen_child = children[i];
+                    (chosen_child, t.nodes[chosen_child].visits)
+                } else {
+                    (argmax_child, argmax_vis)
+                }
+            } else {
+                (argmax_child, argmax_vis)
+            }
         };
 
         // Capture normalized visit counts at the root for training before re-rooting
@@ -552,9 +636,14 @@ fn pop_random_action<R: Rng + ?Sized>(actions: &mut Vec<Action>, rng: &mut R) ->
     Some(actions.swap_remove(idx))
 }
 
-fn simulate_random_playout<R: Rng + ?Sized>(start: &State, root_player: u8, rng: &mut R) -> f64 {
+fn simulate_random_playout<R: Rng + ?Sized>(
+    start: &State,
+    root_player: u8,
+    rng: &mut R,
+    max_steps: usize,
+) -> f64 {
     let mut state = start.clone();
-    for _ in 0..MCTS_PLAYOUT_MAX_STEPS {
+    for _ in 0..max_steps {
         if let Some(winner) = state.winner() {
             return if winner == root_player { 1.0 } else { 0.0 };
         }

@@ -39,5 +39,3 @@ pub fn try_save(varmap: &VarMap, path: &str) -> bool {
     }
     varmap.save(p).is_ok()
 }
-
-

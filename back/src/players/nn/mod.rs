@@ -1,7 +1,7 @@
 pub mod candle_impl;
 pub mod encoder;
-pub mod noop_impl;
-pub mod types;
-pub mod model;
+pub mod infer_worker;
 pub mod loader;
+pub mod model;
 pub mod self_play;
+pub mod types;

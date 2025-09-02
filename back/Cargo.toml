@@ -47,3 +47,8 @@ path = "src/bin/simulate.rs"
 [[bin]]
 name = "train"
 path = "src/bin/train.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

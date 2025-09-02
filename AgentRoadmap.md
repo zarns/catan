@@ -33,17 +33,32 @@ Build an AlphaZero-style AI for simplified Catan (open hands, no trading) using 
   - `types.rs` (trait + structs), `noop_impl.rs`, `candle_impl.rs` (device auto-select),
   - `encoder.rs` with `encode_state_tensor()` stub returning [23,7,7] zeros (CHW) and legal action indexer
 - Wired NN priors path in `zero.rs` to call `PolicyValueNet` (falls back to heuristic if empty)
- - Added training binary stub `back/src/bin/train.rs` and registered in Cargo; roadmap step for fleshing self-play & training loop
+ - Added training binary `back/src/bin/train.rs` and registered in Cargo; self-play -> loss -> checkpoint flow runs end-to-end
+ - Enabled CUDA features in Candle and WSL2 GPU setup; training/inference confirm CUDA device usage
+ - Self-play generates experiences (state, visit-count policy, outcome) and saves `models/latest.safetensors`
+ - Implemented policy/value losses and a fast “plumbing” pass over small batches to validate end-to-end
 
 ### Next Immediate Targets
-- Reuse search tree between moves (re-rooting); bootstrap children with TT stats
-- Add basic determinism tests and per-move time budget enforcement tests
-- Implement real encoder features (player-relative channels, dice/robber/ports, roads/settlements/cities)
-- Implement minimal ResNet in Candle with GroupNorm and dual heads
-- Masked softmax for policy in fp32; map logits to legal actions via indexer
-- Add loader for `back/models/latest.safetensors`; replace uniform priors with net outputs
- - Flesh out `train.rs`: self-play collection, replay buffer, losses (CE+0.5*MSE+L2), AdamW, checkpointing
+ - Enable real optimizer updates (AdamW) with 2–3 mini-epochs; keep runs fast
+ - Add a small replay buffer (2K–10K) and multiple updates/iteration
+ - Parallelize self-play with rayon (game-level); add batched inference worker for leaf evaluation with small flush timeout
+ - Enrich encoder (roads channels, ports, fuller player-relative channels)
+ - Evaluation loop: fixed-seed boards vs Random/Greedy; log win-rate/Elo per checkpoint
   
+### Pending TODOs (to resume quickly)
+- Cache NN priors and value in the transposition table
+- Batch leaf evaluations within one MCTS (root-parallel leaf batching)
+- Reduce state cloning using Rc<State> and arena-backed nodes
+- Pre-allocate reusable action buffers in hot paths
+- Enrich encoder channels and complete action masks
+- Add evaluation loop vs Random/Greedy with gating and fixed seeds
+- Implement progressive simulation and temperature schedules for self-play
+- Profile hot paths and optimize (perf/callgrind); track sims/s per move
+- Tune inference worker (flush window/backpressure) and add basic metrics
+- Expand replay buffer with disk sharding and recency-biased sampling
+- Add background async self-play pipeline (producer) feeding training (consumer)
+- Handle dice/robber randomness consistently (explicit chance nodes or policy)
+
 ## Phase 1 – MCTS Foundation (No NN)
 **Goal:** Beat RandomPlayer >80%, approach GreedyPlayer performance
 
